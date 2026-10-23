@@ -1,6 +1,6 @@
 ---
 name: hack-doctor
-description: "Use when a participant's environment might not be ready: Node, Git, Chrome, Kane CLI, Kane auth, the official Kane skill, this plugin, or reaching the event API."
+description: "Use when a participant's environment might not be ready: Node, Git, Chrome, Kane CLI, Kane auth, the official Kane skill, this plugin, the Codex or Claude Code connection to the event server, or reaching the event API."
 ---
 
 # hack-doctor
@@ -16,6 +16,7 @@ Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools 
 ## Procedure
 
 1. Run `kanehack doctor --json` (read-only; it prints versions and pass/fail, never secrets; exit 0 = no failing check, 1 = something to fix). It needs no terminal. Still not installed? Run the installer non-interactively only after the person agrees: `curl -fsSL https://kaneclihack.sh/install.sh | sh -s -- --yes` (Windows: `& ([scriptblock]::Create((irm https://www.kaneclihack.sh/install.ps1))) -Yes`). Without `--yes` it installs nothing when there's no terminal and prints the command to run. If the kanehack CLI isn't available, check by hand: `node -v`, `git --version`, Chrome present, `kane-cli --version`, `kane-cli whoami`.
+   In Codex the doctor also checks `codex` (installed), `codex_skills` (the hack-* skills are in `~/.agents/skills`, with no second copy in `~/.codex/skills`, which makes Codex list each skill twice) and `codex_mcp` (`kane-hack-event` is in `~/.codex/config.toml`; fix: `kanehack connect codex`, then a new session). Claude Code gets `claude_mcp` (fix: `kanehack connect claude`).
 2. For each failing check, give the one fix from the doctor output. Install commands are suggestions: run them only after the person agrees, never with `sudo` on their behalf.
 3. Send the results with `readiness_report` (or `kanehack doctor --report --json`, which sends the same statuses and versions) (`checks[]` with `id`, `status`, `version`). Statuses and versions only: no paths, no env, no usernames.
 4. Re-run the doctor after fixes and report again.
