@@ -7,7 +7,7 @@ The primary telemetry is direct: `kanehack report` (Kane `--agent` NDJSON + exit
 Only this, after the person runs `kanehack hook enable`:
 
 ```json
-{ "event": "session_start | session_end | kane_run_started", "at": "<ISO time>", "host": "codex | claude-code | other" }
+{ "event": "session_start | session_end | kane_run_started", "at": "<ISO time>", "host": "codex" }
 ```
 
 This is not a run report and never creates evidence, so it does not go to `/api/v1/kane/runs`. It needs a metadata-only endpoint that does not exist yet. Until it does, `kanehack hook enable` refuses and says why. That is deliberate: no hook ships before its endpoint has the same redaction and consent checks as the rest of the API.
@@ -27,7 +27,7 @@ This is not a run report and never creates evidence, so it does not go to `/api/
 
 ## Example config (for when the endpoint exists)
 
-Codex `~/.codex/hooks.json` / Claude Code `settings.json` style:
+Codex `~/.codex/hooks.json`:
 
 ```json
 {

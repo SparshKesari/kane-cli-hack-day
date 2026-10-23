@@ -25,8 +25,8 @@ Every MCP tool and `/api/v1` route answers with the same envelope (`src/server/c
 
 - `fallback.text` alone must make the workflow usable in a plain terminal.
 - `links` are filtered to HTTPS on an allowlist (our domain, github.com, devpost.com, testmuai.com, lu.ma). Anything else is dropped server-side.
-- `actions[].requires_human_confirmation` means the agent must get a yes from the person and call again with `explicit_confirmation: true`.
-- `ui_resource` is `null` today. MCP Apps resources (T-MCP-06) are not built; never claim a card rendered in a host.
+- `actions[].requires_human_confirmation` means Codex must get a yes from the person and call again with `explicit_confirmation: true`.
+- `ui_resource` is `null` today. MCP Apps resources (T-MCP-06) are not built; never claim a card rendered in Codex.
 
 ## Registry
 

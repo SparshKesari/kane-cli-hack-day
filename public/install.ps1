@@ -5,21 +5,21 @@
 # (optional), Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
 # and whether the event API answers. It asks before installing anything, and
 # only installs the `kanehack` helper into %USERPROFILE%\.kanehack and the hack-*
-# skills into .agents\skills (plus .claude\skills if you have Claude Code), each
-# from a tarball whose sha256 is pinned below. To make `kanehack` a command it puts
-# a small kanehack.cmd shim in npm's global folder (already on your PATH), or offers
-# to add .kanehack\bin to your user PATH. If you have Codex (or Claude Code), it
-# offers to add the event MCP server to it: the config gets the URL and
-# `kanehack mcp-headers` (prints the auth header when the agent connects), never the
-# token; config.toml is backed up first. No admin rights, no reading your repos or
+# skills into .agents\skills (where Codex reads them), each from a tarball whose
+# sha256 is pinned below. To make `kanehack` a command it puts a small
+# kanehack.cmd shim in npm's global folder (already on your PATH), or offers to add
+# .kanehack\bin to your user PATH. If you have Codex, it offers to add the event
+# MCP server to it: .codex\config.toml gets the URL and `kanehack mcp-headers`
+# (prints the auth header when Codex connects), never the token; config.toml is
+# backed up first. No admin rights, no reading your repos or
 # chat history.
 #
-# No terminal (an AI agent, CI)? Every question is a quiet "no" unless you say yes:
+# No terminal (Codex runs it for you, CI)? Every question is a quiet "no" unless you say yes:
 #   $env:KANEHACK_YES = "1"; irm https://www.kaneclihack.sh/install.ps1 | iex
 #   & ([scriptblock]::Create((irm https://www.kaneclihack.sh/install.ps1))) -Yes
 # Options (or environment variables): -Yes (KANEHACK_YES=1) · -NoPath (KANEHACK_NO_PATH=1)
 # · -NoSkills (KANEHACK_NO_SKILLS=1) · -NoAgents (KANEHACK_NO_AGENTS=1: don't connect
-# Codex / Claude Code) · -Site URL (KANEHACK_SITE).
+# Codex to the event server) · -Site URL (KANEHACK_SITE).
 # A failed download, checksum or install stops with an error (a non-zero exit for
 # `powershell -File` / `pwsh -c`); it never closes your PowerShell window.
 param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [string]$Site)
@@ -28,8 +28,8 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $KanehackVersion = "0.1.3"
-$KanehackSha256 = "ecf3648daec0f40730fbae4e9b7dc9475ab38c2211fe37d747fc87f6367a16fd"
-$SkillsSha256 = "33d189f5d1a4f915e8381c11714e76a6721e32d2bdba6d191a601702930e77b5"
+$KanehackSha256 = "4f78dc1b0fa7ff944a24b91146d4a4da172047ba75b5365bc2feb628ece252c6"
+$SkillsSha256 = "cd832b7a6a0ccfbd664b667b40efea17fab6104c6e0217e2a07188ebb499d7b3"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -78,7 +78,7 @@ if (Have git) { Pass "git" ((git --version) -replace "git version ", "") } else 
 $chromePaths = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe")
 if ($chromePaths | Where-Object { $_ -and (Test-Path $_) }) { Pass "chrome" } else { Fail "chrome" "missing" "Install Google Chrome: Kane drives a real browser" }
 
-if (Have codex) { Pass "codex" } else { Warn "codex" "not found" "Optional: any agent works; the web app works without one" }
+if (Have codex) { Pass "codex" } else { Warn "codex" "not found" "npm i -g @openai/codex   (the web app works without it)" }
 
 if (Have kane-cli) {
   Pass "kane_cli" ((kane-cli --version) | Select-Object -First 1)
@@ -89,12 +89,11 @@ if (Have kane-cli) {
   Warn "kane_auth" "skipped" "Install Kane CLI first"
 }
 
-$skill = @(".claude\skills\kane-cli", ".agents\skills\kane-cli", ".codex\skills\kane-cli") | Where-Object { Test-Path (Join-Path $UserHome "$_\SKILL.md") }
+$skill = @(".agents\skills\kane-cli", ".codex\skills\kane-cli") | Where-Object { Test-Path (Join-Path $UserHome "$_\SKILL.md") }
 if ($skill) { Pass "kane_skill" } else { Warn "kane_skill" "not found" "npx @testmuai/kane-cli-skill" }
 
-# Where agents look for personal skills: .agents\skills (Codex and others) always, plus Claude Code's when present.
+# Where Codex looks for personal skills.
 $skillDirs = @(Join-Path $UserHome ".agents\skills")
-if (Test-Path (Join-Path $UserHome ".claude")) { $skillDirs += Join-Path $UserHome ".claude\skills" }
 # Installer 0.1.2 also copied the skills into .codex\skills. Codex reads that folder as well as
 # .agents\skills, so it listed every hack-* skill twice: those copies (marked .bundle-version) go.
 $CodexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $UserHome ".codex" }
@@ -122,7 +121,7 @@ $cmdShim = Join-Path $bin "kanehack.cmd"
 $entry = Join-Path $Prefix "cli\node_modules\kanehack\bin\kanehack.mjs"
 function InstalledVersion { if (Test-Path $entry) { try { (& node $entry version 2>$null | Select-Object -First 1) } catch { $null } } }
 function WriteShims($dir) {
-  # kanehack.cmd for PowerShell and cmd; an extensionless sh shim for Git Bash (Claude Code's Bash tool on Windows).
+  # kanehack.cmd for PowerShell and cmd; an extensionless sh shim for Git Bash.
   Set-Content -Path (Join-Path $dir "kanehack.cmd") -Value "@echo off`r`nnode `"$entry`" %*" -Encoding ASCII
   $posix = $entry -replace '\\', '/'
   [IO.File]::WriteAllText((Join-Path $dir "kanehack"), "#!/bin/sh`nexec node `"$posix`" `"`$@`"`n")
@@ -178,7 +177,7 @@ if ($wantKh -or $wantSkills) {
         if ($LASTEXITCODE -ne 0) { Fail "hack_skills" "tar failed in $d" "Ask at the help desk"; throw "kanehack installer: tar failed." }
         Set-Content -Path (Join-Path $d "hack-onboard\.bundle-version") -Value $KanehackVersion -Encoding ASCII
       }
-      Pass "hack_skills" "12 skills → $($skillDirs -join ', ') (sha256 verified). Start a new agent session to load them."
+      Pass "hack_skills" "12 skills → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load them."
       if ($hasLegacy) {
         Get-ChildItem $legacySkills -Directory -Filter "hack-*" | Where-Object { Test-Path (Join-Path (Join-Path $skillDirs[0] $_.Name) "SKILL.md") } | Remove-Item -Recurse -Force
         Pass "codex_skills" "removed the old copies in $legacySkills (Codex reads .agents\skills; two copies listed each skill twice)"
@@ -239,9 +238,9 @@ if ($khHave -and (Test-Path $cmdShim)) {
   } elseif (-not $linked -and (OnPath $bin)) { $kh = "kanehack" }
 }
 
-# Connect Codex / Claude Code to the event MCP server. kanehack does the editing (and backs up
-# config.toml first). The agent's config gets the URL plus `kanehack mcp-headers`, which prints the
-# auth header when the agent connects: the token is never written there or printed here.
+# Connect Codex to the event MCP server. kanehack does the editing (and backs up config.toml
+# first). Codex's config gets the URL plus `kanehack mcp-headers`, which prints the auth header
+# when Codex connects: the token is never written there or printed here.
 # A different server with that name is left alone.
 $agentsShown = $false
 function ConnectAgent($agent, $label, $where) {
@@ -264,20 +263,15 @@ if (-not $NoAgents) {
     if ($khReady) { ConnectAgent "codex" "Codex" (Join-Path $CodexDir "config.toml") }
     else { Warn "codex_mcp" "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex" }
   }
-  if (Have claude) {
-    $agentsShown = $true
-    if ($khReady) { ConnectAgent "claude" "Claude Code" "Claude Code's user config" }
-    else { Warn "claude_mcp" "not connected" "Install kanehack first (re-run this script), then: kanehack connect claude" }
-  }
 }
 
 Write-Host "`nNext:"
 Write-Host "  1. $kh pair        link this machine to your passport"
-Write-Host "     (AI agent with no terminal: $kh pair --start, approve the code in your browser, then $kh pair --wait)"
+Write-Host "     (from Codex, no terminal: $kh pair --start, approve the code in your browser, then $kh pair --wait)"
 Write-Host "  2. $kh doctor      re-check your setup"
 Write-Host "  3. $kh report -- kane-cli run `"Open $Site and find the schedule`" --agent"
 Write-Host "     (your first Kane run, sent to your team's Proof tab)"
-if ($agentsShown) { Write-Host '  4. In a new Codex session type $hack-onboard (Claude Code: /hack-onboard)' }
+if ($agentsShown) { Write-Host '  4. In a new Codex session type $hack-onboard' }
 Write-Host "Web: $Site/passport"
 if ($script:NoTtySkips -gt 0) {
   $siteArg = if ($Site -ne $DefaultSite) { " -Site $Site" } else { "" }

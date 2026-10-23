@@ -10,7 +10,7 @@ Twelve participant skills plus the event MCP server for Kane CLI Hack Day.
 |---|---|
 | `plugin.json` | Manifest (name `kane-hack-os`, version 0.1.0). Bump the version on every release. |
 | `mcp.json` | The remote MCP server `kane-hack-event` → `https://www.kaneclihack.sh/mcp`, Streamable HTTP, bearer token from `KANEHACK_TOKEN`. |
-| `skills/hack-*/SKILL.md` | The 12 skills. The same files are mirrored at `.agents/skills/hack-*` for hosts that read repository skills. |
+| `skills/hack-*/SKILL.md` | The 12 skills. The same files are mirrored at `.agents/skills/hack-*`, where Codex finds them when it runs in this repo. |
 | `hooks/README.md` | The optional, opt-in lifecycle hook (off by default). |
 | `GENERATIVE_UI_CONTRACT.md` | How tool envelopes map to UI cards and to plain text. |
 
@@ -42,10 +42,10 @@ npx @testmuai/kane-cli-skill
 ## Connecting
 
 1. Install the helper: `curl -fsSL https://kaneclihack.sh/install.sh | sh` (Windows: `irm https://www.kaneclihack.sh/install.ps1 | iex`). Read it first if you like: it's plain text, checks prerequisites and installs `kanehack` into `~/.kanehack` from a checksummed tarball, without sudo. Don't run `npx kanehack`: that npm name isn't ours. Then `kanehack pair`. Pairing stores a token in `~/.kanehack/config.json` (mode 600) and never prints it.
-2. Connect your agent: the installer offers this when it finds Codex or Claude Code, or run `kanehack connect codex` / `kanehack connect claude`. The agent's config gets the URL `https://www.kaneclihack.sh/mcp` and the headers helper `kanehack mcp-headers`, which prints `{"Authorization":"Bearer …"}` from `~/.kanehack/config.json` each time the agent connects. No token in the agent's config, the environment or the shell history, and re-pairing needs no reconnect. (Use the `www` host: agents refuse the apex's cross-origin redirect.)
-3. In a **new** session, ask "show my Kane Hack OS status". The agent should call `participant_get_status`.
+2. Connect Codex: the installer offers this when it finds Codex, or run `kanehack connect codex`. `~/.codex/config.toml` gets the URL `https://www.kaneclihack.sh/mcp` and the headers helper `kanehack mcp-headers`, which prints `{"Authorization":"Bearer …"}` from `~/.kanehack/config.json` each time Codex connects. No token in Codex's config, the environment or the shell history, and re-pairing needs no reconnect. (Use the `www` host: Codex refuses the apex's cross-origin redirect.)
+3. In a **new** Codex session, ask "show my Kane Hack OS status". Codex should call `participant_get_status`.
 
-`mcp.json` is the plugin-manifest form of the same server for hosts that load plugins; it reads the token from `KANEHACK_TOKEN` because a manifest can't run a helper. Prefer `kanehack connect`.
+`mcp.json` is the plugin-manifest form of the same server; it reads the token from `KANEHACK_TOKEN` because a manifest can't run a helper. Prefer `kanehack connect codex`.
 
 ## Using with Codex
 
@@ -67,9 +67,9 @@ Verified with `codex-cli 0.164.0` (2026-10-23).
 
 Codex notes: it reads skills from `.agents/skills` in the repo (cwd up to the repo root), `~/.agents/skills`, `/etc/codex/skills` and also `$CODEX_HOME/skills`. Installer 0.1.2 copied the skills into `~/.codex/skills` too, so Codex listed each one twice; 0.1.3 removes those copies. To turn one skill off: `[[skills.config]]` with `path = "…/SKILL.md"` and `enabled = false` in `~/.codex/config.toml`. The headers helper runs with `sh -c` (Windows: `cmd /Q /D /C`), a 10 s timeout and only PATH/HOME-style variables, which is why it uses absolute paths and reads the token from the config file. If `kanehack doctor` says `codex_mcp` uses an older setup (for example after a Node upgrade moved `node`), run `kanehack connect codex` again.
 
-## Running under an AI agent (Claude Code /remote-control, Codex)
+## When Codex runs the commands
 
-The agent runs commands through a tool with no terminal, no stdin and a ~2 minute timeout per command (Claude Code: 10 minutes at most). Everything below works there:
+Codex runs commands with no terminal and no stdin, and a long command can hit its time limit. Everything below works there:
 
 ```sh
 # Install (only after the person agrees). Without --yes nothing is installed when there's no terminal,
@@ -87,12 +87,12 @@ kanehack report --json -- kane-cli run "…" --agent   # Kane's NDJSON, then one
 kanehack status --json
 kanehack submit --preflight --json
 
-# The event MCP server, with no token in the agent's config (the installer offers this too):
-kanehack connect codex           # or: kanehack connect claude   (--check: 0 connected · 1 not yet · 2 name taken)
+# The event MCP server, with no token in Codex's config (the installer offers this too):
+kanehack connect codex           # --check: 0 connected · 1 not yet · 2 name taken
 ```
 
-A long Kane run can outlast the default 2 minutes: ask for a longer tool timeout (up to 10 minutes) or run it in the background and read its output when it finishes. On Windows, Claude Code's Bash tool is Git Bash: the installer writes an extensionless `kanehack` shim next to `kanehack.cmd` for it. All exit codes and JSON fields: `packages/kanehack/README.md`.
+A long Kane run can outlast a command time limit: run it in the background and read its output when it finishes. On Windows the installer also writes an extensionless `kanehack` shim next to `kanehack.cmd`, for Git Bash. All exit codes and JSON fields: `packages/kanehack/README.md`.
 
 ## Before announcing (T-PLG-05)
 
-On a clean macOS user (and Windows, if claimed): install Node, run the installer, pair, add the MCP server, open a fresh agent session, confirm the 12 skills are discovered, call `event_get_brief` and `participant_get_status`, and run one `kanehack report` end to end. Record the date, host version and result here. Not done yet.
+On a clean macOS user (and Windows, if claimed): install Node, run the installer, pair, `kanehack connect codex`, open a fresh Codex session, confirm the 12 skills are discovered, call `event_get_brief` and `participant_get_status`, and run one `kanehack report` end to end. Record the date, Codex version and result here. Not done yet.
