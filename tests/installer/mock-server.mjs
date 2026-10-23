@@ -186,7 +186,7 @@ async function handle(req, res) {
     const rpc = parseJson(body);
     mcpAuthed.count++;
     mcpAuthed.methods.push(rpc.method ?? null);
-    // Enough of the MCP handshake for a real agent (Codex, Claude Code) to connect and list tools.
+    // Enough of the MCP handshake for the real Codex to connect and list tools.
     if (rpc.id === undefined || rpc.id === null) return send(res, 202, {});
     if (rpc.method === "initialize") return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: rpc.params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "kane-hack-event-mock", version: "1" } } });
     if (rpc.method === "tools/list") return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { tools: MCP_TOOLS.map((t) => ({ name: t, description: t, inputSchema: { type: "object", properties: {} } })) } });

@@ -37,9 +37,12 @@ function Fresh($name) {
 function RunPS($code, [switch]$Interactive) {
   # The child's stderr must not become a terminating error here (Windows PowerShell 5.1).
   $ErrorActionPreference = "Continue"
-  $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; NPM_CONFIG_PREFIX = $env:NPM_CONFIG_PREFIX; KANEHACK_SITE = $env:KANEHACK_SITE }
+  $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; NPM_CONFIG_PREFIX = $env:NPM_CONFIG_PREFIX; KANEHACK_SITE = $env:KANEHACK_SITE; CODEX_HOME = $env:CODEX_HOME }
   # KANEHACK_SITE so `irm | iex` runs talk to the test server, never production.
   $env:USERPROFILE = $script:H; $env:HOME = $script:H; $env:NPM_CONFIG_PREFIX = $script:Npm; $env:KANEHACK_SITE = $Site
+  # Codex on Windows finds ~ through the OS profile folder (dirs::home_dir), not USERPROFILE, so the
+  # test home is given to it as CODEX_HOME. (For a real user the two are the same folder.)
+  $env:CODEX_HOME = Join-Path $script:H ".codex"
   try {
     $psArgs = @("-NoProfile")
     if (-not $Interactive) { $psArgs += "-NonInteractive" }
@@ -64,12 +67,12 @@ Check "no-tty: no prompt left waiting" (-not (LogHas "[y/N]:")) $Log
 
 # 2. Scriptblock with -Yes, npm's prefix on PATH and writable: install, shim there, plain next steps.
 Fresh "yes"
-New-Item -ItemType Directory -Force -Path $Npm, (Join-Path $H ".claude") | Out-Null
+New-Item -ItemType Directory -Force -Path $Npm | Out-Null
 $env:PATH = "$Npm;$OrigPath"
 $rc = RunPS "$Sb -Yes -Site '$Site'"
 Check "yes: exit 0" ($rc -eq 0) $Log
 Check "yes: kanehack $Version installed (sha256 verified)" ((KhVersion) -eq $Version -and (LogHas "sha256 verified")) $Log
-Check "yes: 12 skills in .agents and .claude" ((@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 12) -and (Test-Path (Join-Path $H ".claude\skills\hack-onboard\SKILL.md"))) $Log
+Check "yes: 12 skills in .agents\skills (where Codex reads them)" (@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 12) $Log
 Check "yes: kanehack.cmd + sh shim in npm's prefix" ((Test-Path (Join-Path $Npm "kanehack.cmd")) -and (Test-Path (Join-Path $Npm "kanehack"))) $Log
 Check "yes: next steps say plain kanehack" ((LogHas "  1. kanehack pair") -and -not (LogHas '& "')) $Log
 Check "yes: -Site saved as kanehack's server" ((Get-Content (Join-Path $H ".kanehack\config.json") -Raw) -match [regex]::Escape($Site)) $Log
@@ -80,7 +83,7 @@ $bash = "C:\Program Files\Git\bin\bash.exe"
 if (Test-Path $bash) {
   # Git Bash turns the Windows PATH (which has the npm prefix) into a POSIX one by itself.
   $v = & $bash -c "kanehack version"
-  Check "yes: ``kanehack`` runs from Git Bash (Claude Code's Bash tool)" ($v -eq $Version) $Log
+  Check "yes: ``kanehack`` runs from Git Bash" ($v -eq $Version) $Log
 } else { Write-Host "# skip Git Bash: not installed" }
 $rc = RunPS "$Sb -Yes -Site '$Site'"
 Check "re-run: idempotent (already installed, already a command, skills current)" ($rc -eq 0 -and (LogHas "already installed") -and (LogHas ("kanehack " + [char]0x2192)) -and -not (LogHas "y (-Yes)")) $Log
@@ -139,10 +142,16 @@ if ($env:CODEX_BIN_DIR) {
   $env:USERPROFILE = $H; $env:HOME = $H; $env:CODEX_HOME = $cxd
   $emptyCwd = Join-Path $Work "empty-cwd"; New-Item -ItemType Directory -Force -Path $emptyCwd | Out-Null
   Push-Location $emptyCwd
+  $profileSkills = Join-Path $saved.USERPROFILE ".agents\skills"
+  $copied = @()
+  if ($env:CI) {
+    New-Item -ItemType Directory -Force -Path $profileSkills | Out-Null
+    foreach ($d in Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*") { if (-not (Test-Path (Join-Path $profileSkills $d.Name))) { Copy-Item -Recurse $d.FullName $profileSkills; $copied += Join-Path $profileSkills $d.Name } }
+  }
   try {
     $g = (& node (Join-Path $Here "codex-probe.mjs") get) | ConvertFrom-Json
     $k = (& node (Join-Path $Here "codex-probe.mjs") skills) | ConvertFrom-Json
-  } finally { Pop-Location; foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) } }
+  } finally { Pop-Location; foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) }; foreach ($c in $copied) { Remove-Item -Recurse -Force $c } }
   Check "codex: codex mcp get kane-hack-event reads it (url, helper)" ($g.code -eq 0 -and $g.json.transport.url -eq "$Site/mcp" -and $g.json.transport.http_headers_helper) $Log
   $names = @($k.hack.PSObject.Properties)
   Check "codex: Codex lists all 12 hack-* skills once each (roots: $($k.roots -join ', '))" ($names.Count -eq 12 -and -not ($names | Where-Object { $_.Value -ne 1 })) $Log

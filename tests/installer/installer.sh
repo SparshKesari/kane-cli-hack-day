@@ -56,12 +56,12 @@ fi
 # 2. --yes with npm's global bin on PATH and writable: installs, links, plain `kanehack` next steps.
 if want yes-link-npm; then
   fresh yes-link-npm
-  mkdir -p "$NPMP/bin" "$H/.claude"
+  mkdir -p "$NPMP/bin"
   PATH="$NPMP/bin:$ORIG_PATH"
   run_install --yes --site "$SITE"; RC=$?
   check "yes: exit 0" '[ "$RC" -eq 0 ]' "$LOG"
   check "yes: kanehack $VERSION installed (sha256 verified)" '[ "$(installed_version)" = "$VERSION" ] && grep -q "sha256 verified" "$LOG"' "$LOG"
-  check "yes: skills in ~/.agents/skills and ~/.claude/skills" '[ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ -f "$H/.claude/skills/hack-verify/SKILL.md" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 12 ]' "$LOG"
+  check "yes: 12 skills in ~/.agents/skills (where Codex reads them)" '[ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 12 ]' "$LOG"
   check "yes: linked into npm's global bin" '[ -L "$NPMP/bin/kanehack" ] && grep -q "kanehack → $NPMP/bin/kanehack" "$LOG"' "$LOG"
   check "yes: \`kanehack\` resolves on PATH right away" '[ "$(HOME="$H" kanehack version)" = "$VERSION" ]' "$LOG"
   check "yes: next steps say plain \`kanehack pair\`" 'grep -q "^  1. kanehack pair" "$LOG" && ! grep -q "\.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
@@ -76,13 +76,13 @@ if want yes-link-npm; then
   echo "$H" > "$WORK/installed-home"
 fi
 
-# 3b. A HOME with a space in it (and ~/.claude present): every path stays one path.
+# 3b. A HOME with a space in it: every path stays one path.
 if want space-home; then
   fresh "space home"
-  mkdir -p "$NPMP/bin" "$H/.claude"
+  mkdir -p "$NPMP/bin"
   PATH="$NPMP/bin:$ORIG_PATH"
   run_install --yes --site "$SITE"; RC=$?
-  check "space in HOME: installed, both skill dirs, linked" '[ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && [ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ -f "$H/.claude/skills/hack-onboard/SKILL.md" ] && [ -L "$NPMP/bin/kanehack" ] && [ ! -e "$WORK/space" ]' "$LOG"
+  check "space in HOME: installed, skills, linked" '[ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && [ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ -L "$NPMP/bin/kanehack" ] && [ ! -e "$WORK/space" ]' "$LOG"
 fi
 
 # 4. ~/.local/bin on PATH (npm bin isn't): link there.
@@ -182,10 +182,10 @@ if want codex; then
   check "codex: next steps mention \$hack-onboard" 'grep -qF "type \$hack-onboard" "$LOG"' "$LOG"
   if [ -n "${CODEX_BIN_DIR:-}" ]; then
     G="$(env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" get)"
-    check "codex: codex mcp get kane-hack-event reads it (url, helper)" 'echo "$G" | grep -qF "\"url\":\"$SITE/mcp\"" && echo "$G" | grep -q "\"http_headers_helper\":\"<redacted>\""' "$LOG"
+    check "codex: codex mcp get kane-hack-event reads it (url, helper)" 'printf "%s\n" "$G" | grep -qF "\"url\":\"$SITE/mcp\"" && printf "%s\n" "$G" | grep -q "\"http_headers_helper\":\"<redacted>\""' "$LOG"
     mkdir -p "$WORK/empty-cwd"
     K="$(cd "$WORK/empty-cwd" && env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" skills)"
-    check "codex: Codex lists all 12 hack-* skills once each" 'echo "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===12&&Object.values(h).every(n=>n===1)?0:1)})"' "$LOG"
+    check "codex: Codex lists all 12 hack-* skills once each" 'printf "%s\n" "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===12&&Object.values(h).every(n=>n===1)?0:1)})"' "$LOG"
   else echo "# skip codex binary checks: CODEX_BIN_DIR not set"; fi
   cp "$CFG" "$WORK/codex-before"
   run_install --yes --site "$SITE"; RC=$?

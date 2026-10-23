@@ -47,7 +47,7 @@ const VERSION = JSON.parse(readFileSync(join(repo, "packages/kanehack/package.js
 // doesn't change the installer tests). Without it the Codex-binary checks are skipped.
 const codexDir = process.env.CODEX_BIN_DIR ?? "";
 const baseEnv = { ...process.env, HOME, USERPROFILE: HOME, KANEHACK_API: API, [PATHKEY]: [fakeBin, codexDir, process.env[PATHKEY]].filter(Boolean).join(WIN ? ";" : ":"), NO_COLOR: "1" };
-for (const k of ["KANEHACK_TOKEN", "CODEX_HOME", "CLAUDE_CONFIG_DIR"]) delete baseEnv[k];
+for (const k of ["KANEHACK_TOKEN", "CODEX_HOME"]) delete baseEnv[k];
 // A git repo for the commit sha in reports.
 const work = join(HOME, "work");
 mkdirSync(work, { recursive: true });
@@ -209,9 +209,18 @@ try {
     const g = codexGet(codexEnv);
     check("codex mcp get kane-hack-event --json: streamable_http, our url, helper set, no bearer env var", g.code === 0 && g.json?.transport?.type === "streamable_http" && g.json?.transport?.url === mcpUrl && Boolean(g.json?.transport?.http_headers_helper) && g.json?.transport?.bearer_token_env_var === null, g.out);
     // Skills: Codex reads ~/.agents/skills. Installed there by the installer (TEST_HOME) or copied here.
-    const agentsSkills = join(HOME, ".agents/skills");
-    if (!existsSync(join(agentsSkills, "hack-onboard/SKILL.md"))) cpSync(join(repo, "plugin/skills"), agentsSkills, { recursive: true });
+    // On Windows Codex finds ~ through the OS profile folder, not USERPROFILE: in CI (a throwaway runner)
+    // the skills are copied under the real profile for this one check and removed again.
+    const agentsSkills = join(WIN ? process.env.USERPROFILE : HOME, ".agents/skills");
+    const copied = [];
+    if (!WIN || process.env.CI)
+      for (const d of readdirSync(join(repo, "plugin/skills"))) {
+        if (existsSync(join(agentsSkills, d))) continue;
+        cpSync(join(repo, "plugin/skills", d), join(agentsSkills, d), { recursive: true });
+        if (WIN) copied.push(join(agentsSkills, d));
+      }
     const sk = codexSkills(codexEnv, work);
+    for (const c of copied) rmSync(c, { recursive: true, force: true });
     const names = Object.keys(sk.hack);
     check("codex debug prompt-input lists all 12 hack-* skills, each once", sk.code === 0 && names.length === 12 && Object.values(sk.hack).every((n) => n === 1), JSON.stringify(sk));
     const st = await codexMcpStatus(codexEnv);
