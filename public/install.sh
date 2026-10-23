@@ -1,13 +1,16 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.2
+# Version: 0.1.3
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, Codex (optional), Kane CLI, Kane auth,
 #     the official Kane CLI skill, the hack skills and whether the event API answers
 #   - asks before it installs anything, and only installs the `kanehack` helper
-#     into ~/.kanehack and the hack-* skills into your agents' skill folders
-#     (each from a tarball whose sha256 is pinned below)
+#     into ~/.kanehack and the hack-* skills into ~/.agents/skills (plus ~/.claude/skills
+#     if you have Claude Code), each from a tarball whose sha256 is pinned below
+#   - if you have Codex (or Claude Code), offers to add the event MCP server to it. Its
+#     config gets the server URL and `kanehack mcp-headers` (which prints the auth header
+#     when the agent connects), never the token itself; config.toml is backed up first
 #   - to make `kanehack` a command, links it into a folder that is already on your
 #     PATH and writable by you (npm's global bin, ~/.local/bin or ~/bin), or offers
 #     one line for your shell profile
@@ -19,33 +22,38 @@
 # No terminal (an AI agent, CI)? Every question is a quiet "no" unless you pass --yes:
 #   curl -fsSL https://kaneclihack.sh/install.sh | sh -s -- --yes
 # Options: --yes (-y) answer yes to every install question · --no-path don't link kanehack or
-# touch your profile · --no-skills don't install the hack-* skills · --site URL another server.
-# The same as environment variables: KANEHACK_YES=1 KANEHACK_NO_PATH=1 KANEHACK_NO_SKILLS=1 KANEHACK_SITE=URL.
+# touch your profile · --no-skills don't install the hack-* skills · --no-agents don't connect
+# Codex / Claude Code to the event server · --site URL another server.
+# The same as environment variables: KANEHACK_YES=1 KANEHACK_NO_PATH=1 KANEHACK_NO_SKILLS=1
+# KANEHACK_NO_AGENTS=1 KANEHACK_SITE=URL.
 # Exit codes: 0 done (problems are listed as ✗ lines) · 1 a download, checksum or install failed · 2 bad option.
 set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.2"
-KANEHACK_SHA256="37334457c5cdf94783f7e3cb5613b04237ac6a9303e8f1193996f3f5338be07f"
-SKILLS_SHA256="6903a221b78f2e9c7789d0dc6545939b4c8523e8f674ab3ed4f6c2bd8ce049b6"
+KANEHACK_VERSION="0.1.3"
+KANEHACK_SHA256="ecf3648daec0f40730fbae4e9b7dc9475ab38c2211fe37d747fc87f6367a16fd"
+SKILLS_SHA256="33d189f5d1a4f915e8381c11714e76a6721e32d2bdba6d191a601702930e77b5"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
 NO_PATH="${KANEHACK_NO_PATH:-}"
 NO_SKILLS="${KANEHACK_NO_SKILLS:-}"
+NO_AGENTS="${KANEHACK_NO_AGENTS:-}"
 case "$YES" in 0|false|no) YES="" ;; esac
 case "$NO_PATH" in 0|false|no) NO_PATH="" ;; esac
 case "$NO_SKILLS" in 0|false|no) NO_SKILLS="" ;; esac
+case "$NO_AGENTS" in 0|false|no) NO_AGENTS="" ;; esac
 while [ $# -gt 0 ]; do
   case "$1" in
     -y|--yes) YES=1 ;;
     --no-path) NO_PATH=1 ;;
     --no-skills) NO_SKILLS=1 ;;
+    --no-agents) NO_AGENTS=1 ;;
     --site) [ $# -ge 2 ] || { echo "install.sh: --site needs a URL" >&2; exit 2; }; SITE="$2"; shift ;;
     --site=*) SITE="${1#--site=}" ;;
-    -h|--help) sed -n '2,25p' "$0" 2>/dev/null || echo "Options: --yes --no-path --no-skills --site URL"; exit 0 ;;
-    *) echo "install.sh: unknown option $1 (try --yes, --no-path, --no-skills, --site URL)" >&2; exit 2 ;;
+    -h|--help) sed -n '2,31p' "$0" 2>/dev/null || echo "Options: --yes --no-path --no-skills --no-agents --site URL"; exit 0 ;;
+    *) echo "install.sh: unknown option $1 (try --yes, --no-path, --no-skills, --no-agents, --site URL)" >&2; exit 2 ;;
   esac
   shift
 done
@@ -116,18 +124,21 @@ SKILL=""
 for d in .claude/skills/kane-cli .agents/skills/kane-cli .codex/skills/kane-cli .gemini/skills/kane-cli; do if [ -f "${HOME}/${d}/SKILL.md" ]; then SKILL=yes; fi; done
 if [ -n "$SKILL" ]; then pass kane_skill; else warn kane_skill "not found" "npx @testmuai/kane-cli-skill"; fi
 
-# Where agents look for personal skills: ~/.agents/skills always, plus Claude Code and Codex when present.
-# One per line, so a HOME with spaces in it works.
+# Where agents look for personal skills: ~/.agents/skills (Codex and others) always, plus Claude Code's
+# when present. One per line, so a HOME with spaces in it works.
 skill_dirs() {
   echo "${HOME}/.agents/skills"
   if [ -d "${HOME}/.claude" ]; then echo "${HOME}/.claude/skills"; fi
-  if [ -d "${HOME}/.codex" ]; then echo "${HOME}/.codex/skills"; fi
 }
 SKILL_DIRS="$(skill_dirs | sed 's/$/,/' | tr '\n' ' ' | sed 's/, *$//')"
+# Installer 0.1.2 also copied the skills into ~/.codex/skills. Codex reads that folder as well as
+# ~/.agents/skills, so it listed every hack-* skill twice: those copies (marked .bundle-version) go.
+CODEX_DIR="${CODEX_HOME:-${HOME}/.codex}"
+LEGACY_SKILLS="${CODEX_DIR}/skills"
 # Missing, or installed by an older bundle: re-offer (the marker file names the bundle version).
-NEED_SKILLS="$(skill_dirs | while IFS= read -r d; do
+NEED_SKILLS="$({ skill_dirs | while IFS= read -r d; do
   if [ ! -f "${d}/hack-onboard/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-onboard/.bundle-version" 2>/dev/null; then echo yes; fi
-done | head -n1)"
+done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then echo yes; fi; } | head -n1)"
 if [ -z "$NEED_SKILLS" ]; then pass hack_skills "${KANEHACK_VERSION}"; else warn hack_skills "not found or older" "Offered below"; fi
 
 # One unauthenticated request: 401 means the API is up and wants a token.
@@ -204,6 +215,12 @@ if [ -n "$WANT_KH" ] || [ -n "$WANT_SKILLS" ]; then
       exit 1
     fi
     pass hack_skills "12 skills → ${SKILL_DIRS} (sha256 verified). Start a new agent session to load them."
+    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then
+      for s in $(tar -tzf "$STGZ" | cut -d/ -f1 | sort -u); do
+        case "$s" in hack-*) rm -rf "${LEGACY_SKILLS:?}/${s}" ;; esac
+      done
+      pass codex_skills "removed the old copies in ${LEGACY_SKILLS} (Codex reads ~/.agents/skills; two copies listed each skill twice)"
+    fi
   fi
 fi
 
@@ -283,6 +300,38 @@ if [ -n "$KH_HAVE" ] && [ -x "${PREFIX}/bin/kanehack" ]; then
   fi
 fi
 
+# ── connect Codex / Claude Code to the event MCP server ──
+# kanehack does the editing (and backs up ~/.codex/config.toml first). The agent's config gets the
+# URL plus `kanehack mcp-headers`, which prints the auth header when the agent connects: the token
+# itself is never written there or printed here. A different server with that name is left alone.
+AGENTS_SHOWN=""
+connect_agent() { # $1 codex|claude  $2 display name  $3 where it's written
+  rc=0; "${PREFIX}/bin/kanehack" connect "$1" --check >/dev/null 2>&1 || rc=$?
+  case "$rc" in
+    0) pass "${1}_mcp" "$2 already connected to the event server (kane-hack-event)" ;;
+    2) warn "${1}_mcp" "another kane-hack-event server is configured; left alone" "Run ${KH} connect $1 to see it" ;;
+    *)
+      if ask "Connect $2 to the event server (adds kane-hack-event to $3; no token is stored)?"; then
+        rc=0; "${PREFIX}/bin/kanehack" connect "$1" || rc=$?
+        if [ "$rc" -eq 0 ]; then pass "${1}_mcp" "$2 → kane-hack-event (pair, then start a new $2 session)"
+        else warn "${1}_mcp" "not connected" "${KH} connect $1"; fi
+      else warn "${1}_mcp" "not connected" "${KH} connect $1"; fi
+      ;;
+  esac
+}
+if [ -z "$NO_AGENTS" ]; then
+  if have codex || [ -d "$CODEX_DIR" ]; then
+    AGENTS_SHOWN=1
+    if [ -n "$KH_HAVE" ] && [ -x "${PREFIX}/bin/kanehack" ]; then connect_agent codex Codex "${CODEX_DIR}/config.toml"
+    else warn codex_mcp "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex"; fi
+  fi
+  if have claude; then
+    AGENTS_SHOWN=1
+    if [ -n "$KH_HAVE" ] && [ -x "${PREFIX}/bin/kanehack" ]; then connect_agent claude "Claude Code" "Claude Code's user config"
+    else warn claude_mcp "not connected" "Install kanehack first (re-run this script), then: kanehack connect claude"; fi
+  fi
+fi
+
 echo
 echo "Next:"
 echo "  1. ${KH} pair        link this machine to your passport"
@@ -290,6 +339,7 @@ echo "     (AI agent with no terminal: ${KH} pair --start, approve the code in y
 echo "  2. ${KH} doctor      re-check your setup"
 echo "  3. ${KH} report -- kane-cli run \"Open ${SITE} and find the schedule\" --agent"
 echo "     (your first Kane run, sent to your team's Proof tab)"
+if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-onboard (Claude Code: /hack-onboard)'; fi
 echo "Web: ${SITE}/passport"
 if [ "$NO_TTY_SKIPS" -gt 0 ]; then
   SITE_ARG=""; [ "$SITE" != "$DEFAULT_SITE" ] && SITE_ARG=" --site ${SITE}"
