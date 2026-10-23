@@ -8,13 +8,15 @@
 //   GET  /api/v1/kane/runs                          401 without a valid bearer; 403 for a member with no team
 //   POST /api/v1/kane/runs                          records a run; source_verified = paired + completion event + exit code
 //   POST /api/v1/pair/start, /api/v1/pair/confirm   the device flow (user_code / device_code, 410 PAIR_EXPIRED)
-//   POST /mcp                                       tools/call: readiness_report, help_create, help_get_status, submission_preflight
+//   POST /mcp                                       initialize, tools/list, notifications (202), and tools/call:
+//                                                   readiness_report, help_create, help_get_status, submission_preflight
 //
 // Test-only controls (not in the real app):
 //   POST /__mock/approve {user_code, team?}   approve a pairing as the demo member (team:false → member with no team)
 //   POST /__mock/deny {user_code}             deny it
 //   POST /__mock/revoke                       revoke every bearer token
 //   GET  /__mock/runs                         every run recorded
+//   GET  /__mock/mcp                          how many authenticated MCP requests arrived, and their methods
 //
 //   node tests/installer/mock-server.mjs [--port 3399] [--public DIR] [--redirect-to http://www.localhost:3399]
 //
@@ -38,6 +40,8 @@ const pairings = new Map(); // device_code → { user_code, status, expires, tea
 const tokens = new Map(); // token → { revoked, team }
 const runs = [];
 const tickets = new Map();
+const mcpAuthed = { count: 0, methods: [] }; // POST /mcp requests with a valid bearer (GET /__mock/mcp)
+const MCP_TOOLS = ["readiness_report", "help_create", "help_get_status", "submission_preflight"];
 
 const env = (o) => ({
   schema_version: 1,
@@ -127,6 +131,7 @@ async function handle(req, res) {
     return send(res, 200, { ok: true });
   }
   if (p === "/__mock/runs") return send(res, 200, runs);
+  if (p === "/__mock/mcp") return send(res, 200, { authed_requests: mcpAuthed.count, methods: mcpAuthed.methods });
 
   // ── pairing ──
   if (p === "/api/v1/pair/start" && req.method === "POST") {
@@ -179,6 +184,15 @@ async function handle(req, res) {
     const t = bearer(req);
     if (!t) return send(res, 401, env({ status: "error", message: "Missing or invalid token." }), { "www-authenticate": 'Bearer realm="kaneclihack", error="invalid_token"' });
     const rpc = parseJson(body);
+    mcpAuthed.count++;
+    mcpAuthed.methods.push(rpc.method ?? null);
+    // Enough of the MCP handshake for a real agent (Codex, Claude Code) to connect and list tools.
+    if (rpc.id === undefined || rpc.id === null) return send(res, 202, {});
+    if (rpc.method === "initialize") return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { protocolVersion: rpc.params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "kane-hack-event-mock", version: "1" } } });
+    if (rpc.method === "tools/list") return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: { tools: MCP_TOOLS.map((t) => ({ name: t, description: t, inputSchema: { type: "object", properties: {} } })) } });
+    const empty = { "resources/list": { resources: [] }, "resources/templates/list": { resourceTemplates: [] }, "prompts/list": { prompts: [] }, ping: {} }[rpc.method];
+    if (empty) return send(res, 200, { jsonrpc: "2.0", id: rpc.id, result: empty });
+    if (rpc.method && rpc.method !== "tools/call") return send(res, 200, { jsonrpc: "2.0", id: rpc.id, error: { code: -32601, message: `Method not found: ${rpc.method}` } });
     const name = rpc.params?.name;
     const a = rpc.params?.arguments ?? {};
     let e;

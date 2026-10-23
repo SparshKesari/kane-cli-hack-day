@@ -11,11 +11,12 @@
 // A fake kane-cli (tests/installer/fake-kane-cli.mjs) is put first on PATH.
 // It never touches your real HOME.
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { lookup } from "node:dns/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { codexGet, codexMcpStatus, codexSkills, runHelperLikeCodex } from "./codex-probe.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../..");
@@ -41,8 +42,12 @@ else {
   chmodSync(join(fakeBin, "kane-cli"), 0o755);
 }
 const PATHKEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
-const baseEnv = { ...process.env, HOME, USERPROFILE: HOME, KANEHACK_API: API, [PATHKEY]: `${fakeBin}${WIN ? ";" : ":"}${process.env[PATHKEY]}`, NO_COLOR: "1" };
-delete baseEnv.KANEHACK_TOKEN;
+const VERSION = JSON.parse(readFileSync(join(repo, "packages/kanehack/package.json"), "utf8")).version;
+// CODEX_BIN_DIR: where CI installed the real @openai/codex (kept off the default PATH so it
+// doesn't change the installer tests). Without it the Codex-binary checks are skipped.
+const codexDir = process.env.CODEX_BIN_DIR ?? "";
+const baseEnv = { ...process.env, HOME, USERPROFILE: HOME, KANEHACK_API: API, [PATHKEY]: [fakeBin, codexDir, process.env[PATHKEY]].filter(Boolean).join(WIN ? ";" : ":"), NO_COLOR: "1" };
+for (const k of ["KANEHACK_TOKEN", "CODEX_HOME", "CLAUDE_CONFIG_DIR"]) delete baseEnv[k];
 // A git repo for the commit sha in reports.
 const work = join(HOME, "work");
 mkdirSync(work, { recursive: true });
@@ -95,9 +100,9 @@ console.log(`# kanehack suite: ${ENTRY}\n# server ${API} (${APPROVE === "mock" ?
 try {
   // ── basics, unpaired ──
   let r = kh(["version"]);
-  check("version prints 0.1.2", r.code === 0 && r.out.trim() === "0.1.2", r.show);
+  check(`version prints ${VERSION}`, r.code === 0 && r.out.trim() === VERSION, r.show);
   r = kh(["--json", "version"]);
-  check("version --json", r.code === 0 && r.json?.version === "0.1.2", r.show);
+  check("version --json", r.code === 0 && r.json?.version === VERSION, r.show);
   r = kh(["--help"]);
   check("--help lists pair --start/--wait and exit codes", r.code === 0 && r.out.includes("pair --start") && r.out.includes("Exit codes"), r.show);
   r = kh(["nope", "--json"]);
@@ -139,6 +144,86 @@ try {
   check("pending pairing cleared", !existsSync(pending));
   r = kh(["token"]);
   check("token prints the saved token on stdout", r.code === 0 && r.out.trim() === cfg.token, r.code);
+
+  // ── agents: kanehack mcp-headers + connect codex (an isolated CODEX_HOME per case) ──
+  r = kh(["mcp-headers"]);
+  check("mcp-headers (paired): one JSON object with the bearer header, nothing else", r.code === 0 && r.json?.Authorization === `Bearer ${cfg.token}` && Object.keys(r.json ?? {}).length === 1, r.code);
+  const emptyHome = join(HOME, "unpaired-home");
+  mkdirSync(emptyHome, { recursive: true });
+  r = kh(["mcp-headers"], { HOME: emptyHome, USERPROFILE: emptyHome });
+  check("mcp-headers (unpaired): exit 2, nothing on stdout, says kanehack pair on stderr", r.code === 2 && r.out === "" && r.err.includes("kanehack pair"), r.show);
+  const codexCase = (name, toml) => {
+    const d = join(HOME, `codex-${name}`);
+    rmSync(d, { recursive: true, force: true });
+    mkdirSync(d, { recursive: true });
+    if (toml !== undefined) writeFileSync(join(d, "config.toml"), toml);
+    return d;
+  };
+  const toml = (d) => readFileSync(join(d, "config.toml"), "utf8");
+  const baks = (d) => readdirSync(d).filter((f) => f.endsWith(".bak")).length;
+  const mcpUrl = `${API}/mcp`;
+  let cx = codexCase("absent");
+  r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
+  check("connect codex --check with no config → exit 1 absent", r.code === 1 && r.json?.state === "absent", r.show);
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("connect codex with no config.toml → added, no backup", r.code === 0 && r.json?.state === "added" && r.json?.backup === null && toml(cx).includes(`url = "${mcpUrl}"`), r.show);
+  cx = codexCase("existing", '# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n');
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  let t = toml(cx);
+  check("connect codex next to other servers → added, backup made, others kept", r.code === 0 && r.json?.state === "added" && baks(cx) === 1 && t.startsWith('# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n') && t.includes("[mcp_servers.kane-hack-event]"), r.show + "\n" + t);
+  check("codex config: url + http_headers_helper (kanehack mcp-headers), no token", t.includes(`url = "${mcpUrl}"`) && /http_headers_helper = ".*kanehack.*mcp-headers"/.test(t) && !t.includes(cfg.token) && !/khk_/.test(t), t);
+  const helperLine = t.split(/\r?\n/).find((l) => l.startsWith("http_headers_helper"));
+  const helper = JSON.parse(helperLine.slice(helperLine.indexOf("=") + 1).trim());
+  r = { ...runHelperLikeCodex(helper, baseEnv) };
+  check(`the helper runs the way Codex runs it (${WIN ? "cmd /Q /D /C" : "sh -c"}, PATH + home only) → the bearer header`, r.code === 0 && r.json?.Authorization === `Bearer ${cfg.token}`, `exit=${r.code} stderr=${r.stderr.slice(0, 500)} helper=${helper}`);
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("connect codex again → current, file and backups unchanged (idempotent)", r.code === 0 && r.json?.state === "current" && toml(cx) === t && baks(cx) === 1, r.show);
+  r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
+  check("connect codex --check → exit 0", r.code === 0 && r.json?.state === "current", r.show);
+  r = kh(["doctor", "--json"], { CODEX_HOME: cx });
+  check("doctor --json: codex_mcp pass for that config", r.json?.checks?.find((c) => c.id === "codex_mcp")?.status === "pass", r.show);
+  const theirs = '[mcp_servers.kane-hack-event]\nurl = "https://example.com/mcp"\n';
+  cx = codexCase("different", theirs);
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("a different server named kane-hack-event → exit 2 MCP_NAME_TAKEN, untouched, no backup", r.code === 2 && r.json?.error?.code === "MCP_NAME_TAKEN" && toml(cx) === theirs && baks(cx) === 0, r.show);
+  r = kh(["doctor", "--json"], { CODEX_HOME: cx });
+  check("doctor: codex_mcp warns with the remove-then-connect fix", /codex mcp remove kane-hack-event/.test(r.json?.checks?.find((c) => c.id === "codex_mcp")?.fix ?? ""), r.show);
+  cx = codexCase("inline", '[mcp_servers]\nkane-hack-event = { url = "https://example.com/mcp" }\n');
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("kane-hack-event in an inline table → left alone (exit 2)", r.code === 2 && r.json?.state === "unrecognized", r.show);
+  cx = codexCase("old", 'model = "x"\r\n\r\n[mcp_servers.kane-hack-event]\r\nurl = "https://www.kaneclihack.sh/mcp"\r\nbearer_token_env_var = "KANEHACK_TOKEN"\r\ntool_timeout_sec = 120\r\n\r\n[mcp_servers.kane-hack-event.tools.x]\r\napproval_mode = "approve"\r\n');
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  t = toml(cx);
+  check("old env-var setup (CRLF) → updated: helper added, env var dropped, own keys + subtable + CRLF kept", r.code === 0 && r.json?.state === "updated" && t.includes("http_headers_helper") && !t.includes("bearer_token_env_var") && t.includes("tool_timeout_sec = 120\r\n") && t.includes("[mcp_servers.kane-hack-event.tools.x]") && !/[^\r]\n/.test(t), t);
+  r = kh(["report"]);
+  check("report with no command prints a copy-paste example", r.code === 2 && r.err.includes('Example: kanehack report -- kane-cli run "Open https://kaneclihack.sh and find the schedule" --agent'), r.show);
+
+  // ── the real Codex binary (CI installs @openai/codex into CODEX_BIN_DIR) ──
+  const codexEnv = { ...baseEnv, CODEX_HOME: join(HOME, ".codex") };
+  const hasCodex = spawnSync("codex", ["--version"], { env: codexEnv, encoding: "utf8", shell: WIN }).status === 0;
+  if (!hasCodex) console.log("# skip: codex isn't on PATH (set CODEX_BIN_DIR), real-Codex checks not run");
+  else {
+    rmSync(codexEnv.CODEX_HOME, { recursive: true, force: true });
+    r = kh(["connect", "codex", "--json"], { CODEX_HOME: codexEnv.CODEX_HOME });
+    check("connect codex with codex on PATH → added and verified with codex mcp get", r.code === 0 && r.json?.verified_with_codex === true && /codex/.test(r.json?.codex_cli ?? ""), r.show);
+    const g = codexGet(codexEnv);
+    check("codex mcp get kane-hack-event --json: streamable_http, our url, helper set, no bearer env var", g.code === 0 && g.json?.transport?.type === "streamable_http" && g.json?.transport?.url === mcpUrl && Boolean(g.json?.transport?.http_headers_helper) && g.json?.transport?.bearer_token_env_var === null, g.out);
+    // Skills: Codex reads ~/.agents/skills. Installed there by the installer (TEST_HOME) or copied here.
+    const agentsSkills = join(HOME, ".agents/skills");
+    if (!existsSync(join(agentsSkills, "hack-onboard/SKILL.md"))) cpSync(join(repo, "plugin/skills"), agentsSkills, { recursive: true });
+    const sk = codexSkills(codexEnv, work);
+    const names = Object.keys(sk.hack);
+    check("codex debug prompt-input lists all 12 hack-* skills, each once", sk.code === 0 && names.length === 12 && Object.values(sk.hack).every((n) => n === 1), JSON.stringify(sk));
+    const st = await codexMcpStatus(codexEnv);
+    check("codex app-server: kane-hack-event connects through the helper and lists the event tools", !st.error && st.toolsError === null && st.tools.length > 0 && (APPROVE !== "mock" || st.tools.includes("readiness_report")), JSON.stringify(st).slice(0, 1500));
+    if (APPROVE === "mock") {
+      const seen = await (await fetch(`${API}/__mock/mcp`)).json();
+      check("the mock saw Codex's MCP requests with a valid bearer (initialize, tools/list)", seen.methods.includes("initialize") && seen.methods.includes("tools/list"), JSON.stringify(seen));
+    }
+    r = kh(["doctor", "--json"], { CODEX_HOME: codexEnv.CODEX_HOME });
+    const dc = (id) => r.json?.checks?.find((c) => c.id === id)?.status;
+    check("doctor with Codex: codex, codex_skills, codex_mcp all pass", dc("codex") === "pass" && dc("codex_skills") === "pass" && dc("codex_mcp") === "pass", r.show);
+  }
 
   // A second machine pairs with the plain interactive-style command and is denied.
   r = kh(["pair", "--start", "--json"]);

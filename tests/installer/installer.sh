@@ -162,6 +162,42 @@ if want upgrade; then
   check "upgrade: 0.1.0 → $VERSION, old skills replaced" '[ "$BEFORE" = 0.1.0 ] && [ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && grep -q "Upgrade the kanehack helper" "$LOG" && [ "$(cat "$H/.agents/skills/hack-onboard/SKILL.md")" != old ]' "$LOG"
 fi
 
+# 8b. Codex: an existing ~/.codex with its own config and the 0.1.2 skill copies. --yes connects it
+# (no token in config.toml, backup made, other servers kept), removes the duplicate skills, and a
+# re-run changes nothing. With CODEX_BIN_DIR (the real @openai/codex, kept off ORIG_PATH so the
+# other scenarios don't see it) Codex itself must read the entry and list each skill once.
+if want codex; then
+  fresh codex
+  mkdir -p "$NPMP/bin" "$H/.codex/skills/hack-onboard" "$H/.codex/skills/hack-verify" "$H/.codex/skills/my-own-skill"
+  printf '[mcp_servers.other]\ncommand = "echo"\n' > "$H/.codex/config.toml"
+  echo "0.1.2" > "$H/.codex/skills/hack-onboard/.bundle-version"
+  echo "old" > "$H/.codex/skills/hack-onboard/SKILL.md"; echo "old" > "$H/.codex/skills/hack-verify/SKILL.md"; echo "mine" > "$H/.codex/skills/my-own-skill/SKILL.md"
+  PATH="$NPMP/bin:${CODEX_BIN_DIR:+$CODEX_BIN_DIR:}$ORIG_PATH"
+  run_install --yes --site "$SITE"; RC=$?
+  CFG="$H/.codex/config.toml"
+  check "codex: exit 0, asked and connected" '[ "$RC" -eq 0 ] && grep -q "Connect Codex to the event server" "$LOG" && grep -q "codex_mcp .*Codex → kane-hack-event" "$LOG"' "$LOG"
+  check "codex: config.toml has kane-hack-event with the helper, the other server, no token" 'grep -q "^\[mcp_servers.kane-hack-event\]" "$CFG" && grep -qF "url = \"$SITE/mcp\"" "$CFG" && grep -q "http_headers_helper = .*mcp-headers" "$CFG" && grep -q "^\[mcp_servers.other\]" "$CFG" && ! grep -q "khk_" "$CFG"' "$LOG"
+  check "codex: config.toml backed up first" '[ "$(ls "$H/.codex" | grep -c "config.toml.kanehack-.*\.bak")" = 1 ]' "$LOG"
+  check "codex: skills in ~/.agents/skills, the 0.1.2 copies in ~/.codex/skills removed, other skills kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 12 ] && [ ! -e "$H/.codex/skills/hack-onboard" ] && [ ! -e "$H/.codex/skills/hack-verify" ] && [ -f "$H/.codex/skills/my-own-skill/SKILL.md" ] && grep -q "removed the old copies" "$LOG"' "$LOG"
+  check "codex: next steps mention \$hack-onboard" 'grep -qF "type \$hack-onboard" "$LOG"' "$LOG"
+  if [ -n "${CODEX_BIN_DIR:-}" ]; then
+    G="$(env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" get)"
+    check "codex: codex mcp get kane-hack-event reads it (url, helper)" 'echo "$G" | grep -qF "\"url\":\"$SITE/mcp\"" && echo "$G" | grep -q "\"http_headers_helper\":\"<redacted>\""' "$LOG"
+    mkdir -p "$WORK/empty-cwd"
+    K="$(cd "$WORK/empty-cwd" && env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" skills)"
+    check "codex: Codex lists all 12 hack-* skills once each" 'echo "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===12&&Object.values(h).every(n=>n===1)?0:1)})"' "$LOG"
+  else echo "# skip codex binary checks: CODEX_BIN_DIR not set"; fi
+  cp "$CFG" "$WORK/codex-before"
+  run_install --yes --site "$SITE"; RC=$?
+  check "codex re-run: already connected, no question, config unchanged, no new backup" '[ "$RC" -eq 0 ] && grep -q "already connected" "$LOG" && ! grep -q "y (--yes)" "$LOG" && cmp -s "$CFG" "$WORK/codex-before" && [ "$(ls "$H/.codex" | grep -c "\.bak")" = 1 ]' "$LOG"
+fi
+if want no-agents; then
+  fresh no-agents
+  mkdir -p "$H/.codex"; printf 'model = "x"\n' > "$H/.codex/config.toml"
+  run_install --yes --no-agents --no-skills --site "$SITE"; RC=$?
+  check "--no-agents: Codex config untouched, not asked" '[ "$RC" -eq 0 ] && [ "$(cat "$H/.codex/config.toml")" = "model = \"x\"" ] && ! grep -q "Connect Codex" "$LOG"' "$LOG"
+fi
+
 # 9. Tampered downloads: exit non-zero, install nothing. A second mock serves a corrupted copy.
 if want tamper; then
   for which in kanehack skills; do
