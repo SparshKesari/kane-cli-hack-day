@@ -10,6 +10,8 @@
 //   kanehack submit --preflight            what's missing before you can submit
 //   kanehack consent yes|no                allow / stop sending run summaries
 //   kanehack hook status|enable|disable    the optional lifecycle hook (off; see plugin/hooks/README.md)
+//   kanehack connect codex|claude          add the event MCP server to Codex / Claude Code (no token stored)
+//   kanehack mcp-headers                   print {"Authorization":"Bearer …"} for the agent's headers helper
 //
 // Every command takes --json (one JSON document on stdout) and works without a
 // terminal. Exit codes: see usage() and README.md.
@@ -19,14 +21,15 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, chmodSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, chmodSync, rmSync, copyFileSync, renameSync, realpathSync } from "node:fs";
 import { homedir, platform, arch, hostname } from "node:os";
-import { basename, extname, join } from "node:path";
+import { basename, delimiter, extname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.2";
+const VERSION = "0.1.3";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -99,7 +102,7 @@ function fail(msg, code = EXIT.FAIL, errCode = "ERROR", extra = {}) {
 }
 
 // Flags that never take a value, so `--json yes` keeps "yes" as an argument.
-const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version"]);
+const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check"]);
 
 function args(argv) {
   const out = { _: [], flags: {} };
@@ -315,8 +318,7 @@ async function pairWait(p, timeoutSec, { pollFirst }) {
       clearPending();
       const m = r.env.data.member ?? {};
       say(ok(`Paired${m.name ? ` as ${m.name}` : ""}.`), dim(`Token saved in ${CONFIG} (mode 600).`));
-      // Only show the token to a person at a terminal, never into an agent's transcript.
-      if (interactive()) say(dim(`For your agent's MCP connection: export KANEHACK_TOKEN="$(kanehack token)"`));
+      say(dim("Agent not connected to the event server yet? kanehack connect codex (or: kanehack connect claude). No token to copy."));
       emit({ ok: true, exit_code: 0, status: "paired", member: { name: m.name ?? null, public_code: m.public_code ?? null }, token_expires_at: r.env.data.expires_at ?? null, api: p.api, config: CONFIG });
       return;
     }
@@ -345,14 +347,264 @@ function token() {
   process.stdout.write(cfg.token + "\n");
 }
 
+// ── agents: connect Codex / Claude Code to the event MCP server ─────────────
+//
+// Both agents run a "headers helper" command when they connect and send the JSON object it
+// prints as HTTP headers (Codex: http_headers_helper, run with `sh -c` / `cmd /Q /D /C`, 10 s
+// timeout, PATH and HOME passed through, other env cleared; Claude Code: headersHelper). So the
+// agent's config holds only `kanehack mcp-headers`, never the token, and re-pairing needs no
+// reconnect.
+
+const MCP_NAME = "kane-hack-event";
+const SELF = fileURLToPath(import.meta.url);
+
+/** The MCP endpoint. kaneclihack.sh 308s to www and agents refuse cross-origin redirects, so use www. */
+function mcpUrl(cfg) {
+  const u = new URL(cfg.api);
+  if (u.hostname === "kaneclihack.sh") u.hostname = "www.kaneclihack.sh";
+  return `${u.origin}/mcp`;
+}
+
+/** `node` from PATH when it is this same binary (that path survives `brew upgrade`), else this exact binary. */
+function stableNode() {
+  let real;
+  try {
+    real = realpathSync(process.execPath);
+  } catch {
+    return process.execPath;
+  }
+  for (const d of (process.env.PATH || process.env.Path || "").split(delimiter).filter(Boolean)) {
+    const p = join(d, WIN ? "node.exe" : "node");
+    try {
+      if (realpathSync(p) === real) return p;
+    } catch {}
+  }
+  return process.execPath;
+}
+
+/** The command the agent runs for headers: absolute paths, so an agent started from a GUI with a short PATH still finds it. */
+function helperCommand() {
+  const q = WIN ? (s) => `"${s}"` : (s) => `'${s.replaceAll("'", `'\\''`)}'`;
+  return `${q(stableNode())} ${q(SELF)} mcp-headers`;
+}
+const isOurHelper = (cmd) => typeof cmd === "string" && cmd.includes("kanehack") && cmd.includes("mcp-headers");
+const isOurUrl = (u, target) => {
+  if (u === target) return true;
+  try {
+    const h = new URL(u).hostname;
+    return h === "kaneclihack.sh" || h.endsWith(".kaneclihack.sh");
+  } catch {
+    return false;
+  }
+};
+
+function mcpHeaders() {
+  const cfg = loadConfig();
+  // No --json document here: the agent reads stdout as the headers object, nothing else.
+  if (!cfg.token) {
+    say(bad("kanehack: not paired, so there is no token for the event MCP server. Run: kanehack pair"));
+    exit(EXIT.ACTION);
+  }
+  process.stdout.write(JSON.stringify({ Authorization: `Bearer ${cfg.token}` }) + "\n");
+}
+
+const codexHome = () => process.env.CODEX_HOME || join(homedir(), ".codex");
+const stamp = () => new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
+
+/** A TOML value (basic or literal string, or anything else raw), with a trailing comment removed. */
+function tomlValue(raw) {
+  const s = raw.trim();
+  if (s.startsWith('"')) {
+    const m = s.match(/^"((?:[^"\\]|\\.)*)"/);
+    if (m) {
+      try {
+        return JSON.parse(`"${m[1]}"`);
+      } catch {
+        return m[1];
+      }
+    }
+  }
+  if (s.startsWith("'")) {
+    const m = s.match(/^'([^']*)'/);
+    if (m) return m[1];
+  }
+  return s.replace(/\s+#.*$/, "");
+}
+
+/**
+ * Find [mcp_servers.kane-hack-event] in Codex's config.toml. A small line-based reader: enough
+ * for the table we write, and anything else that mentions the name is reported as
+ * "unrecognized" and left alone. Codex itself validates the result (`codex mcp get`).
+ */
+function readCodexEntry(file, url, helper) {
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    return { file, text: null, state: "absent" };
+  }
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const lines = text.split(/\r?\n/);
+  const name = String.raw`(?:"${MCP_NAME}"|'${MCP_NAME}'|${MCP_NAME})`;
+  const header = new RegExp(String.raw`^[ \t]*\[[ \t]*mcp_servers[ \t]*\.[ \t]*${name}[ \t]*\][ \t]*(?:#.*)?$`);
+  const subtable = new RegExp(String.raw`^[ \t]*\[{1,2}[ \t]*mcp_servers[ \t]*\.[ \t]*${name}[ \t]*\.`);
+  const start = lines.findIndex((l) => header.test(l));
+  let end = start + 1;
+  if (start >= 0) while (end < lines.length && !/^[ \t]*\[/.test(lines[end])) end++;
+  const elsewhere = lines.some((l, i) => (start < 0 || i < start || i >= end) && l.includes(MCP_NAME) && !/^[ \t]*#/.test(l) && !subtable.test(l));
+  if (start < 0) return { file, text, eol, lines, state: elsewhere ? "unrecognized" : "absent" };
+  const body = lines.slice(start + 1, end);
+  const get = (k) => {
+    const l = body.find((x) => new RegExp(String.raw`^[ \t]*${k}[ \t]*=`).test(x));
+    return l === undefined ? undefined : tomlValue(l.slice(l.indexOf("=") + 1));
+  };
+  const existing = { url: get("url"), http_headers_helper: get("http_headers_helper"), bearer_token_env_var: get("bearer_token_env_var"), command: get("command") };
+  const ours = existing.command === undefined && (isOurHelper(existing.http_headers_helper) || (existing.url && isOurUrl(existing.url, url)));
+  const state = elsewhere ? "unrecognized" : !ours ? "different" : existing.url === url && existing.http_headers_helper === helper && existing.bearer_token_env_var === undefined ? "current" : "outdated";
+  return { file, text, eol, lines, start, end, body, existing, state };
+}
+
+function codexEntryText(e, url, helper) {
+  const block = [
+    `[mcp_servers.${MCP_NAME}]`,
+    "# Added by kanehack (Kane CLI Hack Day). The helper prints the Authorization header from ~/.kanehack/config.json: no token is stored here.",
+    `url = ${JSON.stringify(url)}`,
+    `http_headers_helper = ${JSON.stringify(helper)}`,
+  ];
+  if (e.state === "absent") {
+    const t = e.text ?? "";
+    const eol = e.eol ?? "\n";
+    return t + (t && !t.endsWith("\n") ? eol : "") + (t.trim() ? eol : "") + block.join(eol) + eol;
+  }
+  // Keep the user's other keys (timeouts, enabled_tools…); replace what we own; drop the old env-var auth.
+  const kept = e.body.filter((l) => !/^[ \t]*(url|http_headers_helper|bearer_token_env_var)[ \t]*=/.test(l) && !/^[ \t]*# Added by kanehack/.test(l));
+  return [...e.lines.slice(0, e.start), ...block, ...kept, ...e.lines.slice(e.end)].join(e.eol);
+}
+
+function codexCli() {
+  const r = probe("codex", ["--version"], { timeout: 20_000 });
+  return r.found && r.code === 0 ? r.stdout.trim().split("\n")[0].slice(0, 40) || "codex" : null;
+}
+
+/** What `codex mcp get kane-hack-event --json` says (Codex's own parse of the config). */
+function codexGet() {
+  const r = probe("codex", ["mcp", "get", MCP_NAME, "--json"], { timeout: 30_000 });
+  let json = null;
+  try {
+    json = JSON.parse(r.stdout);
+  } catch {}
+  return { ok: r.code === 0 && Boolean(json), json, out: r.out };
+}
+
+function writeAtomic(file, text) {
+  const tmp = `${file}.kanehack-tmp`;
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+}
+
+function nextSteps(cfg, agent) {
+  if (!cfg.token) say(warn("Not paired yet: run kanehack pair (the agent gets 401 until you do)."));
+  say(dim(agent === "codex" ? "Start a new Codex session, then try $hack-onboard. Check with: codex mcp list" : "Start a new Claude Code session, then try /hack-onboard. Check with: claude mcp list"));
+}
+
+async function connectCodex(a, cfg) {
+  const url = a.flags.url ? String(a.flags.url) : mcpUrl(cfg);
+  const helper = helperCommand();
+  const file = join(codexHome(), "config.toml");
+  const e = readCodexEntry(file, url, helper);
+  const cli = codexCli();
+  const base = { agent: "codex", name: MCP_NAME, url, config: file, codex_cli: cli, paired: Boolean(cfg.token) };
+  if (e.state === "different" || e.state === "unrecognized") {
+    const what = e.state === "different" ? `another server named ${MCP_NAME} (${e.existing.url ?? e.existing.command ?? "no url"})` : `${MCP_NAME} in a form kanehack doesn't edit`;
+    fail(`${file} already has ${what}. Left it alone. To replace it: codex mcp remove ${MCP_NAME}, then kanehack connect codex`, EXIT.ACTION, "MCP_NAME_TAKEN", { ...base, state: e.state });
+  }
+  if (a.flags.check) {
+    const current = e.state === "current";
+    if (!JSON_MODE) say(current ? ok(`Codex is connected to ${url}.`) : warn(`Codex isn't connected (${e.state === "absent" ? `no ${MCP_NAME} in ${file}` : "old setup"}). Run: kanehack connect codex`));
+    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state });
+    process.exitCode = current ? EXIT.OK : EXIT.FAIL;
+    return;
+  }
+  if (e.state === "current") {
+    say(ok(`Codex is already connected: ${MCP_NAME} → ${url}`));
+    nextSteps(cfg, "codex");
+    return emit({ ok: true, exit_code: 0, ...base, state: "current", backup: null });
+  }
+  mkdirSync(codexHome(), { recursive: true });
+  const backup = e.text !== null ? `${file}.kanehack-${stamp()}.bak` : null;
+  if (backup) copyFileSync(file, backup);
+  writeAtomic(file, codexEntryText(e, url, helper));
+  if (cli) {
+    const g = codexGet();
+    const t = g.json?.transport ?? {};
+    if (!g.ok || t.url !== url || !t.http_headers_helper) {
+      if (backup) copyFileSync(backup, file);
+      else rmSync(file, { force: true });
+      fail(`Codex didn't accept the change, so ${file} was restored. codex said: ${g.out.slice(0, 300)}`, EXIT.FAIL, "CODEX_REJECTED", { ...base, state: e.state });
+    }
+  }
+  say(ok(`Codex ${e.state === "absent" ? "connected" : "updated"}: ${MCP_NAME} → ${url} (${cli ? "checked with codex mcp get" : "codex isn't on PATH, so not checked"}). No token is stored in ${file}.`));
+  if (backup) say(dim(`Backup of the old file: ${backup}`));
+  nextSteps(cfg, "codex");
+  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : "updated", backup, verified_with_codex: Boolean(cli) });
+}
+
+const claudeConfig = () => join(process.env.CLAUDE_CONFIG_DIR || homedir(), ".claude.json");
+function readClaudeEntry(url, helper) {
+  let s = null;
+  try {
+    s = JSON.parse(readFileSync(claudeConfig(), "utf8"))?.mcpServers?.[MCP_NAME] ?? null;
+  } catch {}
+  if (!s) return { state: "absent" };
+  const ours = isOurHelper(s.headersHelper) || (s.url && isOurUrl(s.url, url));
+  const state = !ours ? "different" : s.type === "http" && s.url === url && s.headersHelper === helper && !s.headers ? "current" : "outdated";
+  return { state, existing: { url: s.url ?? null, type: s.type ?? null } };
+}
+
+async function connectClaude(a, cfg) {
+  const url = a.flags.url ? String(a.flags.url) : mcpUrl(cfg);
+  const helper = helperCommand();
+  const base = { agent: "claude", name: MCP_NAME, url, config: claudeConfig(), scope: "user", paired: Boolean(cfg.token) };
+  const v = probe("claude", ["--version"], { timeout: 20_000 });
+  if (!v.found || v.code !== 0) fail("Claude Code (claude) isn't on PATH. Install it, then run: kanehack connect claude", EXIT.ACTION, "CLAUDE_NOT_FOUND", base);
+  const e = readClaudeEntry(url, helper);
+  if (e.state === "different") fail(`Claude Code already has another server named ${MCP_NAME} (${e.existing.url ?? "no url"}). Left it alone. To replace it: claude mcp remove -s user ${MCP_NAME}, then kanehack connect claude`, EXIT.ACTION, "MCP_NAME_TAKEN", { ...base, state: e.state });
+  if (a.flags.check) {
+    const current = e.state === "current";
+    if (!JSON_MODE) say(current ? ok(`Claude Code is connected to ${url}.`) : warn("Claude Code isn't connected. Run: kanehack connect claude"));
+    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state });
+    process.exitCode = current ? EXIT.OK : EXIT.FAIL;
+    return;
+  }
+  if (e.state === "current") {
+    say(ok(`Claude Code is already connected: ${MCP_NAME} → ${url}`));
+    nextSteps(cfg, "claude");
+    return emit({ ok: true, exit_code: 0, ...base, state: "current" });
+  }
+  if (e.state === "outdated") probe("claude", ["mcp", "remove", "-s", "user", MCP_NAME], { timeout: 30_000 });
+  const add = probe("claude", ["mcp", "add-json", "-s", "user", MCP_NAME, JSON.stringify({ type: "http", url, headersHelper: helper })], { timeout: 30_000 });
+  if (readClaudeEntry(url, helper).state !== "current") fail(`claude mcp add-json didn't take: ${add.out.slice(0, 300)}`, EXIT.FAIL, "CLAUDE_REJECTED", { ...base, state: e.state });
+  say(ok(`Claude Code ${e.state === "absent" ? "connected" : "updated"} (user scope): ${MCP_NAME} → ${url}. No token is stored; it runs kanehack mcp-headers.`));
+  nextSteps(cfg, "claude");
+  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : "updated" });
+}
+
+async function connect(a) {
+  const cfg = loadConfig();
+  const which = a._[1];
+  if (which === "codex") return connectCodex(a, cfg);
+  if (which === "claude") return connectClaude(a, cfg);
+  fail("Usage: kanehack connect codex|claude [--check] [--url URL]", EXIT.ACTION, "USAGE");
+}
+
 // ── doctor ───────────────────────────────────────────────────────────────────
 
 function probe(cmd, argv, opts = {}) {
   const [file, rest, o] = cmdline(cmd, argv, { encoding: "utf8", timeout: opts.timeout ?? 15_000 });
   const r = spawnSync(file, rest, o);
   // On Windows the shell itself starts, so "not found" is cmd's exit code 9009.
-  if (r.error || (WIN && r.status === 9009)) return { found: false, code: null, out: "" };
-  return { found: true, code: r.status, out: `${r.stdout || ""}${r.stderr || ""}`.trim() };
+  if (r.error || (WIN && r.status === 9009)) return { found: false, code: null, out: "", stdout: "" };
+  return { found: true, code: r.status, out: `${r.stdout || ""}${r.stderr || ""}`.trim(), stdout: r.stdout || "" };
 }
 
 function chromePresent() {
@@ -366,6 +618,35 @@ function chromePresent() {
   if (paths.some((x) => x && existsSync(x))) return true;
   if (p === "win32") return false;
   return ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].some((b) => probe(b, ["--version"]).code === 0);
+}
+
+// The server's readiness ids (src/server/passport.ts READINESS_CHECKS) and statuses (pass|warn|fail|skip).
+const SERVER_CHECK_IDS = { os: "os_arch", kane_cli: "kane_version", kane_auth: "kane_whoami" };
+
+/** Codex (and Claude Code, when present): installed, skills discoverable, event MCP server connected. */
+function agentChecks(cfg, add, reinstall) {
+  const url = mcpUrl(cfg);
+  const helper = helperCommand();
+  const cx = codexCli();
+  if (!cx && !existsSync(codexHome())) add("codex", "skipped", null, "not installed (optional)", "Optional: npm i -g @openai/codex, then kanehack connect codex");
+  else {
+    add("codex", cx ? "pass" : "warn", cx, cx ? null : `${codexHome()} exists but codex isn't on PATH`, "npm i -g @openai/codex");
+    // Codex reads ~/.agents/skills (documented) and also $CODEX_HOME/skills: a copy in both lists every skill twice.
+    const inAgents = existsSync(join(homedir(), ".agents/skills/hack-onboard/SKILL.md"));
+    const dupDir = join(codexHome(), "skills");
+    const dup = existsSync(join(dupDir, "hack-onboard/SKILL.md"));
+    const rmDup = WIN ? `Remove-Item -Recurse -Force "${join(dupDir, "hack-*")}"` : `rm -rf "${dupDir}"/hack-*`;
+    add("codex_skills", inAgents && !dup ? "pass" : "warn", null, !inAgents ? "hack-* skills not in ~/.agents/skills" : dup ? `a second copy in ${dupDir} makes Codex list each skill twice` : null, !inAgents ? `Re-run the installer: ${reinstall}` : rmDup);
+    const e = readCodexEntry(join(codexHome(), "config.toml"), url, helper);
+    const detail = { current: null, absent: `no ${MCP_NAME} server in ${e.file}`, outdated: `${MCP_NAME} uses an older setup`, different: `another server is named ${MCP_NAME}`, unrecognized: `${MCP_NAME} is configured in a form kanehack doesn't edit` }[e.state];
+    add("codex_mcp", e.state === "current" ? "pass" : "warn", null, detail, e.state === "different" || e.state === "unrecognized" ? `codex mcp remove ${MCP_NAME}, then kanehack connect codex` : "kanehack connect codex");
+  }
+  const cl = probe("claude", ["--version"], { timeout: 20_000 });
+  if (cl.found && cl.code === 0) {
+    const e = readClaudeEntry(url, helper);
+    const detail = { current: null, absent: `no ${MCP_NAME} server in Claude Code (user scope)`, outdated: `${MCP_NAME} uses an older setup`, different: `another server is named ${MCP_NAME}` }[e.state];
+    add("claude_mcp", e.state === "current" ? "pass" : "warn", null, detail, e.state === "different" ? `claude mcp remove -s user ${MCP_NAME}, then kanehack connect claude` : "kanehack connect claude");
+  }
 }
 
 async function doctor(a) {
@@ -390,6 +671,7 @@ async function doctor(a) {
   const pluginDirs = [join(process.cwd(), ".agents/skills/hack-onboard"), join(homedir(), ".agents/skills/hack-onboard"), join(homedir(), ".claude/skills/hack-onboard"), join(homedir(), ".codex/skills/hack-onboard")];
   const reinstall = WIN ? "irm https://www.kaneclihack.sh/install.ps1 | iex" : "curl -fsSL https://kaneclihack.sh/install.sh | sh";
   add("plugin", pluginDirs.some((d) => existsSync(join(d, "SKILL.md"))) ? "pass" : "warn", null, null, `Re-run the installer to add the hack-* skills: ${reinstall}`);
+  agentChecks(cfg, add, reinstall);
   const r = await api(cfg, "/api/v1/kane/runs?limit=1", { timeout: 10_000 });
   if (!cfg.token) add("api", r.status === 401 ? "warn" : "fail", null, r.status === 401 ? "reachable, not paired" : r.status === 0 ? "unreachable" : `HTTP ${r.status}`, r.status === 401 ? "kanehack pair" : `Check your network; the server is ${cfg.api}`);
   else add("api", r.status === 200 || r.status === 403 ? "pass" : "fail", null, r.status === 0 ? "unreachable" : r.status === 403 ? "paired, not on a team yet" : `HTTP ${r.status}`, r.status === 401 ? "kanehack pair (token rejected)" : `Check your network; the server is ${cfg.api}`);
@@ -403,7 +685,7 @@ async function doctor(a) {
   let readiness = null;
   if (a.flags.report) {
     needToken(cfg);
-    const env = await tool(cfg, "readiness_report", { checks: checks.map(({ fix, ...rest }) => (void fix, rest)) });
+    const env = await tool(cfg, "readiness_report", { checks: checks.map(({ fix, ...rest }) => (void fix, { ...rest, id: SERVER_CHECK_IDS[rest.id] ?? rest.id, status: rest.status === "skipped" ? "skip" : rest.status })) });
     if (!JSON_MODE) printEnvelope(env);
     readiness = envJson(env);
   }
@@ -440,7 +722,12 @@ function gitHead() {
 
 async function report(a) {
   const cmd = a.rest;
-  if (!cmd?.length) fail('Usage: kanehack report [--evidence pack.zip] [--objective "…"] [--json] -- kane-cli run "…" --agent', EXIT.ACTION, "USAGE");
+  if (!cmd?.length) {
+    const example = 'kanehack report -- kane-cli run "Open https://kaneclihack.sh and find the schedule" --agent';
+    say('Usage: kanehack report [--evidence pack.zip] [--objective "…"] [--json] -- kane-cli run "…" --agent');
+    say(`Example: ${example}`);
+    fail("Put the Kane command to run after --", EXIT.ACTION, "USAGE", { example });
+  }
   const cfg = loadConfig();
 
   if (WIN && !winFound(cmd[0])) fail(`Couldn't start ${cmd[0]}: not found on PATH`, 127, "COMMAND_NOT_FOUND");
@@ -645,12 +932,15 @@ function usage() {
   kanehack doctor [--report]                  check your setup; --report sends statuses + versions (no paths, no env)
   kanehack report [--evidence FILE] [--objective TEXT] [--commit SHA] [--no-upload] -- <kane-cli command>
                                               run Kane, keep its exit code + NDJSON, send a redacted summary
+                                              e.g. kanehack report -- kane-cli run "Open https://kaneclihack.sh and find the schedule" --agent
   kanehack status                             your team's latest runs
   kanehack help "<what's wrong>" [--category kane_cli|auth|…] [--priority low|normal|high]
   kanehack help --status H-0042
   kanehack submit --preflight                 what's missing before you can submit
   kanehack consent yes|no|status              allow / stop / show sending run summaries
   kanehack hook status|enable|disable         optional lifecycle hook (off)
+  kanehack connect codex|claude [--check]     add the event MCP server to Codex / Claude Code (no token stored)
+  kanehack mcp-headers                        print the Authorization header as JSON (the agent's headers helper runs it)
   kanehack version
 
   Every command takes --json: one JSON document on stdout (report: one extra NDJSON line).
@@ -664,7 +954,7 @@ Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
 const a = args(process.argv.slice(2));
 JSON_MODE = Boolean(a.flags.json);
 const cmd = a._[0];
-const commands = { pair, token, doctor, report, status, help, submit, consent, hook };
+const commands = { pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
 const run = Object.hasOwn(commands, cmd) ? commands[cmd] : null;
 
 Promise.resolve()
