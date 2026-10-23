@@ -151,7 +151,7 @@ if ($env:CODEX_BIN_DIR) {
   try {
     $g = (& node (Join-Path $Here "codex-probe.mjs") get) | ConvertFrom-Json
     $k = (& node (Join-Path $Here "codex-probe.mjs") skills) | ConvertFrom-Json
-  } finally { Pop-Location; foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $saved[$n]) }; foreach ($c in $copied) { Remove-Item -Recurse -Force $c } }
+  } finally { Pop-Location; foreach ($envName in $saved.Keys) { [Environment]::SetEnvironmentVariable($envName, $saved[$envName]) }; foreach ($c in $copied) { Remove-Item -Recurse -Force $c } }
   Check "codex: codex mcp get kane-hack-event reads it (url, helper)" ($g.code -eq 0 -and $g.json.transport.url -eq "$Site/mcp" -and $g.json.transport.http_headers_helper) $Log
   $names = @($k.hack.PSObject.Properties)
   Check "codex: Codex lists all 12 hack-* skills once each (roots: $($k.roots -join ', '))" ($names.Count -eq 12 -and -not ($names | Where-Object { $_.Value -ne 1 })) $Log
