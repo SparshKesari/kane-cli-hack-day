@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**147 operations**: 92 live in production, 31 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**149 operations**: 0 live in production, 125 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -18,6 +18,9 @@
  "tags": [
   {
    "name": "activate"
+  },
+  {
+   "name": "activation"
   },
   {
    "name": "auth"
@@ -144,8 +147,8 @@
      "cron"
     ],
     "operationId": "get_api_cron_health",
-    "summary": "Vercel Cron → probe DB / Blob / outbox lag and write integration_state,",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/health/route.ts`\n\n```text\nVercel Cron → probe DB / Blob / outbox lag and write integration_state,\nwhich drives the /ops and TV banners. CRON_SECRET protected.\n```",
+    "summary": "[new] Vercel Cron → probe DB / Blob / outbox lag and write integration_state,",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/health/route.ts`\n\n```text\nVercel Cron → probe DB / Blob / outbox lag and write integration_state,\nwhich drives the /ops and TV banners. CRON_SECRET protected.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -199,7 +202,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": []
    }
@@ -210,8 +213,8 @@
      "cron"
     ],
     "operationId": "get_api_cron_metrics",
-    "summary": "Vercel Cron → recompute the live metric projection and feed (T-LIVE-07).",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/metrics/route.ts`\n\n```text\nVercel Cron → recompute the live metric projection and feed (T-LIVE-07).\nSchedule \"* * * * *\" (Vercel's finest grain); /live also refreshes lazily\nwhen the projection is older than 45s, so a late cron only shows as DELAYED.\nAuth: `Authorization: Bearer $CRON_SECRET` (Vercel sends it automatically).\n```",
+    "summary": "[new] Vercel Cron → recompute the live metric projection and feed (T-LIVE-07).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/metrics/route.ts`\n\n```text\nVercel Cron → recompute the live metric projection and feed (T-LIVE-07).\nSchedule \"* * * * *\" (Vercel's finest grain); /live also refreshes lazily\nwhen the projection is older than 45s, so a late cron only shows as DELAYED.\nAuth: `Authorization: Bearer $CRON_SECRET` (Vercel sends it automatically).\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -265,7 +268,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": []
    }
@@ -276,8 +279,8 @@
      "cron"
     ],
     "operationId": "get_api_cron_outbox",
-    "summary": "Vercel Cron → deliver queued side effects (Slack, webhooks). CRON_SECRET protected.",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/outbox/route.ts`\n\n```text\nVercel Cron → deliver queued side effects (Slack, webhooks). CRON_SECRET protected.\n```",
+    "summary": "[new] Vercel Cron → deliver queued side effects (Slack, webhooks). CRON_SECRET protected.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/outbox/route.ts`\n\n```text\nVercel Cron → deliver queued side effects (Slack, webhooks). CRON_SECRET protected.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -331,7 +334,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": []
    }
@@ -342,8 +345,8 @@
      "cron"
     ],
     "operationId": "get_api_cron_retention",
-    "summary": "Vercel Cron → expire idempotency keys, used login codes, revoked tokens,",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/retention/route.ts`\n\n```text\nVercel Cron → expire idempotency keys, used login codes, revoked tokens,\ndelivered outbox rows and rate-limit windows. CRON_SECRET protected.\n```",
+    "summary": "[new] Vercel Cron → expire idempotency keys, used login codes, revoked tokens,",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/cron/retention/route.ts`\n\n```text\nVercel Cron → expire idempotency keys, used login codes, revoked tokens,\ndelivered outbox rows and rate-limit windows. CRON_SECRET protected.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -397,7 +400,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": []
    }
@@ -474,8 +477,8 @@
      "export"
     ],
     "operationId": "get_api_export_teams",
-    "summary": "Feed for the local photo pipeline (photo-pipeline/enroll.py): every team with",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/export/teams/route.ts`\n\n```text\nFeed for the local photo pipeline (photo-pipeline/enroll.py): every team with\nits idea, members, social handles, registration photo paths and consent.\nPhoto paths download from /photos/<path> with the same x-export-token header.\n```",
+    "summary": "[new] Feed for the local photo pipeline (photo-pipeline/enroll.py): every team with",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/export/teams/route.ts`\n\n```text\nFeed for the local photo pipeline (photo-pipeline/enroll.py): every team with\nits idea, members, social handles, registration photo paths and consent.\nPhoto paths download from /photos/<path> with the same x-export-token header.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -529,7 +532,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -554,8 +557,8 @@
      "import"
     ],
     "operationId": "post_api_import_photo",
-    "summary": "The photo pipeline posts each tagged event photo here once (multipart):",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/import/photo/route.ts`\n\n```text\nThe photo pipeline posts each tagged event photo here once (multipart):\n  file      the JPEG (the pipeline resizes to fit the 4.5 MB request limit)\n  key       stable id for the photo (content hash); re-sending is a no-op\n  teams     one or more team slugs the photo was matched to\n  people    optional P-codes of people the pipeline face-matched (suggestions only)\n  caption   optional, shown under the photo\n  width, height\n\nConsent gate (T-PHOTO-01): a photo reaches a gallery only when every\nsuggested person and every current member of the team has said yes to\nphoto publication. Anything else is stored privately and HELD for review\nin /ops/media (\"held for review\"), never published on a camera match alone.\n```",
+    "summary": "[new] The photo pipeline posts each tagged event photo here once (multipart):",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/import/photo/route.ts`\n\n```text\nThe photo pipeline posts each tagged event photo here once (multipart):\n  file      the JPEG (the pipeline resizes to fit the 4.5 MB request limit)\n  key       stable id for the photo (content hash); re-sending is a no-op\n  teams     one or more team slugs the photo was matched to\n  people    optional P-codes of people the pipeline face-matched (suggestions only)\n  caption   optional, shown under the photo\n  width, height\n\nConsent gate (T-PHOTO-01): a photo reaches a gallery only when every\nsuggested person and every current member of the team has said yes to\nphoto publication. Anything else is stored privately and HELD for review\nin /ops/media (\"held for review\"), never published on a camera match alone.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -619,7 +622,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": [],
     "requestBody": {
@@ -642,8 +645,8 @@
      "upload"
     ],
     "operationId": "post_api_upload",
-    "summary": "Issues short-lived tokens so the browser uploads registration photos straight",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/upload/route.ts`\n\n```text\nIssues short-lived tokens so the browser uploads registration photos straight\nto Blob (no 4.5 MB function body limit). Registration is anonymous, so this\nonly allows images, capped in size, into the reg/ folder; a photo is attached\nto a team only when registration or the hub saves its pathname.\n```",
+    "summary": "[new] Issues short-lived tokens so the browser uploads registration photos straight",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/upload/route.ts`\n\n```text\nIssues short-lived tokens so the browser uploads registration photos straight\nto Blob (no 4.5 MB function body limit). Registration is anonymous, so this\nonly allows images, capped in size, into the reg/ folder; a photo is attached\nto a team only when registration or the hub saves its pathname.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -707,7 +710,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -744,8 +747,8 @@
      "activate"
     ],
     "operationId": "get_api_v1_activate_checkpoints",
-    "summary": "where this person's activation is. The Kane controller polls this",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/activate/checkpoints/route.ts`\n\n```text\nGET  : where this person's activation is. The Kane controller polls this\n       between run A (stops at awaiting_selfie) and run B (verifies active).\nPOST : an agent reports kane_run_a_started / kane_run_a_stopped /\n       browser_verified. Never a selfie step: only a human click does that.\n```",
+    "summary": "[new] where this person's activation is. The Kane controller polls this",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/activate/checkpoints/route.ts`\n\n```text\nGET  : where this person's activation is. The Kane controller polls this\n       between run A (stops at awaiting_selfie) and run B (verifies active).\nPOST : an agent reports kane_run_a_started / kane_run_a_stopped /\n       browser_verified. Never a selfie step: only a human click does that.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -799,7 +802,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -822,8 +825,8 @@
      "activate"
     ],
     "operationId": "post_api_v1_activate_checkpoints",
-    "summary": "Persist secure human camera checkpoint",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Persist secure human camera checkpoint  \n**Source:** `src/app/api/v1/activate/checkpoints/route.ts`\n\n```text\nGET  : where this person's activation is. The Kane controller polls this\n       between run A (stops at awaiting_selfie) and run B (verifies active).\nPOST : an agent reports kane_run_a_started / kane_run_a_stopped /\n       browser_verified. Never a selfie step: only a human click does that.\n```",
+    "summary": "[new] Persist secure human camera checkpoint",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Persist secure human camera checkpoint  \n**Source:** `src/app/api/v1/activate/checkpoints/route.ts`\n\n```text\nGET  : where this person's activation is. The Kane controller polls this\n       between run A (stops at awaiting_selfie) and run B (verifies active).\nPOST : an agent reports kane_run_a_started / kane_run_a_stopped /\n       browser_verified. Never a selfie step: only a human click does that.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -887,7 +890,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -924,8 +927,8 @@
      "activate"
     ],
     "operationId": "post_api_v1_activate_resume",
-    "summary": "Resume at verified checkpoint",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Resume at verified checkpoint  \n**Source:** `src/app/api/v1/activate/resume/route.ts`\n\n```text\nResume at the stored checkpoint (T-ACT-05). Idempotent: calling it again,\nafter a crash or from a second device, returns the same session and never\ncreates a second participant or selfie.\n```",
+    "summary": "[new] Resume at verified checkpoint",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Resume at verified checkpoint  \n**Source:** `src/app/api/v1/activate/resume/route.ts`\n\n```text\nResume at the stored checkpoint (T-ACT-05). Idempotent: calling it again,\nafter a crash or from a second device, returns the same session and never\ncreates a second participant or selfie.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -989,7 +992,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1026,8 +1029,8 @@
      "activate"
     ],
     "operationId": "post_api_v1_activate_selfie",
-    "summary": "Create signed upload session for user-controlled selfie",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Create signed upload session for user-controlled selfie  \n**Source:** `src/app/api/v1/activate/selfie/route.ts`\n\n```text\nThe selfie upload (multipart: file, trusted, idempotency_key, [handoff]).\nBrowser-only: a signed-in browser (cookie) or the phone's one-time handoff\ntoken. A bearer token (agent) is refused on purpose, so a selfie never\npasses through an agent or its prompt context (SPEC §2).\n```",
+    "summary": "[new] Create signed upload session for user-controlled selfie",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Create signed upload session for user-controlled selfie  \n**Source:** `src/app/api/v1/activate/selfie/route.ts`\n\n```text\nThe selfie upload (multipart: file, trusted, idempotency_key, [handoff]).\nBrowser-only: a signed-in browser (cookie) or the phone's one-time handoff\ntoken. A bearer token (agent) is refused on purpose, so a selfie never\npasses through an agent or its prompt context (SPEC §2).\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -1091,7 +1094,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1128,8 +1131,8 @@
      "activate"
     ],
     "operationId": "post_api_v1_activate_start",
-    "summary": "activation_begin (Kane run A). A paired CLI/MCP client asks for a one-time",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/activate/start/route.ts`\n\n```text\nactivation_begin (Kane run A). A paired CLI/MCP client asks for a one-time\nactivation link (30 minutes) to open in Chrome; opening it and pressing\nContinue signs that browser in and resumes the person's activation.\nAlready active → nothing to do, the passport link instead.\n```",
+    "summary": "[new] activation_begin (Kane run A). A paired CLI/MCP client asks for a one-time",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/activate/start/route.ts`\n\n```text\nactivation_begin (Kane run A). A paired CLI/MCP client asks for a one-time\nactivation link (30 minutes) to open in Chrome; opening it and pressing\nContinue signs that browser in and resumes the person's activation.\nAlready active → nothing to do, the passport link instead.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -1193,7 +1196,109 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
+  "/api/v1/activation/claim": {
+   "post": {
+    "tags": [
+     "activation"
+    ],
+    "operationId": "post_api_v1_activation_claim",
+    "summary": "[new] `kanehack claim`, /activate step 2 from the CLI. The member's",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/activation/claim/route.ts`\n\n```text\nPOST /api/v1/activation/claim: `kanehack claim`, /activate step 2 from the CLI. The member's\nTestMu AI password (their kaneclihack.sh one) comes from the CLI's local store and goes to\nTestMu AI once, never stored. Same rules as the page: team required, rate-limited, audited,\nand the captain's team invites follow a successful claim.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1230,8 +1335,8 @@
      "auth"
     ],
     "operationId": "get_api_v1_auth_callback",
-    "summary": "the generic OAuth callback in openapi.yaml. The",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/callback/route.ts`\n\n```text\nGET /api/v1/auth/callback: the generic OAuth callback in openapi.yaml. The\nonly provider is GitHub, so this forwards (query intact) to its handler.\n```",
+    "summary": "[new] the generic OAuth callback in openapi.yaml. The",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/callback/route.ts`\n\n```text\nGET /api/v1/auth/callback: the generic OAuth callback in openapi.yaml. The\nonly provider is GitHub, so this forwards (query intact) to its handler.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -1285,7 +1390,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1310,8 +1415,8 @@
      "auth"
     ],
     "operationId": "get_api_v1_auth_github_callback",
-    "summary": "GitHub OAuth callback. The access token is used once to read /user and is",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/github/callback/route.ts`\n\n```text\nGitHub OAuth callback. The access token is used once to read /user and is\nnever stored. Any failure lands back on the passport with a reason code.\n```",
+    "summary": "[new] GitHub OAuth callback. The access token is used once to read /user and is",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/github/callback/route.ts`\n\n```text\nGitHub OAuth callback. The access token is used once to read /user and is\nnever stored. Any failure lands back on the passport with a reason code.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -1365,7 +1470,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1390,8 +1495,8 @@
      "auth"
     ],
     "operationId": "get_api_v1_auth_github_start",
-    "summary": "Link a GitHub account to the signed-in passport (optional; public profile",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/github/start/route.ts`\n\n```text\nLink a GitHub account to the signed-in passport (optional; public profile\nonly, no repo scopes). Off unless GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET are set.\n```",
+    "summary": "[new] Link a GitHub account to the signed-in passport (optional; public profile",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/github/start/route.ts`\n\n```text\nLink a GitHub account to the signed-in passport (optional; public profile\nonly, no repo scopes). Off unless GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET are set.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -1445,7 +1550,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -1471,7 +1576,7 @@
     ],
     "operationId": "post_api_v1_auth_register",
     "summary": "[new] save the profile and activate TestMu AI; returns the access key once.",
-    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/register/route.ts`\n\n```text\nPOST /api/v1/auth/register: save the profile and activate TestMu AI; returns the access key once.\nNo TestMu key needed: this is where it comes from.\n  { name, email (the Luma one), linkedin, x, github?, password (8+), looking?: \"yes\",\n    proof_password? | proof_code? (only when the email already has an account) }\nThe same profile as /register. Saves it, then activates the person on TestMu AI\nwith it: TestMu answers with their username + access key, returned here ONCE as\ndata.testmu. Send them as X-TestMu-Username / X-TestMu-Access-Key on every call\nafter. The key isn't stored (only a fingerprint), so it can't be fetched again.\n409 needs_proof: the email has an account; resend with proof_password or proof_code.\n```",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/register/route.ts`\n\n```text\nPOST /api/v1/auth/register: save the profile and activate TestMu AI; returns the access key once.\nNo TestMu key needed: this is where it comes from.\n  { name, email (the Luma one), linkedin, x, github?, password (8+), looking?: \"yes\",\n    proof_password? | proof_code? (only when the email already has an account) }\nThe same profile as /register. Saves it, then activates the person on TestMu AI\nwith it: TestMu answers with their username + access key, returned here ONCE as\ndata.testmu. Send them as X-TestMu-Username / X-TestMu-Access-Key on every call\nafter. The key isn't stored (only a fingerprint), so it can't be fetched again.\n409 needs_proof: the email has an account; resend with proof_password or proof_code.\nclient: \"kanehack\" → data.token, a bearer token for this machine (the password just proved\nwho they are), so `kanehack register` needs no browser pairing.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -1558,8 +1663,8 @@
      "auth"
     ],
     "operationId": "post_api_v1_auth_start",
-    "summary": "Begin guest authentication",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Begin guest authentication  \n**Source:** `src/app/api/v1/auth/start/route.ts`\n\n```text\nBegin guest authentication. For a CLI/MCP client this is device pairing\n(same as /api/v1/pair/start); the envelope also lists the browser sign-in\nroutes so a headless agent can tell the person where to go.\n```",
+    "summary": "[new] Begin guest authentication",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Begin guest authentication  \n**Source:** `src/app/api/v1/auth/start/route.ts`\n\n```text\nBegin guest authentication. For a CLI/MCP client this is device pairing\n(same as /api/v1/pair/start); the envelope also lists the browser sign-in\nroutes so a headless agent can tell the person where to go.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -1623,7 +1728,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -2026,14 +2131,102 @@
     "security": []
    }
   },
+  "/api/v1/auth/token": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "operationId": "post_api_v1_auth_token",
+    "summary": "[new] `kanehack signin`. Email + the member's own password → a bearer",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/token/route.ts`\n\n```text\nPOST /api/v1/auth/token: `kanehack signin`. Email + the member's own password → a bearer\ntoken for this machine, the same one pairing hands out, without the browser step.\nThe password comes from the CLI's local store (kanehack password), never from a chat.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "open",
+    "security": [],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
   "/api/v1/dashboard": {
    "get": {
     "tags": [
      "dashboard"
     ],
     "operationId": "get_api_v1_dashboard",
-    "summary": "→ DashboardData. Public aggregates only (no names or",
-    "description": "**Status:** LIVE in production  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/dashboard/route.ts`\n\n```text\nGET /api/v1/dashboard → DashboardData. Public aggregates only (no names or\nemails); /dashboard polls this every 10s.\n```",
+    "summary": "[new] → DashboardData. Public aggregates only (no names or",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/dashboard/route.ts`\n\n```text\nGET /api/v1/dashboard → DashboardData. Public aggregates only (no names or\nemails); /dashboard polls this every 10s.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -2087,7 +2280,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "public",
     "security": []
    }
@@ -2098,8 +2291,8 @@
      "decks"
     ],
     "operationId": "post_api_v1_decks_deckId_render",
-    "summary": "Start deck export job",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Start deck export job  \n**Source:** `src/app/api/v1/decks/[deckId]/render/route.ts`\n\n```text\nPOST /api/v1/decks/{deckId}/render   demo_generate\n  body: { format: \"pdf\" | \"pptx\" | \"mp4\", version? }\nHonest status: no server renderer is deployed, so PDF is \"browser print\"\n(with the print URL) and PPTX / MP4 are \"unavailable\". Idempotent per\n(format, version). Never blocks submission.\n```",
+    "summary": "[new] Start deck export job",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Start deck export job  \n**Source:** `src/app/api/v1/decks/[deckId]/render/route.ts`\n\n```text\nPOST /api/v1/decks/{deckId}/render   demo_generate\n  body: { format: \"pdf\" | \"pptx\" | \"mp4\", version? }\nHonest status: no server renderer is deployed, so PDF is \"browser print\"\n(with the print URL) and PPTX / MP4 are \"unavailable\". Idempotent per\n(format, version). Never blocks submission.\n```",
     "parameters": [
      {
       "name": "deckId",
@@ -2171,7 +2364,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -2208,8 +2401,8 @@
      "decks"
     ],
     "operationId": "get_api_v1_decks_deckId_versions",
-    "summary": "The deck id is the project id: one deck per project, many versions.",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/decks/[deckId]/versions/route.ts`\n\n```text\nThe deck id is the project id: one deck per project, many versions.\nGET  /api/v1/decks/{deckId}/versions?version=N   deck_get (scene model, theme, exports)\nPOST /api/v1/decks/{deckId}/versions             deck_update: new version\n  body: { deck: { slides, theme }, expected_version, reason?, idempotency_key? }\n```",
+    "summary": "[new] The deck id is the project id: one deck per project, many versions.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/decks/[deckId]/versions/route.ts`\n\n```text\nThe deck id is the project id: one deck per project, many versions.\nGET  /api/v1/decks/{deckId}/versions?version=N   deck_get (scene model, theme, exports)\nPOST /api/v1/decks/{deckId}/versions             deck_update: new version\n  body: { deck: { slides, theme }, expected_version, reason?, idempotency_key? }\n```",
     "parameters": [
      {
       "name": "deckId",
@@ -2272,7 +2465,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -2295,8 +2488,8 @@
      "decks"
     ],
     "operationId": "post_api_v1_decks_deckId_versions",
-    "summary": "Create deck revision",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Create deck revision  \n**Source:** `src/app/api/v1/decks/[deckId]/versions/route.ts`\n\n```text\nThe deck id is the project id: one deck per project, many versions.\nGET  /api/v1/decks/{deckId}/versions?version=N   deck_get (scene model, theme, exports)\nPOST /api/v1/decks/{deckId}/versions             deck_update: new version\n  body: { deck: { slides, theme }, expected_version, reason?, idempotency_key? }\n```",
+    "summary": "[new] Create deck revision",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Create deck revision  \n**Source:** `src/app/api/v1/decks/[deckId]/versions/route.ts`\n\n```text\nThe deck id is the project id: one deck per project, many versions.\nGET  /api/v1/decks/{deckId}/versions?version=N   deck_get (scene model, theme, exports)\nPOST /api/v1/decks/{deckId}/versions             deck_update: new version\n  body: { deck: { slides, theme }, expected_version, reason?, idempotency_key? }\n```",
     "parameters": [
      {
       "name": "deckId",
@@ -2368,7 +2561,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -2939,8 +3132,8 @@
      "help"
     ],
     "operationId": "get_api_v1_help",
-    "summary": "open a mentor ticket (participant; bearer or member cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/help/route.ts`\n\n```text\nPOST /api/v1/help: open a mentor ticket (participant; bearer or member cookie).\nIdempotent on idempotency_key / Idempotency-Key. GET: the caller's tickets.\n```",
+    "summary": "[new] open a mentor ticket (participant; bearer or member cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/help/route.ts`\n\n```text\nPOST /api/v1/help: open a mentor ticket (participant; bearer or member cookie).\nIdempotent on idempotency_key / Idempotency-Key. GET: the caller's tickets.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -2994,7 +3187,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3017,8 +3210,8 @@
      "help"
     ],
     "operationId": "post_api_v1_help",
-    "summary": "Open mentor ticket",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Open mentor ticket  \n**Source:** `src/app/api/v1/help/route.ts`\n\n```text\nPOST /api/v1/help: open a mentor ticket (participant; bearer or member cookie).\nIdempotent on idempotency_key / Idempotency-Key. GET: the caller's tickets.\n```",
+    "summary": "[new] Open mentor ticket",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Open mentor ticket  \n**Source:** `src/app/api/v1/help/route.ts`\n\n```text\nPOST /api/v1/help: open a mentor ticket (participant; bearer or member cookie).\nIdempotent on idempotency_key / Idempotency-Key. GET: the caller's tickets.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -3082,7 +3275,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3119,8 +3312,8 @@
      "help"
     ],
     "operationId": "get_api_v1_help_id",
-    "summary": "Get ticket status",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Get ticket status  \n**Source:** `src/app/api/v1/help/[id]/route.ts`\n\n```text\nGET /api/v1/help/{id}: ticket status by H-code or numeric id. Participants\nsee their own and their team's tickets; mentors/organizers see any (with\nstaff notes). Mentor name only once claimed.\n```",
+    "summary": "[new] Get ticket status",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Get ticket status  \n**Source:** `src/app/api/v1/help/[id]/route.ts`\n\n```text\nGET /api/v1/help/{id}: ticket status by H-code or numeric id. Participants\nsee their own and their team's tickets; mentors/organizers see any (with\nstaff notes). Mentor name only once claimed.\n```",
     "parameters": [
      {
       "name": "id",
@@ -3183,7 +3376,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3208,8 +3401,8 @@
      "help"
     ],
     "operationId": "post_api_v1_help_id_claim",
-    "summary": "Mentor claims help",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Mentor claims help  \n**Source:** `src/app/api/v1/help/[id]/claim/route.ts`\n\n```text\nPOST /api/v1/help/{id}/claim: a mentor claims a ticket. Atomic: a second\nconcurrent claim gets 409 CONFLICT \"already claimed by X\". Claim is\nnaturally idempotent per ticket, so no key is needed.\n```",
+    "summary": "[new] Mentor claims help",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Mentor claims help  \n**Source:** `src/app/api/v1/help/[id]/claim/route.ts`\n\n```text\nPOST /api/v1/help/{id}/claim: a mentor claims a ticket. Atomic: a second\nconcurrent claim gets 409 CONFLICT \"already claimed by X\". Claim is\nnaturally idempotent per ticket, so no key is needed.\n```",
     "parameters": [
      {
       "name": "id",
@@ -3281,7 +3474,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3318,8 +3511,8 @@
      "help"
     ],
     "operationId": "post_api_v1_help_id_resolve",
-    "summary": "Mentor resolves help",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Mentor resolves help  \n**Source:** `src/app/api/v1/help/[id]/resolve/route.ts`\n\n```text\nPOST /api/v1/help/{id}/resolve: mark a ticket resolved, with an optional\nresolution note ({ payload: { reason } }) the participant will see.\n```",
+    "summary": "[new] Mentor resolves help",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** help · Existing blueprint contract: Mentor resolves help  \n**Source:** `src/app/api/v1/help/[id]/resolve/route.ts`\n\n```text\nPOST /api/v1/help/{id}/resolve: mark a ticket resolved, with an optional\nresolution note ({ payload: { reason } }) the participant will see.\n```",
     "parameters": [
      {
       "name": "id",
@@ -3391,7 +3584,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3428,8 +3621,8 @@
      "help"
     ],
     "operationId": "post_api_v1_help_diagnose",
-    "summary": "docs-grounded suggestions before opening a",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/help/diagnose/route.ts`\n\n```text\nPOST /api/v1/help/diagnose: docs-grounded suggestions before opening a\nticket (help_diagnose). Signed-in only; advisory, never a substitute for a mentor.\n```",
+    "summary": "[new] docs-grounded suggestions before opening a",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/help/diagnose/route.ts`\n\n```text\nPOST /api/v1/help/diagnose: docs-grounded suggestions before opening a\nticket (help_diagnose). Signed-in only; advisory, never a substitute for a mentor.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -3493,7 +3686,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3620,8 +3813,8 @@
      "ideas"
     ],
     "operationId": "get_api_v1_ideas",
-    "summary": "your team's idea and its latest advisory check (team scope only)",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ideas/route.ts`\n\n```text\nGET  /api/v1/ideas  your team's idea and its latest advisory check (team scope only)\nPOST /api/v1/ideas  { title, app_type?, private_description, kane_plan?, extra_info?, public_summary?, discovery_opt_in?, project_type? } → new revision.\nSharing (discovery_opt_in: true) needs explicit_confirmation: true. Refused after the idea lock.\n```",
+    "summary": "[new] your team's idea and its latest advisory check (team scope only)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ideas/route.ts`\n\n```text\nGET  /api/v1/ideas  your team's idea and its latest advisory check (team scope only)\nPOST /api/v1/ideas  { title, app_type?, private_description, kane_plan?, extra_info?, public_summary?, discovery_opt_in?, project_type? } → new revision.\nSharing (discovery_opt_in: true) needs explicit_confirmation: true. Refused after the idea lock.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -3675,7 +3868,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3698,8 +3891,8 @@
      "ideas"
     ],
     "operationId": "post_api_v1_ideas",
-    "summary": "Save team idea",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Save team idea  \n**Source:** `src/app/api/v1/ideas/route.ts`\n\n```text\nGET  /api/v1/ideas  your team's idea and its latest advisory check (team scope only)\nPOST /api/v1/ideas  { title, app_type?, private_description, kane_plan?, extra_info?, public_summary?, discovery_opt_in?, project_type? } → new revision.\nSharing (discovery_opt_in: true) needs explicit_confirmation: true. Refused after the idea lock.\n```",
+    "summary": "[new] Save team idea",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Save team idea  \n**Source:** `src/app/api/v1/ideas/route.ts`\n\n```text\nGET  /api/v1/ideas  your team's idea and its latest advisory check (team scope only)\nPOST /api/v1/ideas  { title, app_type?, private_description, kane_plan?, extra_info?, public_summary?, discovery_opt_in?, project_type? } → new revision.\nSharing (discovery_opt_in: true) needs explicit_confirmation: true. Refused after the idea lock.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -3763,7 +3956,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3800,8 +3993,8 @@
      "ideas"
     ],
     "operationId": "post_api_v1_ideas_radar",
-    "summary": "Check opted-in idea overlap",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Check opted-in idea overlap  \n**Source:** `src/app/api/v1/ideas/radar/route.ts`\n\n```text\nPOST /api/v1/ideas/radar  idea_check_overlap: compares your opt-in public summary\nwith other teams' opt-in public summaries. Private descriptions are never used.\n```",
+    "summary": "[new] Check opted-in idea overlap",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Check opted-in idea overlap  \n**Source:** `src/app/api/v1/ideas/radar/route.ts`\n\n```text\nPOST /api/v1/ideas/radar  idea_check_overlap: compares your opt-in public summary\nwith other teams' opt-in public summaries. Private descriptions are never used.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -3865,7 +4058,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -3902,8 +4095,8 @@
      "ideas"
     ],
     "operationId": "post_api_v1_ideas_validate",
-    "summary": "Validate idea against challenge and rubric",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Validate idea against challenge and rubric  \n**Source:** `src/app/api/v1/ideas/validate/route.ts`\n\n```text\nPOST /api/v1/ideas/validate\n  {}                                   validate the team's saved idea (stored as a revision)\n  { project_idea, title?, project_type? }  ad-hoc check, not stored\n  use_ai: false keeps the text off the model (rule-based check).\nAlways advisory: never an official score.\n```",
+    "summary": "[new] Validate idea against challenge and rubric",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Validate idea against challenge and rubric  \n**Source:** `src/app/api/v1/ideas/validate/route.ts`\n\n```text\nPOST /api/v1/ideas/validate\n  {}                                   validate the team's saved idea (stored as a revision)\n  { project_idea, title?, project_type? }  ad-hoc check, not stored\n  use_ai: false keeps the text off the model (rule-based check).\nAlways advisory: never an official score.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -3967,7 +4160,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4070,8 +4263,8 @@
      "kane"
     ],
     "operationId": "get_api_v1_kane_evidence",
-    "summary": "store one evidence file in private Blob.",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/route.ts`\n\n```text\nPOST /api/v1/kane/evidence: store one evidence file in private Blob.\n  multipart/form-data  file + kind (+ project_id, run_id, sha256, visibility); ≤ 4 MB\n  application/json     { pathname, name, kind, … } after a signed client upload\n                       (token from /api/v1/kane/evidence/upload); ≤ 50 MB\nChecks: type and size, magic bytes, executables, zip traversal/bombs, sha256\nmatch. Duplicates (same sha256 in the project) return the existing receipt.\nGET  /api/v1/kane/evidence: the project's evidence list (metadata only).\n```",
+    "summary": "[new] store one evidence file in private Blob.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/route.ts`\n\n```text\nPOST /api/v1/kane/evidence: store one evidence file in private Blob.\n  multipart/form-data  file + kind (+ project_id, run_id, sha256, visibility); ≤ 4 MB\n  application/json     { pathname, name, kind, … } after a signed client upload\n                       (token from /api/v1/kane/evidence/upload); ≤ 50 MB\nChecks: type and size, magic bytes, executables, zip traversal/bombs, sha256\nmatch. Duplicates (same sha256 in the project) return the existing receipt.\nGET  /api/v1/kane/evidence: the project's evidence list (metadata only).\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -4125,7 +4318,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4148,8 +4341,8 @@
      "kane"
     ],
     "operationId": "post_api_v1_kane_evidence",
-    "summary": "store one evidence file in private Blob.",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/route.ts`\n\n```text\nPOST /api/v1/kane/evidence: store one evidence file in private Blob.\n  multipart/form-data  file + kind (+ project_id, run_id, sha256, visibility); ≤ 4 MB\n  application/json     { pathname, name, kind, … } after a signed client upload\n                       (token from /api/v1/kane/evidence/upload); ≤ 50 MB\nChecks: type and size, magic bytes, executables, zip traversal/bombs, sha256\nmatch. Duplicates (same sha256 in the project) return the existing receipt.\nGET  /api/v1/kane/evidence: the project's evidence list (metadata only).\n```",
+    "summary": "[new] store one evidence file in private Blob.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/route.ts`\n\n```text\nPOST /api/v1/kane/evidence: store one evidence file in private Blob.\n  multipart/form-data  file + kind (+ project_id, run_id, sha256, visibility); ≤ 4 MB\n  application/json     { pathname, name, kind, … } after a signed client upload\n                       (token from /api/v1/kane/evidence/upload); ≤ 50 MB\nChecks: type and size, magic bytes, executables, zip traversal/bombs, sha256\nmatch. Duplicates (same sha256 in the project) return the existing receipt.\nGET  /api/v1/kane/evidence: the project's evidence list (metadata only).\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -4213,7 +4406,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4250,8 +4443,8 @@
      "kane"
     ],
     "operationId": "get_api_v1_kane_evidence_id",
-    "summary": "the file itself, streamed from private",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/[id]/route.ts`\n\n```text\nGET /api/v1/kane/evidence/{id}: the file itself, streamed from private\nBlob. The team, judges/mentors (for judges-visible files) and organizers\nonly; quarantined files are organizer-only. Unknown or forbidden → 404, so\nthe endpoint never confirms that a file exists.\n```",
+    "summary": "[new] the file itself, streamed from private",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/[id]/route.ts`\n\n```text\nGET /api/v1/kane/evidence/{id}: the file itself, streamed from private\nBlob. The team, judges/mentors (for judges-visible files) and organizers\nonly; quarantined files are organizer-only. Unknown or forbidden → 404, so\nthe endpoint never confirms that a file exists.\n```",
     "parameters": [
      {
       "name": "id",
@@ -4314,7 +4507,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4339,8 +4532,8 @@
      "kane"
     ],
     "operationId": "post_api_v1_kane_evidence_upload",
-    "summary": "Signed client uploads for evidence over 4 MB (the Proof tab uses this via",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/upload/route.ts`\n\n```text\nSigned client uploads for evidence over 4 MB (the Proof tab uses this via\n@vercel/blob/client `upload()`). The token only allows a private upload\nunder evidence-incoming/{projectId}/ for the caller's own project; nothing\ncounts until POST /api/v1/kane/evidence has checked and moved the file.\n```",
+    "summary": "[new] Signed client uploads for evidence over 4 MB (the Proof tab uses this via",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/evidence/upload/route.ts`\n\n```text\nSigned client uploads for evidence over 4 MB (the Proof tab uses this via\n@vercel/blob/client `upload()`). The token only allows a private upload\nunder evidence-incoming/{projectId}/ for the caller's own project; nothing\ncounts until POST /api/v1/kane/evidence has checked and moved the file.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -4404,7 +4597,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4441,8 +4634,8 @@
      "kane"
     ],
     "operationId": "get_api_v1_kane_runs",
-    "summary": "`kanehack report` and other paired clients report a",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/runs/route.ts`\n\n```text\nPOST /api/v1/kane/runs: `kanehack report` and other paired clients report a\nKane run. Success is the exit code; a missing completion event is not a pass.\nGET  /api/v1/kane/runs: the caller's project's recent runs.\n```",
+    "summary": "[new] `kanehack report` and other paired clients report a",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/runs/route.ts`\n\n```text\nPOST /api/v1/kane/runs: `kanehack report` and other paired clients report a\nKane run. Success is the exit code; a missing completion event is not a pass.\nGET  /api/v1/kane/runs: the caller's project's recent runs.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -4496,7 +4689,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4519,8 +4712,8 @@
      "kane"
     ],
     "operationId": "post_api_v1_kane_runs",
-    "summary": "Ingest verified scoped Kane metadata",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** kane · Existing blueprint contract: Ingest verified scoped Kane metadata  \n**Source:** `src/app/api/v1/kane/runs/route.ts`\n\n```text\nPOST /api/v1/kane/runs: `kanehack report` and other paired clients report a\nKane run. Success is the exit code; a missing completion event is not a pass.\nGET  /api/v1/kane/runs: the caller's project's recent runs.\n```",
+    "summary": "[new] Ingest verified scoped Kane metadata",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** kane · Existing blueprint contract: Ingest verified scoped Kane metadata  \n**Source:** `src/app/api/v1/kane/runs/route.ts`\n\n```text\nPOST /api/v1/kane/runs: `kanehack report` and other paired clients report a\nKane run. Success is the exit code; a missing completion event is not a pass.\nGET  /api/v1/kane/runs: the caller's project's recent runs.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -4584,7 +4777,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4621,8 +4814,8 @@
      "kane"
     ],
     "operationId": "get_api_v1_kane_runs_id",
-    "summary": "one run with per-test results, evidence and",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/runs/[id]/route.ts`\n\n```text\nGET /api/v1/kane/runs/{id}: one run with per-test results, evidence and\nlinked defects. Scoped to the team, judges, mentors and organizers.\n```",
+    "summary": "[new] one run with per-test results, evidence and",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/kane/runs/[id]/route.ts`\n\n```text\nGET /api/v1/kane/runs/{id}: one run with per-test results, evidence and\nlinked defects. Scoped to the team, judges, mentors and organizers.\n```",
     "parameters": [
      {
       "name": "id",
@@ -4685,7 +4878,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4710,8 +4903,8 @@
      "live"
     ],
     "operationId": "get_api_v1_live_metrics",
-    "summary": "Public verified event metrics and freshness",
-    "description": "**Status:** LIVE in production  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** live · Existing blueprint contract: Public verified event metrics and freshness  \n**Source:** `src/app/api/v1/live/metrics/route.ts`\n\n```text\nGET /api/v1/live/metrics → EventMetrics { metrics, as_of, freshness_state }\n(openapi.yaml). Public, verified aggregates only; `?ops=1` adds the staff-only\nmetrics for organizers and mentors. `?board=1` also returns the whole TV\nsnapshot, which is what /live polls when the SSE stream is unavailable and\nreconciles against after a reconnect.\n\nUnknown values are null (render \"—\"), never 0. On an outage the projection\nkeeps its last values and as_of, and freshness_state says delayed/stale/offline.\n```",
+    "summary": "[new] Public verified event metrics and freshness",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** live · Existing blueprint contract: Public verified event metrics and freshness  \n**Source:** `src/app/api/v1/live/metrics/route.ts`\n\n```text\nGET /api/v1/live/metrics → EventMetrics { metrics, as_of, freshness_state }\n(openapi.yaml). Public, verified aggregates only; `?ops=1` adds the staff-only\nmetrics for organizers and mentors. `?board=1` also returns the whole TV\nsnapshot, which is what /live polls when the SSE stream is unavailable and\nreconciles against after a reconnect.\n\nUnknown values are null (render \"—\"), never 0. On an outage the projection\nkeeps its last values and as_of, and freshness_state says delayed/stale/offline.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -4765,7 +4958,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "public",
     "security": []
    }
@@ -4842,8 +5035,8 @@
      "live"
     ],
     "operationId": "get_api_v1_live_stream",
-    "summary": "Stream public event activity and mode changes",
-    "description": "**Status:** LIVE in production  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** live · Existing blueprint contract: Stream public event activity and mode changes  \n**Source:** `src/app/api/v1/live/stream/route.ts`\n\n```text\nGET /api/v1/live/stream: Server-Sent Events for /live (T-LIVE-06).\n\n  event: snapshot  id: <feed cursor>  data: LiveSnapshot   (on connect, then on change)\n  event: feed      id: <live_feed id> data: FeedItem       (new public items; drives the proof toast)\n  event: ping                         data: { server_time } (heartbeat every 15s)\n  event: degraded                     data: { state }       (snapshot unreadable; client holds last values)\n\nResume: the browser's EventSource resends the last `id` as Last-Event-ID; we\nreplay feed items after it, then send a fresh snapshot (reconcile). Each\nconnection lives ~4 minutes, then closes cleanly so a function never runs\npast maxDuration; the client reconnects with Last-Event-ID automatically.\nNode runtime (the default; cacheComponents forbids the `runtime` export). Behind the `live_sse` flag: when off, 503 and /live\nfalls back to polling /api/v1/live/metrics?board=1.\n```",
+    "summary": "[new] Stream public event activity and mode changes",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** live · Existing blueprint contract: Stream public event activity and mode changes  \n**Source:** `src/app/api/v1/live/stream/route.ts`\n\n```text\nGET /api/v1/live/stream: Server-Sent Events for /live (T-LIVE-06).\n\n  event: snapshot  id: <feed cursor>  data: LiveSnapshot   (on connect, then on change)\n  event: feed      id: <live_feed id> data: FeedItem       (new public items; drives the proof toast)\n  event: ping                         data: { server_time } (heartbeat every 15s)\n  event: degraded                     data: { state }       (snapshot unreadable; client holds last values)\n\nResume: the browser's EventSource resends the last `id` as Last-Event-ID; we\nreplay feed items after it, then send a fresh snapshot (reconcile). Each\nconnection lives ~4 minutes, then closes cleanly so a function never runs\npast maxDuration; the client reconnects with Last-Event-ID automatically.\nNode runtime (the default; cacheComponents forbids the `runtime` export). Behind the `live_sse` flag: when off, 503 and /live\nfalls back to polling /api/v1/live/metrics?board=1.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -4897,7 +5090,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "public",
     "security": []
    }
@@ -4908,8 +5101,8 @@
      "match"
     ],
     "operationId": "get_api_v1_match_aggregates",
-    "summary": "public counts for the TV / live page (T-MATCH-04):",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/match/aggregates/route.ts`\n\n```text\nGET /api/v1/match/aggregates  public counts for the TV / live page (T-MATCH-04):\npeople looking, open seats, recruiting teams. Counts only; no names or contact.\n```",
+    "summary": "[new] public counts for the TV / live page (T-MATCH-04):",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/match/aggregates/route.ts`\n\n```text\nGET /api/v1/match/aggregates  public counts for the TV / live page (T-MATCH-04):\npeople looking, open seats, recruiting teams. Counts only; no names or contact.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -4963,7 +5156,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -4988,8 +5181,8 @@
      "match"
     ],
     "operationId": "get_api_v1_match_profile",
-    "summary": "your matchmaker profile",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/match/profile/route.ts`\n\n```text\nGET  /api/v1/match/profile  your matchmaker profile\nPOST /api/v1/match/profile  { discoverable, skills[], interests[], preferred_work?, availability?, learning_goals?, bio? }\nTurning discoverability on or off is a consent change: send explicit_confirmation: true with it.\n```",
+    "summary": "[new] your matchmaker profile",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/match/profile/route.ts`\n\n```text\nGET  /api/v1/match/profile  your matchmaker profile\nPOST /api/v1/match/profile  { discoverable, skills[], interests[], preferred_work?, availability?, learning_goals?, bio? }\nTurning discoverability on or off is a consent change: send explicit_confirmation: true with it.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -5043,7 +5236,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5066,8 +5259,8 @@
      "match"
     ],
     "operationId": "post_api_v1_match_profile",
-    "summary": "Update opted-in matching profile",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Update opted-in matching profile  \n**Source:** `src/app/api/v1/match/profile/route.ts`\n\n```text\nGET  /api/v1/match/profile  your matchmaker profile\nPOST /api/v1/match/profile  { discoverable, skills[], interests[], preferred_work?, availability?, learning_goals?, bio? }\nTurning discoverability on or off is a consent change: send explicit_confirmation: true with it.\n```",
+    "summary": "[new] Update opted-in matching profile",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Update opted-in matching profile  \n**Source:** `src/app/api/v1/match/profile/route.ts`\n\n```text\nGET  /api/v1/match/profile  your matchmaker profile\nPOST /api/v1/match/profile  { discoverable, skills[], interests[], preferred_work?, availability?, learning_goals?, bio? }\nTurning discoverability on or off is a consent change: send explicit_confirmation: true with it.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -5131,7 +5324,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5168,8 +5361,8 @@
      "match"
     ],
     "operationId": "get_api_v1_match_suggestions",
-    "summary": "Find opted-in compatible teams and builders",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Find opted-in compatible teams and builders  \n**Source:** `src/app/api/v1/match/suggestions/route.ts`\n\n```text\nGET /api/v1/match/suggestions?skill=&show=all|people|teams\nRanked opted-in people and recruiting teams, each with an explanation. No contact details.\n```",
+    "summary": "[new] Find opted-in compatible teams and builders",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Find opted-in compatible teams and builders  \n**Source:** `src/app/api/v1/match/suggestions/route.ts`\n\n```text\nGET /api/v1/match/suggestions?skill=&show=all|people|teams\nRanked opted-in people and recruiting teams, each with an explanation. No contact details.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -5223,7 +5416,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5248,8 +5441,8 @@
      "me"
     ],
     "operationId": "get_api_v1_me_flow",
-    "summary": "Where you are in the event-day flow. Browser-only (your own session cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/flow/route.ts`\n\n```text\nWhere you are in the event-day flow. Browser-only (your own session cookie).\nTeammates waiting on the team page poll this to move on once the captain\nconfirms the final team; /setup polls it to move on to the Idea tab once a\nmachine is paired and a Kane run is on record.\n```",
+    "summary": "[new] Where you are in the event-day flow. Browser-only (your own session cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/flow/route.ts`\n\n```text\nWhere you are in the event-day flow. Browser-only (your own session cookie).\nTeammates waiting on the team page poll this to move on once the captain\nconfirms the final team; /setup polls it to move on to the Idea tab once a\nmachine is paired and a Kane run is on record.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -5303,7 +5496,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5328,8 +5521,8 @@
      "me"
     ],
     "operationId": "get_api_v1_me_notifications",
-    "summary": "The bell next to your avatar. Browser-only (your own session cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/notifications/route.ts`\n\n```text\nThe bell next to your avatar. Browser-only (your own session cookie).\nGET: latest 30 and the unread count. POST: mark them all read.\n```",
+    "summary": "[new] The bell next to your avatar. Browser-only (your own session cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/notifications/route.ts`\n\n```text\nThe bell next to your avatar. Browser-only (your own session cookie).\nGET: latest 30 and the unread count. POST: mark them all read.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -5383,7 +5576,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5406,8 +5599,8 @@
      "me"
     ],
     "operationId": "post_api_v1_me_notifications",
-    "summary": "The bell next to your avatar. Browser-only (your own session cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/notifications/route.ts`\n\n```text\nThe bell next to your avatar. Browser-only (your own session cookie).\nGET: latest 30 and the unread count. POST: mark them all read.\n```",
+    "summary": "[new] The bell next to your avatar. Browser-only (your own session cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/notifications/route.ts`\n\n```text\nThe bell next to your avatar. Browser-only (your own session cookie).\nGET: latest 30 and the unread count. POST: mark them all read.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -5471,7 +5664,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -5934,8 +6127,8 @@
      "media"
     ],
     "operationId": "get_api_v1_media",
-    "summary": "Photographer studio API (staff cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/media/route.ts`\n\n```text\nPhotographer studio API (staff cookie).\n  GET  /api/v1/media?status=identity_review,consent_checked   the media queue\n  POST /api/v1/media  multipart file (+ width, height)          capture → private Blob, status captured\nSame bytes uploaded twice return the same photo (content hash).\n```",
+    "summary": "[new] Photographer studio API (staff cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/media/route.ts`\n\n```text\nPhotographer studio API (staff cookie).\n  GET  /api/v1/media?status=identity_review,consent_checked   the media queue\n  POST /api/v1/media  multipart file (+ width, height)          capture → private Blob, status captured\nSame bytes uploaded twice return the same photo (content hash).\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -5989,7 +6182,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6012,8 +6205,8 @@
      "media"
     ],
     "operationId": "post_api_v1_media",
-    "summary": "Upload staff photography",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Upload staff photography  \n**Source:** `src/app/api/v1/media/route.ts`\n\n```text\nPhotographer studio API (staff cookie).\n  GET  /api/v1/media?status=identity_review,consent_checked   the media queue\n  POST /api/v1/media  multipart file (+ width, height)          capture → private Blob, status captured\nSame bytes uploaded twice return the same photo (content hash).\n```",
+    "summary": "[new] Upload staff photography",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Upload staff photography  \n**Source:** `src/app/api/v1/media/route.ts`\n\n```text\nPhotographer studio API (staff cookie).\n  GET  /api/v1/media?status=identity_review,consent_checked   the media queue\n  POST /api/v1/media  multipart file (+ width, height)          capture → private Blob, status captured\nSame bytes uploaded twice return the same photo (content hash).\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -6077,7 +6270,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6114,8 +6307,8 @@
      "media"
     ],
     "operationId": "get_api_v1_media_id_download",
-    "summary": "Download an approved/published photo for manual posting (copy/download",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/media/[id]/download/route.ts`\n\n```text\nDownload an approved/published photo for manual posting (copy/download\npath when X is unavailable). Staff only; audited. Held photos can't be\ndownloaded for posting.\n```",
+    "summary": "[new] Download an approved/published photo for manual posting (copy/download",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/media/[id]/download/route.ts`\n\n```text\nDownload an approved/published photo for manual posting (copy/download\npath when X is unavailable). Staff only; audited. Held photos can't be\ndownloaded for posting.\n```",
     "parameters": [
      {
       "name": "id",
@@ -6178,7 +6371,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6379,8 +6572,8 @@
      "ops"
     ],
     "operationId": "post_api_v1_ops_announcements",
-    "summary": "organizer (staff cookie)",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/announcements/route.ts`\n\n```text\nPOST /api/v1/ops/announcements   organizer (staff cookie)\n  { title, body?, href?, visibility: both|tv|hub|staff, delay_minutes? }\nSame rules as /ops/announcements: unfilled [placeholders] are refused, the\nsend is audited, and the receipt carries the server send time.\n```",
+    "summary": "[new] organizer (staff cookie)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/announcements/route.ts`\n\n```text\nPOST /api/v1/ops/announcements   organizer (staff cookie)\n  { title, body?, href?, visibility: both|tv|hub|staff, delay_minutes? }\nSame rules as /ops/announcements: unfilled [placeholders] are refused, the\nsend is audited, and the receipt carries the server send time.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -6444,7 +6637,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6695,8 +6888,8 @@
      "ops"
     ],
     "operationId": "get_api_v1_ops_help",
-    "summary": "the mentor queue (mentor / organizer; staff cookie or",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/help/route.ts`\n\n```text\nGET /api/v1/ops/help: the mentor queue (mentor / organizer; staff cookie or\na bearer token linked to a staff account). ?mine=1 for my claims only.\n```",
+    "summary": "[new] the mentor queue (mentor / organizer; staff cookie or",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/help/route.ts`\n\n```text\nGET /api/v1/ops/help: the mentor queue (mentor / organizer; staff cookie or\na bearer token linked to a staff account). ?mine=1 for my claims only.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -6750,7 +6943,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6775,8 +6968,8 @@
      "ops"
     ],
     "operationId": "get_api_v1_ops_integrations_health",
-    "summary": "Read integration and queue health",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ops · Existing blueprint contract: Read integration and queue health  \n**Source:** `src/app/api/v1/ops/integrations/health/route.ts`\n\n```text\nGET /api/v1/ops/integrations/health   organizer / mentor (staff cookie)\nThe last recorded state of each external integration (Slack, AI gateway,\nBlob, GitHub…), as /ops/integrations shows it. Read-only.\n```",
+    "summary": "[new] Read integration and queue health",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ops · Existing blueprint contract: Read integration and queue health  \n**Source:** `src/app/api/v1/ops/integrations/health/route.ts`\n\n```text\nGET /api/v1/ops/integrations/health   organizer / mentor (staff cookie)\nThe last recorded state of each external integration (Slack, AI gateway,\nBlob, GitHub…), as /ops/integrations shows it. Read-only.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -6830,7 +7023,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6855,8 +7048,8 @@
      "ops"
     ],
     "operationId": "post_api_v1_ops_override",
-    "summary": "organizer (staff cookie)",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/override/route.ts`\n\n```text\nPOST /api/v1/ops/override   organizer (staff cookie)\n  { kind, target, reason, witness, incident_ref?, resource_type?, confirm_phrase: \"override\" }\nThe same signed, witnessed, append-only override as /ops/override.\n```",
+    "summary": "[new] organizer (staff cookie)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/override/route.ts`\n\n```text\nPOST /api/v1/ops/override   organizer (staff cookie)\n  { kind, target, reason, witness, incident_ref?, resource_type?, confirm_phrase: \"override\" }\nThe same signed, witnessed, append-only override as /ops/override.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -6920,7 +7113,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -6957,8 +7150,8 @@
      "ops"
     ],
     "operationId": "get_api_v1_ops_recovery",
-    "summary": "/api/v1/ops/recovery   organizer (staff cookie)",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/recovery/route.ts`\n\n```text\n/api/v1/ops/recovery   organizer (staff cookie)\n  GET  → recent incidents\n  POST { action: \"open\", subsystem, severity: sev1|sev2|sev3, description }\n  POST { action: \"close\", id, recovery_basis }\nPaper help tickets and manual submission receipts are typed in at\n/ops/recovery (they need a witness and the participant at the desk).\n```",
+    "summary": "[new] /api/v1/ops/recovery   organizer (staff cookie)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/ops/recovery/route.ts`\n\n```text\n/api/v1/ops/recovery   organizer (staff cookie)\n  GET  → recent incidents\n  POST { action: \"open\", subsystem, severity: sev1|sev2|sev3, description }\n  POST { action: \"close\", id, recovery_basis }\nPaper help tickets and manual submission receipts are typed in at\n/ops/recovery (they need a witness and the participant at the desk).\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -7012,7 +7205,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7035,8 +7228,8 @@
      "ops"
     ],
     "operationId": "post_api_v1_ops_recovery",
-    "summary": "Record audited recovery action",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ops · Existing blueprint contract: Record audited recovery action  \n**Source:** `src/app/api/v1/ops/recovery/route.ts`\n\n```text\n/api/v1/ops/recovery   organizer (staff cookie)\n  GET  → recent incidents\n  POST { action: \"open\", subsystem, severity: sev1|sev2|sev3, description }\n  POST { action: \"close\", id, recovery_basis }\nPaper help tickets and manual submission receipts are typed in at\n/ops/recovery (they need a witness and the participant at the desk).\n```",
+    "summary": "[new] Record audited recovery action",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ops · Existing blueprint contract: Record audited recovery action  \n**Source:** `src/app/api/v1/ops/recovery/route.ts`\n\n```text\n/api/v1/ops/recovery   organizer (staff cookie)\n  GET  → recent incidents\n  POST { action: \"open\", subsystem, severity: sev1|sev2|sev3, description }\n  POST { action: \"close\", id, recovery_basis }\nPaper help tickets and manual submission receipts are typed in at\n/ops/recovery (they need a witness and the participant at the desk).\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7100,7 +7293,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7249,8 +7442,8 @@
      "pair"
     ],
     "operationId": "post_api_v1_pair_confirm",
-    "summary": "Confirm approved guest identity",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Confirm approved guest identity  \n**Source:** `src/app/api/v1/pair/confirm/route.ts`\n\n```text\nkanehack pair, step 3 (poll). pending → keep polling at `interval`;\napproved → the bearer token, exactly once. Expired, denied or replayed\ndevice codes fail closed with PAIR_EXPIRED (410).\n```",
+    "summary": "[new] Confirm approved guest identity",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Confirm approved guest identity  \n**Source:** `src/app/api/v1/pair/confirm/route.ts`\n\n```text\nkanehack pair, step 3 (poll). pending → keep polling at `interval`;\napproved → the bearer token, exactly once. Expired, denied or replayed\ndevice codes fail closed with PAIR_EXPIRED (410).\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7314,7 +7507,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7351,8 +7544,8 @@
      "pair"
     ],
     "operationId": "post_api_v1_pair_start",
-    "summary": "Start expiring activation pairing",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Start expiring activation pairing  \n**Source:** `src/app/api/v1/pair/start/route.ts`\n\n```text\nkanehack pair, step 1 (no account needed). Returns a short user code to\nshow the person and a secret device code to poll /api/v1/pair/confirm with.\nThe person approves the user code at /pair while signed in.\n```",
+    "summary": "[new] Start expiring activation pairing",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** auth · Existing blueprint contract: Start expiring activation pairing  \n**Source:** `src/app/api/v1/pair/start/route.ts`\n\n```text\nkanehack pair, step 1 (no account needed). Returns a short user code to\nshow the person and a secret device code to poll /api/v1/pair/confirm with.\nThe person approves the user code at /pair while signed in.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7416,7 +7609,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7453,8 +7646,8 @@
      "participants"
     ],
     "operationId": "get_api_v1_participants_me",
-    "summary": "Read own Hacker Passport",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Read own Hacker Passport  \n**Source:** `src/app/api/v1/participants/me/route.ts`\n\n```text\nGET   : your own Hacker Passport (private DTO) + the one next mission.\nPATCH : profile fields and consent changes. Consents are appended, never\n        overwritten. From an agent (bearer), consent changes need\n        explicit_confirmation: true, i.e. the person said yes in the chat.\n```",
+    "summary": "[new] Read own Hacker Passport",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Read own Hacker Passport  \n**Source:** `src/app/api/v1/participants/me/route.ts`\n\n```text\nGET   : your own Hacker Passport (private DTO) + the one next mission.\nPATCH : profile fields and consent changes. Consents are appended, never\n        overwritten. From an agent (bearer), consent changes need\n        explicit_confirmation: true, i.e. the person said yes in the chat.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -7508,7 +7701,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7531,8 +7724,8 @@
      "participants"
     ],
     "operationId": "patch_api_v1_participants_me",
-    "summary": "Update own profile and consent",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Update own profile and consent  \n**Source:** `src/app/api/v1/participants/me/route.ts`\n\n```text\nGET   : your own Hacker Passport (private DTO) + the one next mission.\nPATCH : profile fields and consent changes. Consents are appended, never\n        overwritten. From an agent (bearer), consent changes need\n        explicit_confirmation: true, i.e. the person said yes in the chat.\n```",
+    "summary": "[new] Update own profile and consent",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Update own profile and consent  \n**Source:** `src/app/api/v1/participants/me/route.ts`\n\n```text\nGET   : your own Hacker Passport (private DTO) + the one next mission.\nPATCH : profile fields and consent changes. Consents are appended, never\n        overwritten. From an agent (bearer), consent changes need\n        explicit_confirmation: true, i.e. the person said yes in the chat.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7596,7 +7789,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7713,8 +7906,8 @@
      "profile"
     ],
     "operationId": "post_api_v1_profile_check",
-    "summary": "kind: \"linkedin\" | \"x\" | \"github\", value } → { status, url }.",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/profile/check/route.ts`\n\n```text\nPOST { kind: \"linkedin\" | \"x\" | \"github\", value } → { status, url }.\nOpen before sign-up (the /register form uses it), so it's throttled per visitor.\n```",
+    "summary": "[new] kind: \"linkedin\" | \"x\" | \"github\", value } → { status, url }.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/profile/check/route.ts`\n\n```text\nPOST { kind: \"linkedin\" | \"x\" | \"github\", value } → { status, url }.\nOpen before sign-up (the /register form uses it), so it's throttled per visitor.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7778,7 +7971,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7815,8 +8008,8 @@
      "profile"
     ],
     "operationId": "post_api_v1_profile_photo",
-    "summary": "The /register photo step (multipart: file, trusted, consent, idempotency_key).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/profile/photo/route.ts`\n\n```text\nThe /register photo step (multipart: file, trusted, consent, idempotency_key).\nBrowser-only and personal: a bearer token (agent) is refused on purpose, so\na photo never passes through an agent or its prompt context.\n```",
+    "summary": "[new] The /register photo step (multipart: file, trusted, consent, idempotency_key).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/profile/photo/route.ts`\n\n```text\nThe /register photo step (multipart: file, trusted, consent, idempotency_key).\nBrowser-only and personal: a bearer token (agent) is refused on purpose, so\na photo never passes through an agent or its prompt context.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -7880,7 +8073,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -7917,8 +8110,8 @@
      "projects"
     ],
     "operationId": "get_api_v1_projects_id_defects",
-    "summary": "/api/v1/projects/{id}/defects",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/defects/route.ts`\n\n```text\n/api/v1/projects/{id}/defects\n  GET   detected defects. A failing run opens a SUSPECTED one; it is only a\n        confirmed bug once a teammate says so, and only \"reverified\" after a\n        later passing run on a different commit.\n  POST  { defect_id, action: confirm|not_a_bug|mark_fixed|reopen, failure_class?, note? }\n```",
+    "summary": "[new] /api/v1/projects/{id}/defects",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/defects/route.ts`\n\n```text\n/api/v1/projects/{id}/defects\n  GET   detected defects. A failing run opens a SUSPECTED one; it is only a\n        confirmed bug once a teammate says so, and only \"reverified\" after a\n        later passing run on a different commit.\n  POST  { defect_id, action: confirm|not_a_bug|mark_fixed|reopen, failure_class?, note? }\n```",
     "parameters": [
      {
       "name": "id",
@@ -7981,7 +8174,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -8004,8 +8197,8 @@
      "projects"
     ],
     "operationId": "post_api_v1_projects_id_defects",
-    "summary": "/api/v1/projects/{id}/defects",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/defects/route.ts`\n\n```text\n/api/v1/projects/{id}/defects\n  GET   detected defects. A failing run opens a SUSPECTED one; it is only a\n        confirmed bug once a teammate says so, and only \"reverified\" after a\n        later passing run on a different commit.\n  POST  { defect_id, action: confirm|not_a_bug|mark_fixed|reopen, failure_class?, note? }\n```",
+    "summary": "[new] /api/v1/projects/{id}/defects",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/defects/route.ts`\n\n```text\n/api/v1/projects/{id}/defects\n  GET   detected defects. A failing run opens a SUSPECTED one; it is only a\n        confirmed bug once a teammate says so, and only \"reverified\" after a\n        later passing run on a different commit.\n  POST  { defect_id, action: confirm|not_a_bug|mark_fixed|reopen, failure_class?, note? }\n```",
     "parameters": [
      {
       "name": "id",
@@ -8077,7 +8270,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -8114,8 +8307,8 @@
      "projects"
     ],
     "operationId": "get_api_v1_projects_id_milestones",
-    "summary": "Verified vs reported milestones and visibility",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Milestones · Extension needed: Verified vs reported milestones and visibility  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
+    "summary": "[new] Verified vs reported milestones and visibility",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Milestones · Extension needed: Verified vs reported milestones and visibility  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
     "parameters": [
      {
       "name": "id",
@@ -8178,7 +8371,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -8201,8 +8394,8 @@
      "projects"
     ],
     "operationId": "post_api_v1_projects_id_milestones",
-    "summary": "Propose evidence-based milestone",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** kane · Existing blueprint contract: Propose evidence-based milestone  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
+    "summary": "[new] Propose evidence-based milestone",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** kane · Existing blueprint contract: Propose evidence-based milestone  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
     "parameters": [
      {
       "name": "id",
@@ -8274,7 +8467,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -8309,8 +8502,8 @@
      "projects"
     ],
     "operationId": "patch_api_v1_projects_id_milestones",
-    "summary": "/api/v1/projects/{id}/milestones",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
+    "summary": "[new] /api/v1/projects/{id}/milestones",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/milestones/route.ts`\n\n```text\n/api/v1/projects/{id}/milestones\n  GET   the project's milestones (team: all; judges/mentors: approved judges/public ones)\n  POST  propose one (MCP milestone_propose uses the same service). Confidence\n        is decided server-side; judges/public visibility waits for a teammate.\n  PATCH { milestone_id, decision: approve|withdraw } (a teammate, signed in)\n```",
     "parameters": [
      {
       "name": "id",
@@ -8382,7 +8575,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9106,8 +9299,8 @@
      "projects"
     ],
     "operationId": "get_api_v1_projects_id_story",
-    "summary": "latest story version + its claim review",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/story/route.ts`\n\n```text\nGET /api/v1/projects/{id}/story  latest story version + its claim review\nPUT /api/v1/projects/{id}/story  save a new version\n  body: { content: <project-story.schema.json>, expected_version, idempotency_key? }\n  409 CONFLICT if someone saved since expected_version; 400 if a claim is forged.\nAuth: Bearer token (CLI/MCP) or the team's browser session.\n```",
+    "summary": "[new] latest story version + its claim review",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/projects/[id]/story/route.ts`\n\n```text\nGET /api/v1/projects/{id}/story  latest story version + its claim review\nPUT /api/v1/projects/{id}/story  save a new version\n  body: { content: <project-story.schema.json>, expected_version, idempotency_key? }\n  409 CONFLICT if someone saved since expected_version; 400 if a claim is forged.\nAuth: Bearer token (CLI/MCP) or the team's browser session.\n```",
     "parameters": [
      {
       "name": "id",
@@ -9170,7 +9363,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9193,8 +9386,8 @@
      "projects"
     ],
     "operationId": "put_api_v1_projects_id_story",
-    "summary": "Save reviewed project story draft",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Save reviewed project story draft  \n**Source:** `src/app/api/v1/projects/[id]/story/route.ts`\n\n```text\nGET /api/v1/projects/{id}/story  latest story version + its claim review\nPUT /api/v1/projects/{id}/story  save a new version\n  body: { content: <project-story.schema.json>, expected_version, idempotency_key? }\n  409 CONFLICT if someone saved since expected_version; 400 if a claim is forged.\nAuth: Bearer token (CLI/MCP) or the team's browser session.\n```",
+    "summary": "[new] Save reviewed project story draft",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Save reviewed project story draft  \n**Source:** `src/app/api/v1/projects/[id]/story/route.ts`\n\n```text\nGET /api/v1/projects/{id}/story  latest story version + its claim review\nPUT /api/v1/projects/{id}/story  save a new version\n  body: { content: <project-story.schema.json>, expected_version, idempotency_key? }\n  409 CONFLICT if someone saved since expected_version; 400 if a claim is forged.\nAuth: Bearer token (CLI/MCP) or the team's browser session.\n```",
     "parameters": [
      {
       "name": "id",
@@ -9266,7 +9459,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9562,8 +9755,8 @@
      "readiness"
     ],
     "operationId": "get_api_v1_readiness",
-    "summary": "hack-doctor's endpoint. POST an attested report from a paired machine",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/readiness/route.ts`\n\n```text\nhack-doctor's endpoint. POST an attested report from a paired machine\n(bearer; partial reports are fine), GET the merged checklist with the\nexact fix for every check that isn't passing. Reported checks are what the\nmachine said, not proof: the UI never shows them as VERIFIED.\n```",
+    "summary": "[new] hack-doctor's endpoint. POST an attested report from a paired machine",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/readiness/route.ts`\n\n```text\nhack-doctor's endpoint. POST an attested report from a paired machine\n(bearer; partial reports are fine), GET the merged checklist with the\nexact fix for every check that isn't passing. Reported checks are what the\nmachine said, not proof: the UI never shows them as VERIFIED.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -9617,7 +9810,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9640,8 +9833,8 @@
      "readiness"
     ],
     "operationId": "post_api_v1_readiness",
-    "summary": "Record attested environment readiness",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Record attested environment readiness  \n**Source:** `src/app/api/v1/readiness/route.ts`\n\n```text\nhack-doctor's endpoint. POST an attested report from a paired machine\n(bearer; partial reports are fine), GET the merged checklist with the\nexact fix for every check that isn't passing. Reported checks are what the\nmachine said, not proof: the UI never shows them as VERIFIED.\n```",
+    "summary": "[new] Record attested environment readiness",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** participants · Existing blueprint contract: Record attested environment readiness  \n**Source:** `src/app/api/v1/readiness/route.ts`\n\n```text\nhack-doctor's endpoint. POST an attested report from a paired machine\n(bearer; partial reports are fine), GET the merged checklist with the\nexact fix for every check that isn't passing. Reported checks are what the\nmachine said, not proof: the UI never shows them as VERIFIED.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -9705,7 +9898,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9742,8 +9935,8 @@
      "renders"
     ],
     "operationId": "get_api_v1_renders_jobId",
-    "summary": "Get render status",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Get render status  \n**Source:** `src/app/api/v1/renders/[jobId]/route.ts`\n\n```text\nGET /api/v1/renders/{jobId}: a render job's status, for the team that owns it.\n```",
+    "summary": "[new] Get render status",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Get render status  \n**Source:** `src/app/api/v1/renders/[jobId]/route.ts`\n\n```text\nGET /api/v1/renders/{jobId}: a render job's status, for the team that owns it.\n```",
     "parameters": [
      {
       "name": "jobId",
@@ -9806,7 +9999,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -9943,8 +10136,8 @@
      "showcase"
     ],
     "operationId": "get_api_v1_showcase_projectId",
-    "summary": "showcase_preview: draft preview URL,",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/showcase/[projectId]/route.ts`\n\n```text\nGET /api/v1/showcase/{projectId}   showcase_preview: draft preview URL,\npublish blockers, consent gaps and claims that aren't verified.\n```",
+    "summary": "[new] showcase_preview: draft preview URL,",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/showcase/[projectId]/route.ts`\n\n```text\nGET /api/v1/showcase/{projectId}   showcase_preview: draft preview URL,\npublish blockers, consent gaps and claims that aren't verified.\n```",
     "parameters": [
      {
       "name": "projectId",
@@ -10007,7 +10200,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10032,8 +10225,8 @@
      "showcase"
     ],
     "operationId": "post_api_v1_showcase_projectId_publish",
-    "summary": "Publish approved Ship Page",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Publish approved Ship Page  \n**Source:** `src/app/api/v1/showcase/[projectId]/publish/route.ts`\n\n```text\nPOST /api/v1/showcase/{projectId}/publish   showcase_publish\n  body: { story_version, confirm_phrase: \"<project slug>\", idempotency_key? }\nNeeds explicit human approval: an agent must ask its human to confirm, then\nsend the slug as confirm_phrase. The server re-runs the claim review and the\nper-person consent check, then writes an immutable published version.\n```",
+    "summary": "[new] Publish approved Ship Page",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** studio · Existing blueprint contract: Publish approved Ship Page  \n**Source:** `src/app/api/v1/showcase/[projectId]/publish/route.ts`\n\n```text\nPOST /api/v1/showcase/{projectId}/publish   showcase_publish\n  body: { story_version, confirm_phrase: \"<project slug>\", idempotency_key? }\nNeeds explicit human approval: an agent must ask its human to confirm, then\nsend the slug as confirm_phrase. The server re-runs the claim review and the\nper-person consent check, then writes an immutable published version.\n```",
     "parameters": [
      {
       "name": "projectId",
@@ -10105,7 +10298,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10142,8 +10335,8 @@
      "social"
     ],
     "operationId": "post_api_v1_social_id_approve",
-    "summary": "Approve photo and caption",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Approve photo and caption  \n**Source:** `src/app/api/v1/social/[id]/approve/route.ts`\n\n```text\nPOST /api/v1/social/{id}/approve  {explicit_confirmation: true}\nOrganizer only. Checks (consent, claims, rights, duplicates, length) are re-run and must all pass.\n```",
+    "summary": "[new] Approve photo and caption",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Approve photo and caption  \n**Source:** `src/app/api/v1/social/[id]/approve/route.ts`\n\n```text\nPOST /api/v1/social/{id}/approve  {explicit_confirmation: true}\nOrganizer only. Checks (consent, claims, rights, duplicates, length) are re-run and must all pass.\n```",
     "parameters": [
      {
       "name": "id",
@@ -10215,7 +10408,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10252,8 +10445,8 @@
      "social"
     ],
     "operationId": "post_api_v1_social_id_publish",
-    "summary": "Publish approved social post",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Publish approved social post  \n**Source:** `src/app/api/v1/social/[id]/publish/route.ts`\n\n```text\nPOST /api/v1/social/{id}/publish  {explicit_confirmation: true}  (Idempotency-Key header recommended)\nOrganizer only; needs the social_publish flag and X_API_* env. Idempotent\nper draft: a repeat returns the same remote_post_id.\n```",
+    "summary": "[new] Publish approved social post",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Publish approved social post  \n**Source:** `src/app/api/v1/social/[id]/publish/route.ts`\n\n```text\nPOST /api/v1/social/{id}/publish  {explicit_confirmation: true}  (Idempotency-Key header recommended)\nOrganizer only; needs the social_publish flag and X_API_* env. Idempotent\nper draft: a repeat returns the same remote_post_id.\n```",
     "parameters": [
      {
       "name": "id",
@@ -10325,7 +10518,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10362,8 +10555,8 @@
      "social"
     ],
     "operationId": "get_api_v1_social_drafts",
-    "summary": "Social drafts (staff cookie).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/social/drafts/route.ts`\n\n```text\nSocial drafts (staff cookie).\n  GET  /api/v1/social/drafts?photo_id=12&status=draft,approved\n  POST /api/v1/social/drafts {photo_id}   → 3 caption styles + alt text (AI draft with template fallback)\n```",
+    "summary": "[new] Social drafts (staff cookie).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/social/drafts/route.ts`\n\n```text\nSocial drafts (staff cookie).\n  GET  /api/v1/social/drafts?photo_id=12&status=draft,approved\n  POST /api/v1/social/drafts {photo_id}   → 3 caption styles + alt text (AI draft with template fallback)\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -10417,7 +10610,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10440,8 +10633,8 @@
      "social"
     ],
     "operationId": "post_api_v1_social_drafts",
-    "summary": "Prepare evidence-linked social draft",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Prepare evidence-linked social draft  \n**Source:** `src/app/api/v1/social/drafts/route.ts`\n\n```text\nSocial drafts (staff cookie).\n  GET  /api/v1/social/drafts?photo_id=12&status=draft,approved\n  POST /api/v1/social/drafts {photo_id}   → 3 caption styles + alt text (AI draft with template fallback)\n```",
+    "summary": "[new] Prepare evidence-linked social draft",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** social · Existing blueprint contract: Prepare evidence-linked social draft  \n**Source:** `src/app/api/v1/social/drafts/route.ts`\n\n```text\nSocial drafts (staff cookie).\n  GET  /api/v1/social/drafts?photo_id=12&status=draft,approved\n  POST /api/v1/social/drafts {photo_id}   → 3 caption styles + alt text (AI draft with template fallback)\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -10505,7 +10698,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10542,8 +10735,8 @@
      "social"
     ],
     "operationId": "get_api_v1_social_export",
-    "summary": "Buffer bulk-upload CSV of approved posts (the",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/social/export/route.ts`\n\n```text\nGET /api/v1/social/export: Buffer bulk-upload CSV of approved posts (the\nmanual path when X publishing is off). Image URL is the public gallery URL,\nfilled only for photos already published.\n```",
+    "summary": "[new] Buffer bulk-upload CSV of approved posts (the",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/social/export/route.ts`\n\n```text\nGET /api/v1/social/export: Buffer bulk-upload CSV of approved posts (the\nmanual path when X publishing is off). Image URL is the public gallery URL,\nfilled only for photos already published.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -10597,7 +10790,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10711,8 +10904,8 @@
      "submissions"
     ],
     "operationId": "post_api_v1_submissions_finalize",
-    "summary": "Finalize immutable submission receipt",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** submissions · Existing blueprint contract: Finalize immutable submission receipt  \n**Source:** `src/app/api/v1/submissions/finalize/route.ts`\n\n```text\nPOST /api/v1/submissions/finalize\n  { confirm_phrase: \"<team name>\", confirm: true, publish_showcase?: boolean, idempotency_key? }\n  (or the Idempotency-Key header)\nBrowser session only, and only the team captain signed in as themselves:\nfinalizing is irreversible. A bearer token (CLI / agent) gets needs_action\nwith the link where the captain finishes it.\n```",
+    "summary": "[new] Finalize immutable submission receipt",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** submissions · Existing blueprint contract: Finalize immutable submission receipt  \n**Source:** `src/app/api/v1/submissions/finalize/route.ts`\n\n```text\nPOST /api/v1/submissions/finalize\n  { confirm_phrase: \"<team name>\", confirm: true, publish_showcase?: boolean, idempotency_key? }\n  (or the Idempotency-Key header)\nBrowser session only, and only the team captain signed in as themselves:\nfinalizing is irreversible. A bearer token (CLI / agent) gets needs_action\nwith the link where the captain finishes it.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -10776,7 +10969,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10813,8 +11006,8 @@
      "submissions"
     ],
     "operationId": "post_api_v1_submissions_preflight",
-    "summary": "Validate eligible team submission",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** submissions · Existing blueprint contract: Validate eligible team submission  \n**Source:** `src/app/api/v1/submissions/preflight/route.ts`\n\n```text\nPOST /api/v1/submissions/preflight   { check_github?: boolean }\nRuns the same preflight as the Submit tab on the caller's team draft and\nstores the report. Read-mostly: it never finalizes.\n```",
+    "summary": "[new] Validate eligible team submission",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** submissions · Existing blueprint contract: Validate eligible team submission  \n**Source:** `src/app/api/v1/submissions/preflight/route.ts`\n\n```text\nPOST /api/v1/submissions/preflight   { check_github?: boolean }\nRuns the same preflight as the Submit tab on the caller's team draft and\nstores the report. Read-mostly: it never finalizes.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -10878,7 +11071,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -10915,8 +11108,8 @@
      "submissions"
     ],
     "operationId": "get_api_v1_submissions_receipt_id",
-    "summary": "the frozen snapshot and a fresh",
-    "description": "**Status:** LIVE in production  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/submissions/receipt/[id]/route.ts`\n\n```text\nGET /api/v1/submissions/receipt/{code}: the frozen snapshot and a fresh\nhash/signature check. Team members, judges and organizers only (cookie);\nanyone else gets NOT_FOUND, same as /submit/receipt/{code}.\n```",
+    "summary": "[new] the frozen snapshot and a fresh",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Public aggregate read: no TestMu key needed by default (TESTMU_KEY_PUBLIC_PATHS).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/submissions/receipt/[id]/route.ts`\n\n```text\nGET /api/v1/submissions/receipt/{code}: the frozen snapshot and a fresh\nhash/signature check. Team members, judges and organizers only (cookie);\nanyone else gets NOT_FOUND, same as /submit/receipt/{code}.\n```",
     "parameters": [
      {
       "name": "id",
@@ -10979,7 +11172,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "public",
     "security": []
    }
@@ -10990,8 +11183,8 @@
      "teams"
     ],
     "operationId": "get_api_v1_teams",
-    "summary": "team_find: open teams and opted-in people, with reasons.",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/teams/route.ts`\n\n```text\nGET  /api/v1/teams?skill=&show=  team_find: open teams and opted-in people, with reasons.\nPOST /api/v1/teams               team_create { name, track, summary_public?, recruiting_open?, solo?, password?, explicit_confirmation: true }\nAuth: Bearer token (CLI/MCP) or the browser's member cookie.\n```",
+    "summary": "[new] team_find: open teams and opted-in people, with reasons.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/teams/route.ts`\n\n```text\nGET  /api/v1/teams?skill=&show=  team_find: open teams and opted-in people, with reasons.\nPOST /api/v1/teams               team_create { name, track, summary_public?, recruiting_open?, solo?, password?, explicit_confirmation: true }\nAuth: Bearer token (CLI/MCP) or the browser's member cookie.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -11045,7 +11238,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -11068,8 +11261,8 @@
      "teams"
     ],
     "operationId": "post_api_v1_teams",
-    "summary": "Create a team",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Create a team  \n**Source:** `src/app/api/v1/teams/route.ts`\n\n```text\nGET  /api/v1/teams?skill=&show=  team_find: open teams and opted-in people, with reasons.\nPOST /api/v1/teams               team_create { name, track, summary_public?, recruiting_open?, solo?, password?, explicit_confirmation: true }\nAuth: Bearer token (CLI/MCP) or the browser's member cookie.\n```",
+    "summary": "[new] Create a team",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Create a team  \n**Source:** `src/app/api/v1/teams/route.ts`\n\n```text\nGET  /api/v1/teams?skill=&show=  team_find: open teams and opted-in people, with reasons.\nPOST /api/v1/teams               team_create { name, track, summary_public?, recruiting_open?, solo?, password?, explicit_confirmation: true }\nAuth: Bearer token (CLI/MCP) or the browser's member cookie.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -11133,7 +11326,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -11348,8 +11541,8 @@
      "teams"
     ],
     "operationId": "get_api_v1_teams_id_invites",
-    "summary": "List safe metadata, never reveal stored hash",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Team · Extension needed: List safe metadata, never reveal stored hash  \n**Source:** `src/app/api/v1/teams/[id]/invites/route.ts`\n\n```text\nGET  /api/v1/teams/{id|slug}/invites  open invites (members of that team only; codes are never returned again)\nPOST /api/v1/teams/{id|slug}/invites  { hours?: 1..72, for_code?: \"P-1234\" } → the one-time code, shown once\n```",
+    "summary": "[new] List safe metadata, never reveal stored hash",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Team · Extension needed: List safe metadata, never reveal stored hash  \n**Source:** `src/app/api/v1/teams/[id]/invites/route.ts`\n\n```text\nGET  /api/v1/teams/{id|slug}/invites  open invites (members of that team only; codes are never returned again)\nPOST /api/v1/teams/{id|slug}/invites  { hours?: 1..72, for_code?: \"P-1234\" } → the one-time code, shown once\n```",
     "parameters": [
      {
       "name": "id",
@@ -11412,7 +11605,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -11435,8 +11628,8 @@
      "teams"
     ],
     "operationId": "post_api_v1_teams_id_invites",
-    "summary": "Issue random expiring single-use code; captain only",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Team · Extension needed: Issue random expiring single-use code; captain only  \n**Source:** `src/app/api/v1/teams/[id]/invites/route.ts`\n\n```text\nGET  /api/v1/teams/{id|slug}/invites  open invites (members of that team only; codes are never returned again)\nPOST /api/v1/teams/{id|slug}/invites  { hours?: 1..72, for_code?: \"P-1234\" } → the one-time code, shown once\n```",
+    "summary": "[new] Issue random expiring single-use code; captain only",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** Team · Extension needed: Issue random expiring single-use code; captain only  \n**Source:** `src/app/api/v1/teams/[id]/invites/route.ts`\n\n```text\nGET  /api/v1/teams/{id|slug}/invites  open invites (members of that team only; codes are never returned again)\nPOST /api/v1/teams/{id|slug}/invites  { hours?: 1..72, for_code?: \"P-1234\" } → the one-time code, shown once\n```",
     "parameters": [
      {
       "name": "id",
@@ -11508,7 +11701,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -12143,8 +12336,8 @@
      "teams"
     ],
     "operationId": "post_api_v1_teams_join",
-    "summary": "Join an existing team using invite",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Join an existing team using invite  \n**Source:** `src/app/api/v1/teams/join/route.ts`\n\n```text\nPOST /api/v1/teams/join { code, explicit_confirmation: true }\nOne-time invite. TEAM_FULL (409), DEADLINE_PASSED (423, roster locked) or an\nexpired code leave no partial membership behind.\n```",
+    "summary": "[new] Join an existing team using invite",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** teams · Existing blueprint contract: Join an existing team using invite  \n**Source:** `src/app/api/v1/teams/join/route.ts`\n\n```text\nPOST /api/v1/teams/join { code, explicit_confirmation: true }\nOne-time invite. TEAM_FULL (409), DEADLINE_PASSED (423, roster locked) or an\nexpired code leave no partial membership behind.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -12208,7 +12401,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -13276,8 +13469,8 @@
      "mcp"
     ],
     "operationId": "get_mcp",
-    "summary": "/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
+    "summary": "[new] /mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -13331,7 +13524,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -13354,8 +13547,8 @@
      "mcp"
     ],
     "operationId": "post_mcp",
-    "summary": "Proposed authenticated Streamable HTTP MCP endpoint",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** mcp · Existing blueprint contract: Proposed authenticated Streamable HTTP MCP endpoint  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
+    "summary": "[new] Proposed authenticated Streamable HTTP MCP endpoint",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** mcp · Existing blueprint contract: Proposed authenticated Streamable HTTP MCP endpoint  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -13419,7 +13612,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -13454,8 +13647,8 @@
      "mcp"
     ],
     "operationId": "delete_mcp",
-    "summary": "/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).",
-    "description": "**Status:** LIVE in production  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
+    "summary": "[new] /mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/mcp/route.ts`\n\n```text\n/mcp: the event MCP server over Streamable HTTP (stateless, JSON responses).\nAuth: `Authorization: Bearer khk_…` from pairing (`kanehack pair`). Every\nrequest builds a fresh server bound to that token's member, so nothing is\nshared between participants and no session state lives in the function.\nGET (server-initiated SSE) and DELETE (session end) aren't offered: 405.\n```",
     "parameters": [],
     "responses": {
      "200": {
@@ -13509,7 +13702,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {
@@ -13534,8 +13727,8 @@
      "webhooks"
     ],
     "operationId": "post_webhooks_github",
-    "summary": "Receive signed GitHub App webhook",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** webhooks · Existing blueprint contract: Receive signed GitHub App webhook  \n**Source:** `src/app/webhooks/github/route.ts`\n\n```text\nPOST /webhooks/github: GitHub App webhook (T-KANE-09).\n  1. HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET (X-Hub-Signature-256)\n  2. X-GitHub-Delivery dedupe (redeliveries return 200 \"duplicate\")\n  3. push → repository_links + the commit timeline; ping → 200; anything else ignored\nThe App needs only Contents: read + Metadata: read and the \"push\" event.\nNothing from the payload is trusted until the signature checks out.\n```",
+    "summary": "[new] Receive signed GitHub App webhook",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** webhooks · Existing blueprint contract: Receive signed GitHub App webhook  \n**Source:** `src/app/webhooks/github/route.ts`\n\n```text\nPOST /webhooks/github: GitHub App webhook (T-KANE-09).\n  1. HMAC-SHA256 of the raw body with GITHUB_WEBHOOK_SECRET (X-Hub-Signature-256)\n  2. X-GitHub-Delivery dedupe (redeliveries return 200 \"duplicate\")\n  3. push → repository_links + the commit timeline; ping → 200; anything else ignored\nThe App needs only Contents: read + Metadata: read and the \"push\" event.\nNothing from the payload is trusted until the signature checks out.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -13599,7 +13792,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": [],
     "requestBody": {
@@ -13622,8 +13815,8 @@
      "webhooks"
     ],
     "operationId": "post_webhooks_luma",
-    "summary": "Receive signed Luma webhook where available",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** webhooks · Existing blueprint contract: Receive signed Luma webhook where available  \n**Source:** `src/app/webhooks/luma/route.ts`\n\n```text\nLuma guest webhooks (T-ROS-04, W2). Off unless LUMA_WEBHOOK_SECRET is set\n(needs Luma Plus); the CSV import stays the source of truth either way.\nAccepted: guest.registered / guest.updated. Signature: HMAC-SHA256 of the\nraw body with the secret, sent as hex/base64 (optionally \"sha256=…\"), or the\nStandard Webhooks scheme (webhook-id / webhook-timestamp / webhook-signature\n\"v1,<base64>\", secret \"whsec_<base64>\"). Replays are deduped by delivery id\n(or body hash) and timestamps older than 5 minutes are refused.\n\nThe exact Luma payload/signature format must be confirmed against Luma's\ndocs before enabling; until then this is a tolerant, fail-closed adapter.\n```",
+    "summary": "[new] Receive signed Luma webhook where available",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** webhooks · Existing blueprint contract: Receive signed Luma webhook where available  \n**Source:** `src/app/webhooks/luma/route.ts`\n\n```text\nLuma guest webhooks (T-ROS-04, W2). Off unless LUMA_WEBHOOK_SECRET is set\n(needs Luma Plus); the CSV import stays the source of truth either way.\nAccepted: guest.registered / guest.updated. Signature: HMAC-SHA256 of the\nraw body with the secret, sent as hex/base64 (optionally \"sha256=…\"), or the\nStandard Webhooks scheme (webhook-id / webhook-timestamp / webhook-signature\n\"v1,<base64>\", secret \"whsec_<base64>\"). Replays are deduped by delivery id\n(or body hash) and timestamps older than 5 minutes are refused.\n\nThe exact Luma payload/signature format must be confirmed against Luma's\ndocs before enabling; until then this is a tolerant, fail-closed adapter.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -13687,7 +13880,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": [],
     "requestBody": {
@@ -13710,8 +13903,8 @@
      "webhooks"
     ],
     "operationId": "post_webhooks_renderer",
-    "summary": "the render worker reports a job's status.",
-    "description": "**Status:** LIVE in production  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/webhooks/renderer/route.ts`\n\n```text\nPOST /webhooks/renderer: the render worker reports a job's status.\n  X-Renderer-Signature: sha256=<hex HMAC of the raw body, RENDERER_WEBHOOK_SECRET>\n  X-Renderer-Delivery:  unique id per attempt (deduped)\nBody: { job_id, status: running|succeeded|failed|cancelled, object_key?, error_code? }\nA failed render never blocks anything: the HTML deck keeps working.\n```",
+    "summary": "[new] the render worker reports a job's status.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/webhooks/renderer/route.ts`\n\n```text\nPOST /webhooks/renderer: the render worker reports a job's status.\n  X-Renderer-Signature: sha256=<hex HMAC of the raw body, RENDERER_WEBHOOK_SECRET>\n  X-Renderer-Delivery:  unique id per attempt (deduped)\nBody: { job_id, status: running|succeeded|failed|cancelled, object_key?, error_code? }\nA failed render never blocks anything: the HTML deck keeps working.\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -13775,7 +13968,7 @@
       }
      }
     },
-    "x-status": "live",
+    "x-status": "new",
     "x-access": "open",
     "security": [],
     "requestBody": {

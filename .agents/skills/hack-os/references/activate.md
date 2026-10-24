@@ -1,12 +1,15 @@
 # Activation
 
-Three steps, all on `https://kaneclihack.sh/activate`, after the team is locked:
+Three steps, after the team is locked. `participant_get_status` returns activation_steps: `testmu_signup` and `codex_credits` (true or false), `testmu_plan` (`not_started`, `pending`, `claimed`, `not_registered` or `error`) and `done`.
 
-1. **TestMu AI sign-up**: sign up (or confirm the account) and tick it.
-2. **TestMu plan**: they enter their kaneclihack.sh password (or the password of a TestMu AI account they already had) and press Activate. That also creates the TestMu AI account and ticks step 1.
-3. **Codex credits**: the OpenAI Codex coupon arrives by email, at the address they registered with. They redeem it themselves, then tick "Credits enabled".
+1. **TestMu AI sign-up** (`testmu_signup`): step 2's claim creates the TestMu AI account and ticks it. Only if the claim can't run and they tell you they signed up themselves: ask "Mark the TestMu AI sign-up done?", then `activation_tick` with `step: "testmu_signup"` and `explicit_confirmation: true`.
+2. **TestMu AI plan** (`testmu_plan`): `kanehack claim --json`. It uses the password saved with `kanehack password` (their kaneclihack.sh password is also their TestMu AI password).
+   - 0 → claimed.
+   - 2 → show its message. Not registered: they sign up on TestMu AI with the same email, then `kanehack claim --json` again. They already had a TestMu AI account with a different password: they run `kanehack password --testmu` in their own terminal, then `kanehack claim --json`.
+   - 4 → still activating: wait a few seconds and run it again.
+3. **Codex credits** (`codex_credits`): the OpenAI Codex coupon arrives by email, at the address they registered with. They redeem it themselves. When they say it's redeemed, ask "Mark the Codex credits step done?", then `activation_tick` with `step: "codex_credits"` and `explicit_confirmation: true`.
 
-The skill can't see these steps yet, so ask: "Have you finished all three steps on /activate?" Treat the answer as navigation only; never report activation as confirmed.
+Activation is done when `participant_get_status` shows activation_steps.done true; never report it from their word alone. The same steps show on `https://kaneclihack.sh/activate`.
 
 Never ask for, repeat or store the coupon. If the email hasn't arrived, they check spam, then ask at the help desk.
 

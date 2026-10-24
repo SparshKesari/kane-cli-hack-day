@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.7
+# Version: 0.1.8
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
@@ -32,9 +32,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.7"
-KANEHACK_SHA256="9cdcb81088e226e909a788bedd819b5c85ac08b55836450a9720f35fc737870f"
-SKILLS_SHA256="b09e4d00602ff692c3d2d4bc49681e04bf0d54504a92582fd875815c5da5171a"
+KANEHACK_VERSION="0.1.8"
+KANEHACK_SHA256="87bda847e82e0d92f1146b6bdd97cd779762736b6ddac429a82b7c9c0187e2fd"
+SKILLS_SHA256="cefde91689ee99b085ed5d82236cb29a6882d094160522a08e579adb14b7ee28"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"

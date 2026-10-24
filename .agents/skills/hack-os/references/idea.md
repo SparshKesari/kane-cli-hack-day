@@ -7,7 +7,7 @@ The idea locks at 12:00 Pacific (check `event_get_brief`). The challenge: build 
 3. Show only the `comment` it prints, under four headings: Idea, Uniqueness, Kane, Final. Never show scores, criterion names, or the words ready / needs work / rethink. Use `verdict` only to decide what to do next: `rethink` → work on the idea with them before anything else; `needs_work` → go through the three improvements; `ready` → move on. It's coaching, not a score: say so once.
 4. Rerun only if the idea changed. The full result stays in `~/.kanehack/os/idea-check.json`.
 5. `idea_check_overlap` shows similar opted-in ideas from other teams, if they want to see them.
-6. They save it on their team's Idea tab, `https://kaneclihack.sh/t/<team-slug>/idea`. The skill can't save it for them. Then call `participant_get_status`: `idea.saved` true means it's saved.
+6. Save it with `idea_save`. Show the exact fields: title (the product name), private_description (the description), app_type, kane_plan, and extra_info if there is any. Ask "Save this as your team's idea?", then call `idea_save` with those fields and `explicit_confirmation: true`. It stays private to the team; anyone on the team can save until the idea lock. Then call `participant_get_status`: `idea.saved` true means it's saved. They can also edit it on the Idea tab, `https://kaneclihack.sh/t/<team-slug>/idea`.
 
 The hosted `idea_validate` tool sends their text to the event server. Use it only if they ask for the site's own check, after showing the exact text: `project_idea` (20–2000 characters) and `publication_intent: "private"` unless they choose `share_summary`.
 

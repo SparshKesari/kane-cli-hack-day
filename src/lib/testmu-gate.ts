@@ -108,7 +108,7 @@ const GATED_PAGE = /^\/(passport|activate|pair|readiness|help|match|team|t|studi
 const KEY_SOURCE_PAGE = /^\/(register|passport\/login)(\/|$)/;
 
 /** Never gated: the key handshake itself, the API docs, and server-to-server callers with their own secrets. */
-const ALWAYS_OPEN = [/^\/api\/v1\/auth\/testmu(\/|$)/, /^\/api\/v1\/auth\/register$/, /^\/api\/v1\/openapi\.json$/, /^\/api\/docs(\/|$)/, /^\/api\/cron\//, /^\/api\/import\//, /^\/webhooks\//];
+const ALWAYS_OPEN = [/^\/api\/v1\/auth\/testmu(\/|$)/, /^\/api\/v1\/auth\/register$/, /^\/api\/v1\/auth\/token$/, /^\/api\/v1\/openapi\.json$/, /^\/api\/docs(\/|$)/, /^\/api\/cron\//, /^\/api\/import\//, /^\/webhooks\//];
 
 /**
  * Public, aggregate-only reads the plan marks "Everyone" (TV, Mission Control,
