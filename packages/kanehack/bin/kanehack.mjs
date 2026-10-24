@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.18";
+const VERSION = "0.1.20";
 // TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
 const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");
@@ -130,7 +130,7 @@ function fail(msg, code = EXIT.FAIL, errCode = "ERROR", extra = {}) {
 }
 
 // Flags that never take a value, so `--json yes` keeps "yes" as an argument.
-const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check", "forget", "testmu", "looking"]);
+const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check", "forget", "testmu", "looking", "yes"]);
 
 function args(argv) {
   const out = { _: [], flags: {} };
@@ -1155,6 +1155,69 @@ async function submit(a) {
   finishEnvelope(env, env.data?.ready ? EXIT.OK : EXIT.FAIL);
 }
 
+// ── publish ──────────────────────────────────────────────────────────────────
+
+// Public evidence (docs/api/PUBLIC_EVIDENCE.md): extension → [kind, content type]. The server checks the same rules.
+const PUBLISH_TYPES = { png: ["screenshot", "image/png"], jpg: ["screenshot", "image/jpeg"], jpeg: ["screenshot", "image/jpeg"], webp: ["screenshot", "image/webp"], mp4: ["video", "video/mp4"], webm: ["video", "video/webm"], ndjson: ["ndjson", "application/x-ndjson"], jsonl: ["ndjson", "application/x-ndjson"], json: ["report", "application/json"], md: ["testmd", "text/markdown"], log: ["log", "text/plain"], txt: ["log", "text/plain"] };
+const NEVER_PUBLISHED = ["zip", "evidence", "har", "html", "htm", "xhtml", "svg", "svgz", "pdf"];
+const mb = (n) => `${(n / 1048576).toFixed(1)} MB`;
+
+async function publish(a) {
+  const file = a._[1];
+  if (!file) fail("Usage: kanehack publish <file> [--kind screenshot|video|report|testmd|ndjson|log] [--run KR-12] [--yes]", EXIT.ACTION, "USAGE");
+  if (!existsSync(file) || !statSync(file).isFile()) fail(`No such file: ${file}`, EXIT.ACTION, "NOT_FOUND");
+  const ext = extname(file).slice(1).toLowerCase();
+  if (NEVER_PUBLISHED.includes(ext))
+    fail(`.${ext} files are never published: Kane evidence packs and HAR files hold cookies and auth headers, and HTML, SVG and PDF can run script. Publish a screenshot, the video or the run report instead.`, EXIT.ACTION, "REFUSED");
+  const type = PUBLISH_TYPES[ext];
+  if (!type) fail(`Can't publish a .${ext || "(no extension)"} file: use .png, .jpg, .webp, .mp4, .webm, .ndjson, .json, .md, .log or .txt.`, EXIT.ACTION, "REFUSED");
+  const kind = a.flags.kind ? String(a.flags.kind) : type[0];
+  const bytes = readFileSync(file);
+  const name = basename(file).replace(/\.jpeg$/i, ".jpg");
+  // Publishing is public: the person says yes to this exact file, here or (for an agent) before it passes --yes.
+  if (!a.flags.yes) {
+    if (!interactive())
+      fail(`Publishing puts ${name} at a public link anyone can open. Show the person the file; only after they say yes, run: kanehack publish "${file}" --yes`, EXIT.ACTION, "APPROVAL_NEEDED");
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    const ans = (await rl.question(`Publish ${name} (${mb(bytes.length)}) at a public link anyone can open? [y/N] `)).trim().toLowerCase();
+    rl.close();
+    if (ans !== "y" && ans !== "yes") fail("Not published.", EXIT.ACTION, "NOT_APPROVED");
+  }
+  const cfg = loadConfig();
+  needToken(cfg);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const req = await tool(cfg, "public_evidence_request_upload", {
+    kind,
+    filename: name,
+    content_type: type[1],
+    size_bytes: bytes.length,
+    sha256,
+    ...(a.flags.run ? { run_id: String(a.flags.run) } : {}),
+    participant_approved: true,
+    idempotency_key: `kanehack-publish-${randomUUID()}`,
+  });
+  if (req.status === "error") return finishEnvelope(req);
+  let receipt = req;
+  if (req.data?.status === "upload_required") {
+    const up = req.data;
+    say(dim(`Uploading ${name} (${mb(bytes.length)})…`));
+    let put;
+    try {
+      // Straight to storage with exactly the signed headers; no app token on this request.
+      put = await fetch(up.url, { method: up.method || "PUT", headers: up.headers, body: bytes, signal: AbortSignal.timeout(600_000) });
+    } catch (e) {
+      fail(`Uploading ${name} failed (${e.cause?.code ?? e.name}). Run the same command again.`, EXIT.UNREACHABLE, "UPLOAD_FAILED");
+    }
+    if (put.status !== 200) fail(`Uploading ${name} failed: storage answered HTTP ${put.status}. Run the same command again.`, EXIT.FAIL, "UPLOAD_FAILED", { http_status: put.status });
+    receipt = await tool(cfg, "public_evidence_complete", { object_id: up.object_id });
+    if (receipt.status === "error") return finishEnvelope(receipt);
+  }
+  const d = receipt.data ?? {};
+  printEnvelope(receipt);
+  if (kind === "video") say(`Next: paste ${d.public_url} into "Demo video URL" on your team's Submit tab.`);
+  emit({ ok: true, exit_code: EXIT.OK, object_id: d.object_id ?? null, public_url: d.public_url ?? null, kind, sha256, ...envJson(receipt) });
+}
+
 function consent(a) {
   const v = a._[1];
   if (v === undefined || v === "status") {
@@ -1244,6 +1307,9 @@ function usage() {
   kanehack help "<what's wrong>" [--category kane_cli|auth|…] [--priority low|normal|high]
   kanehack help --status H-0042
   kanehack submit --preflight                 what's missing before you can submit
+  kanehack publish <file> [--kind K] [--run KR-12] [--yes]
+                                              put a screenshot, the demo video (.mp4/.webm, up to 50 MB) or a
+                                              run report at a public link; asks first (--yes: the person already said yes)
   kanehack consent yes|no|status              allow / stop / show sending run summaries
   kanehack hook status|enable|disable         optional Codex status hook (off until enabled)
   kanehack hook emit <event> [--model M]      send one status ping (Codex hooks call this; never fails)
@@ -1262,7 +1328,7 @@ Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
 const a = args(process.argv.slice(2));
 JSON_MODE = Boolean(a.flags.json);
 const cmd = a._[0];
-const commands = { password, register, signin, claim, login, logout, pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
+const commands = { password, register, signin, claim, login, logout, pair, token, doctor, report, status, help, submit, publish, consent, hook, connect, "mcp-headers": mcpHeaders };
 const run = Object.hasOwn(commands, cmd) ? commands[cmd] : null;
 
 Promise.resolve()

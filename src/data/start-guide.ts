@@ -170,7 +170,9 @@ export const startGuide: GuideSection[] = [
         steps: [
           "Say `$hack-os ready to submit`. It runs `submission_preflight` and lists what's missing.",
           "`$hack-gtm` drafts your launch posts, blog, Hacker News post, deck and demo video script. They're samples; you post them yourself.",
-          "The minimum for the shipped prize: the repo, a live URL or run command and a Kane CLI run report, plus any two of video, blog, X post and Hacker News post, all live by 18:00 with their links on your Submit tab.",
+          "The Submit tab won't finalize without: project name and type, a one-line pitch, the repo, the exact commit SHA, a live URL or run command, a linked Kane CLI run report (tick your runs under Evidence), a harness description, the Kane components used and known limitations.",
+          "For the shipped prize, also any two of video, blog, X post and Hacker News post, live by 18:00 with their links on your Submit tab.",
+          "The demo video field takes a link. Put `showcase.mp4` on YouTube or Loom, or run `kanehack publish video/showcase.mp4` for a public link, and paste it into Demo video URL.",
           "The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`.",
         ],
       },
