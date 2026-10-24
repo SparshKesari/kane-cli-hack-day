@@ -28,7 +28,7 @@ type Mods = {
   jar: Map<string, string>;
 };
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const email = (s: string) => `${tag}.${s}@example.test`;
 const ids = { staff: 0, codes: [] as string[] };
 let organizer: { id: number; name: string; email: string | null; role: "organizer" };
@@ -197,12 +197,12 @@ test("joining a team by any route leaves the matchmaking pool", { skip }, async 
   assert.equal(took.joinedTeam, `${tag} Pool Team`);
   assert.equal((await memberByEmail(email("poolF"))).team_id, team.teamId);
   assert.ok(!(await inPool()).includes(f.id));
-  // A team without a track is Wildcard.
+  // A team without a track is Other.
   await register("poolG");
   const g = (await viewer())!;
   const noTrack = await m.teams.createTeam(acting(g), { name: `${tag} No Track`, seeking_skills: "react, go" });
   const [nt] = await m.db.query<{ track: string }>("select track from teams where id = $1", [noTrack.teamId]);
-  assert.equal(nt.track, "Wildcard");
+  assert.equal(nt.track, "Other");
   // Route 4: an organizer forms a team at the cut-off.
   await register("poolD");
   const d = (await viewer())!;
@@ -335,6 +335,23 @@ test("previews and vercel dev never claim: no call, nothing saved, nothing ticke
   assert.equal(claimBodies.length, before, "no call to TestMu AI");
   assert.equal((await m.db.query("select 1 from testmu_plan_claims where member_id = $1", [me.id])).length, 0, "no claim row");
   assert.equal((await m.db.query("select 1 from activation_ticks where member_id = $1", [me.id])).length, 0, "no ticks");
+});
+
+// The skill used to go from activation straight to building on next_action "build".
+test("after activation the next step is the idea, until the team saves one", { skip }, async () => {
+  await register("nextidea");
+  let me = (await viewer())!;
+  await m.teams.createTeam(acting(me), { name: `${tag} Next`, track: "Web App" });
+  await m.db.query("update members set activated_at = now() where id = $1", [me.id]);
+  me = (await m.auth.getMemberById(me.id))!;
+  const { participantStatus } = await import("../../src/server/mcp-adapters.ts");
+  let s = await participantStatus(me);
+  assert.equal(s.next_action.id, "idea");
+  assert.equal(s.idea?.saved, false, "a new team's idea row has only the team name");
+  await m.db.query("update ideas set private_description = 'Staff photograph a shelf; the app lists what is missing.' where team_id = $1", [me.team_id]);
+  s = await participantStatus(me);
+  assert.equal(s.next_action.id, "build");
+  assert.equal(s.idea?.saved, true);
 });
 
 test("Codex codes: distinct under concurrency, re-shown, empty pool, upload dedupe", { skip }, async () => {

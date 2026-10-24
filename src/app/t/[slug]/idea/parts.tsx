@@ -1,13 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { Label, SubmitButton, Toggle, inputCls } from "@/components/forms/fields";
-import { RequestIntro } from "@/app/match/parts";
-import { ActionNote, smallBtn } from "@/app/team/ui";
-import type { RadarMatch } from "@/server/ideas";
-import { radarAction, saveIdeaAction, selectIdeaAction, validateIdeaAction, type IdeaFormState, type RadarState, type ValidateState } from "./actions";
+import { ActionNote } from "@/app/team/ui";
+import { saveIdeaAction, validateIdeaAction, type IdeaFormState, type ValidateState } from "./actions";
 
 export function IdeaForm({
   slug,
@@ -30,7 +26,7 @@ export function IdeaForm({
         </div>
         <div>
           <Label htmlFor="i-type">What type of app is it?</Label>
-          <input id="i-type" name="app_type" maxLength={120} defaultValue={defaults.app_type} className={inputCls} placeholder="Web app, mobile app, CLI tool, browser extension…" />
+          <input id="i-type" name="app_type" maxLength={120} defaultValue={defaults.app_type} className={inputCls} placeholder="Web App, Mobile App, others" />
         </div>
         <div>
           <Label htmlFor="i-desc">Description</Label>
@@ -64,7 +60,7 @@ export function IdeaForm({
           </Label>
           <textarea id="i-extra" name="extra_info" maxLength={4000} rows={3} defaultValue={defaults.extra_info} className={inputCls} />
         </div>
-        {/* Kept as they are: the Idea Radar sharing choice and the old project-type field aren't asked here any more. */}
+        {/* Kept as they are: the old sharing choice and project-type field aren't asked here any more. */}
         <input type="hidden" name="project_type" value={defaults.project_type} />
         <input type="hidden" name="public_summary" value={defaults.public_summary} />
         {defaults.discovery_opt_in && <input type="hidden" name="discovery_opt_in" value="on" />}
@@ -95,91 +91,5 @@ export function ValidateForm({ slug, disabled }: { slug: string; disabled: boole
         Validate idea
       </SubmitButton>
     </form>
-  );
-}
-
-export function SelectIdeaButton({ slug }: { slug: string }) {
-  const [state, setState] = useState<IdeaFormState>(null);
-  return (
-    <form action={async () => setState(await selectIdeaAction(slug))} className="space-y-2">
-      <Pending className={smallBtn}>Lock in this idea</Pending>
-      <ActionNote state={state} ok="Idea selected." />
-    </form>
-  );
-}
-
-function Pending({ className, children }: { className: string; children: React.ReactNode }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" disabled={pending} className={className}>
-      {pending ? "Working…" : children}
-    </button>
-  );
-}
-
-export function PrintButton() {
-  return (
-    <button type="button" onClick={() => window.print()} className="no-print inline-flex min-h-11 items-center bg-bright px-4 py-2.5 font-plex text-sm text-ink transition-colors hover:bg-lime">
-      Print
-    </button>
-  );
-}
-
-const LABEL: Record<RadarMatch["label"], string> = {
-  possible_overlap: "Possible overlap",
-  similar_angle: "Similar angle",
-  complementary: "Complementary",
-};
-
-export function RadarRunner({ slug, canCollaborate }: { slug: string; canCollaborate: boolean }) {
-  const [state, setState] = useState<RadarState>(null);
-  const result = state?.ok ? state.data : null;
-  return (
-    <div className="space-y-6">
-      <form action={async () => setState(await radarAction(slug))}>
-        <Pending className="inline-flex min-h-11 items-center bg-bright px-4 py-2.5 font-plex text-sm text-ink transition-colors hover:bg-lime">Check for overlap →</Pending>
-      </form>
-      <ActionNote state={state && !state.ok ? state : null} />
-      {result?.status === "needs_opt_in" && (
-        <p className="border-l-2 border-warning pl-3 font-plex text-sm text-warning">
-          Share a public summary first (on the{" "}
-          <Link href={`/t/${slug}/idea`} className="underline underline-offset-4">
-            idea tab
-          </Link>
-          ). The radar only compares summaries teams chose to share.
-        </p>
-      )}
-      {result?.status === "ok" && (
-        <div className="space-y-4">
-          <p className="font-plex text-xs text-lightgray">
-            Compared with {result.compared} shared {result.compared === 1 ? "summary" : "summaries"} · {result.method === "embeddings" ? "AI embeddings" : "word overlap"}
-            {result.warning ? ` · ${result.warning}` : ""}
-          </p>
-          {result.matches.length === 0 ? (
-            <p className="font-plex text-sm text-bright">Nothing close among shared ideas. That says nothing about ideas teams kept private.</p>
-          ) : (
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {result.matches.map((m) => (
-                <li key={m.team_id} className="flex flex-col gap-3 border border-hairline p-5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`border px-2 py-0.5 font-pixel text-[10px] uppercase tracking-[0.18em] ${m.label === "possible_overlap" ? "border-warning text-warning" : "border-hairline text-lightgray"}`}>{LABEL[m.label]}</span>
-                    <span className="font-plex text-xs text-lightgray">{Math.round(m.similarity * 100)}% similar</span>
-                  </div>
-                  <p className="font-display text-lg text-bright">{m.team_name}</p>
-                  <p className="font-plex text-sm text-lightgray">“{m.public_summary}”</p>
-                  <p className="font-plex text-xs text-bright">{m.explanation}</p>
-                  <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                    <Link href={`/t/${slug}/idea#idea-form`} className={smallBtn}>
-                      Differentiate
-                    </Link>
-                    {canCollaborate && <RequestIntro target={{ team: m.team_id }} kind="collaborate" label="Request collaboration" />}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

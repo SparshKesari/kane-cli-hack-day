@@ -97,9 +97,23 @@ export const challenge = {
       body: "At least once, an agent’s output triggered a Kane run, or a Kane result changed what the agent did.",
     },
   ],
-  tracks: ["Web App", "Mobile App", "AI Agent and Voice", "Data and Dashboards", "Wildcard"],
+  tracks: ["Web App", "Mobile App", "Other"],
   tracksNote: "Same rubric for every track.",
 };
+
+/** A team made without a track. */
+export const DEFAULT_TRACK = "Other";
+
+/** The tracks before Web App / Mobile App / Other. */
+export const LEGACY_TRACKS: readonly string[] = ["AI Agent and Voice", "Data and Dashboards", "Wildcard"];
+
+/**
+ * The track as shown and returned: one of challenge.tracks. Teams made before the list became
+ * Web App / Mobile App / Other (AI Agent and Voice, Data and Dashboards, Wildcard) read as Other.
+ */
+export function trackLabel(track: string | null | undefined): string {
+  return track && (challenge.tracks as readonly string[]).includes(track) ? track : DEFAULT_TRACK;
+}
 
 // The blueprint's challenge brief (BRIEF.md), for pages that want the longer
 // framing. A standalone validation harness is a valid entry on its own.
@@ -487,10 +501,7 @@ export const resources: ResourceGroup[] = [
     items: [
       { label: "Web App", body: "Build [X], Kane verifies [Y]" },
       { label: "Mobile App", body: "Build [X], Kane verifies [Y]" },
-      { label: "AI Agent and Voice", body: "Build [X], Kane verifies [Y]" },
-      { label: "Data and Dashboards", body: "Build [X], Kane verifies [Y]" },
-      { label: "Wildcard", body: "Build [X], Kane verifies [Y]" },
-      { label: "Wildcard", body: "Build [X], Kane verifies [Y]" },
+      { label: "Other", body: "Build [X], Kane verifies [Y]" },
     ],
   },
   {

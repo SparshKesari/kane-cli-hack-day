@@ -16,11 +16,14 @@ Run `kanehack doctor --json` and read its checks. Fix only what failed, one at a
 
 Intel Mac: Kane CLI doesn't support it. Send them to the help desk for a loaner or a teammate's machine.
 
-## 2. Sign in: profile, pairing, TestMu key
+## 2. Sign in (no browser)
 
-Ask first: "Have you saved your profile on https://kaneclihack.sh/register?" If not → `references/signup-team.md` and stop until they're done. Pairing can't be approved without a profile.
+1. `kanehack password --check --json`. Exit 2 (nothing saved) → ask them to open **their own terminal window**, not this chat, and run `kanehack password`. It asks twice without showing what they type and keeps it in `~/.kanehack/credentials.json` (mode 600). New to the site: they choose one now (8+ characters); it is also their TestMu AI password. Already registered: the password they chose on the site. Wait until they say it's set. Never ask for it here.
+2. Ask: "Have you already registered on kaneclihack.sh?"
+   - No → `references/signup-team.md`: `kanehack register` saves the profile and signs this machine in.
+   - Yes → `kanehack signin --email <their email> --json`. Exit 0 = signed in. 2 with `WRONG_PASSWORD` = the email or the saved password is wrong: check the email, or they run `kanehack password` again in their terminal. 3 = server unreachable: check the network.
 
-**Pair this machine (required: the event's Codex tools only accept a paired machine).**
+**Fallback only** (sign-in keeps failing, or they'd rather approve in the browser): pair this machine.
 
 1. `kanehack pair --start --json`. Show only `user_code` and `verification_url`; they approve in the browser while signed in to the site.
 2. `kanehack pair --wait --timeout 30 --json`. Exit 0 = paired. 4 = still pending: wait and run it again. 3 = server unreachable: check network. 1 = expired or denied: start again.
@@ -28,9 +31,9 @@ Ask first: "Have you saved your profile on https://kaneclihack.sh/register?" If 
 **Save the TestMu AI key if the site asks for one.** Run `node <skill>/scripts/state.mjs key-required`.
 
 - `false` → skip this part. Doctor's `testmu_key` check will still fail; that's expected, say nothing about it.
-- `true`, or `null` (couldn't tell) → the username and key are shown on `/register` once the profile is saved.
+- `true`, or `null` (couldn't tell) → `kanehack register` saves the key when the site hands one out. Otherwise the username and key are shown on `/register` once the profile is saved.
   1. Ask them to run `kanehack login` **in their own terminal window**, not in this chat, and paste the username and key there. Never ask for the key here.
-  2. `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile on `/register`. If `/register` shows no key, send them to the help desk.
+  2. `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile with `kanehack register`. If `/register` shows no key, send them to the help desk.
 
 If TESTMU_USERNAME / TESTMU_ACCESS_KEY or LT_USERNAME / LT_ACCESS_KEY are set in their environment, they're sent instead of the saved key; a personal LambdaTest key there causes "not accepted". They unset those or use their event key.
 

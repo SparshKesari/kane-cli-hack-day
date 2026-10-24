@@ -28,7 +28,7 @@ type Mods = {
   jar: Map<string, string>;
 };
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const schema = `qa_teams_${tag}`;
 let eventId = 0;
 let staffId = 0;

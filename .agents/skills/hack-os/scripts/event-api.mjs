@@ -5,7 +5,7 @@
 //   node event-api.mjs list
 //   node event-api.mjs call <tool> --args <file.json> [--confirmed]
 //
-// /mcp needs the pairing token from `kanehack pair` (src/app/mcp/route.ts). The TestMu AI key
+// /mcp needs the token from `kanehack signin` / `kanehack register` (or `kanehack pair`) (src/app/mcp/route.ts). The TestMu AI key
 // (TESTMU_USERNAME/TESTMU_ACCESS_KEY, then Kane CLI's LT_USERNAME/LT_ACCESS_KEY, then the one
 // `kanehack login` saved) rides along for the site's key gate, the way kanehack 0.1.4 sends it. Writes need --confirmed, given only after the person
 // approved those exact arguments. No automatic retry of writes.
@@ -14,7 +14,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 // Fallback when tools/list carries no readOnlyHint: the tools src/server/mcp.ts declares readOnly.
-const READ_ONLY = new Set(["event_get_brief", "participant_get_status", "team_find", "idea_check_overlap", "harness_get_capabilities", "help_get_status", "submission_preflight", "deck_get", "showcase_preview", "activation_get_checkpoint", "help_diagnose", "public_evidence_list", "team_page_get"]);
+const READ_ONLY = new Set(["event_get_brief", "participant_get_status", "team_find", "harness_get_capabilities", "help_get_status", "submission_preflight", "deck_get", "showcase_preview", "activation_get_checkpoint", "help_diagnose", "public_evidence_list", "team_page_get"]);
 
 const a = process.argv.slice(2);
 const [mode, name] = a;
@@ -56,7 +56,7 @@ try {
     pick(process.env.LT_USERNAME, process.env.LT_ACCESS_KEY) ||
     pick(c.testmu?.username, c.testmu?.access_key);
   const token = process.env.KANEHACK_TOKEN || c.token || "";
-  if (!token) fail("NOT_PAIRED: run `kanehack pair --start --json`, then the person approves in the browser (they need a profile on https://kaneclihack.sh/register first). If the site also asks for the TestMu AI key, the person runs `kanehack login` in their own terminal.");
+  if (!token) fail("NOT_SIGNED_IN: run `kanehack signin --email <their email> --json` (new here: `kanehack register`), after the person saved their password with `kanehack password` in their own terminal. Fallback: `kanehack pair --start --json` and they approve in the browser. If the site also asks for the TestMu AI key, the person runs `kanehack login` in their own terminal.");
   if (token) secrets.push(token);
   if (testmu) secrets.push(testmu.access_key);
   const headers = {
@@ -82,7 +82,7 @@ try {
         url = next;
         continue;
       }
-      if (res.status === 401) fail("UNAUTHENTICATED: pair again with `kanehack pair --start --json`. If the site wants the TestMu AI key, the person runs `kanehack login` in their own terminal; TESTMU_* or LT_* environment variables, when set, are sent instead and must be their event key.");
+      if (res.status === 401) fail("UNAUTHENTICATED: sign in again with `kanehack signin --email <their email> --json` (fallback: `kanehack pair --start --json`). If the site wants the TestMu AI key, the person runs `kanehack login` in their own terminal; TESTMU_* or LT_* environment variables, when set, are sent instead and must be their event key.");
       if (res.status === 403) fail("FORBIDDEN: check the person's role and team");
       if (res.status === 429) fail("RATE_LIMITED: retry after " + (res.headers.get("retry-after") || "a minute"));
       if (!res.ok) fail(write ? `HTTP ${res.status}: outcome uncertain for this write; read back before trying again` : `SERVER_UNAVAILABLE: the event server isn't answering (HTTP ${res.status}). ${down}`);

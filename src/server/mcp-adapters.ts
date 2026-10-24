@@ -1,11 +1,12 @@
 import "server-only";
 import { query } from "@/lib/db";
-import { challenge } from "@/data/hackday";
+import { DEFAULT_TRACK } from "@/data/hackday";
 import { draftText } from "./ai";
 import { AppError, serverNow, withAudit, z, type Actor } from "./core";
 import type { MemberRow } from "./auth";
 import { listMilestones } from "./kane";
 import * as activation from "./activation";
+import { getActivationView, setTick } from "./event-activation";
 import * as deck from "./deck";
 import * as help from "./help";
 import * as ideas from "./ideas";
@@ -19,15 +20,17 @@ import * as teams from "./teams";
 // areas. Since the merge into hack-os each one delegates to that area's
 // service module (passport/activation, teams, ideas, help, submission,
 // story/deck), so MCP and the web share one set of rules (zod → scope →
-// idempotency → audit → receipt). participantStatus, findTeams, ideaOverlap,
+// idempotency → audit → receipt). participantStatus, findTeams,
 // socialDraft and the renderer callback are still local read/draft helpers.
 
 export type Ctx = { member: MemberRow; actor: Actor; requestId: string };
 
 async function teamRow(teamId: number | null) {
   if (!teamId) return null;
-  const [t] = await query<{ id: number; slug: string; name: string; state: string; max_size: number; recruiting_open: boolean; captain_id: number | null; is_solo: boolean }>(
-    "select id, slug, name, state, max_size, recruiting_open, captain_id, is_solo from teams where id = $1",
+  const [t] = await query<{ id: number; slug: string; name: string; state: string; max_size: number; recruiting_open: boolean; captain_id: number | null; is_solo: boolean; locked: boolean }>(
+    `select id, slug, name, state, max_size, recruiting_open, captain_id, is_solo,
+            (roster_locked_at is not null or state in ('roster_locked','submitted','withdrawn')) as locked
+       from teams where id = $1`,
     [teamId],
   );
   return t ?? null;
@@ -38,7 +41,7 @@ async function teamRow(teamId: number | null) {
 const CONSENT_CATEGORIES = ["selfie_storage", "photo_publication", "face_matching", "social_mention", "teammate_discovery", "idea_discovery", "activity_publication"] as const;
 
 export async function participantStatus(m: MemberRow) {
-  const [team, consents, activation, tickets] = await Promise.all([
+  const [team, consents, activation, tickets, idea, steps] = await Promise.all([
     teamRow(m.team_id),
     query<{ category: string; granted: boolean; recorded_at: Date }>("select category, granted, recorded_at from member_consent_current where member_id = $1", [m.id]),
     query<{ id: number; status: string; updated_at: Date; receipt_code: string | null }>(
@@ -46,19 +49,38 @@ export async function participantStatus(m: MemberRow) {
       [m.id],
     ),
     query<{ code: string; status: string }>("select code, status from help_tickets where member_id = $1 and status not in ('resolved','closed','duplicate') order by created_at desc limit 3", [m.id]),
+    // A team's idea row starts with only the team name: it counts as saved once it has a description.
+    m.team_id ? query<{ saved: boolean }>("select trim(private_description) <> '' as saved from ideas where team_id = $1", [m.team_id]) : Promise.resolve([]),
+    getActivationView(m.id),
   ]);
   const act = activation[0] ?? null;
-  // No desk step on event day: the first thing to do is find a team.
+  const ideaSaved = !!idea[0]?.saved;
+  const activated = steps.done || !!m.activated_at || act?.status === "active";
+  // The same order as the site (flowState): a team, the captain locks it, activation, the idea, then build.
   const next = !team
     ? { id: "find_team", label: "Create or join a team", href: "/match" }
-    : act?.status !== "active" && !m.activated_at
+    : !team.locked && !activated
+      ? team.captain_id === m.id
+        ? { id: "lock_team", label: "Lock your final team (team_lock), then activate", href: "/team" }
+        : { id: "lock_team", label: "Wait for your captain to lock the team, then activate", href: "/team" }
+    : !activated
       ? { id: "activate", label: "Finish activation", href: "/activate" }
-      : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
+      : !ideaSaved
+        ? { id: "idea", label: "Write your idea, check it with $hack-os, then save it on the Idea tab", href: `/t/${team.slug}/idea` }
+        : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
   return {
     member: { public_code: m.public_code, name: m.display_name ?? m.name, role: m.role, checked_in: !!m.checked_in_at, activated: !!m.activated_at },
-    team: team ? { slug: team.slug, name: team.name, state: team.state, hub_url: `/t/${team.slug}` } : null,
+    team: team ? { slug: team.slug, name: team.name, state: team.state, locked: team.locked, captain: team.captain_id === m.id, hub_url: `/t/${team.slug}` } : null,
     activation: act ? { session_id: act.id, status: act.status, receipt_code: act.receipt_code, updated_at: act.updated_at.toISOString() } : null,
     consents: Object.fromEntries(CONSENT_CATEGORIES.map((c) => [c, consents.find((x) => x.category === c)?.granted ?? null])),
+    // The /activate checklist: 1 TestMu AI sign-up (tick), 2 the plan claim (kanehack claim), 3 the emailed Codex coupon (tick).
+    activation_steps: {
+      testmu_signup: steps.ticks.has("testmu_signup"),
+      testmu_plan: steps.plan?.status ?? "not_started",
+      codex_credits: steps.ticks.has("codex_credits"),
+      done: steps.done,
+    },
+    idea: team ? { saved: ideaSaved, url: `/t/${team.slug}/idea` } : null,
     open_help: tickets,
     next_action: next,
     privacy_scope: "You see your own record and your team's. Nothing here is public.",
@@ -91,6 +113,13 @@ export async function updateProfile(ctx: Ctx, input: z.infer<typeof profileSchem
  * activation service. The selfie is never taken by an agent: this only
  * returns the /activate URL and the session.
  */
+/** Tick (or untick) /activate step 1 or 3 for the person. Step 2 is only ever ticked by a successful claim. */
+export async function tickActivation(ctx: Ctx, step: "testmu_signup" | "codex_credits", done: boolean) {
+  await setTick(ctx.member, step, done);
+  const v = await getActivationView(ctx.member.id);
+  return { step, done, activated: v.done };
+}
+
 export async function beginActivation(ctx: Ctx) {
   const before = await activation.findSession(ctx.member.id);
   const s = await activation.beginActivation(ctx.member, ctx.actor);
@@ -179,9 +208,17 @@ export const teamCreateSchema = z.object({
 export async function createTeam(ctx: Ctx, input: z.infer<typeof teamCreateSchema>) {
   const r = await teams.createTeam(
     { member: ctx.member, actor: ctx.actor },
-    { name: input.name, track: input.track ?? challenge.tracks[0], recruiting_open: input.recruiting, solo: input.solo },
+    { name: input.name, track: input.track ?? DEFAULT_TRACK, recruiting_open: input.recruiting, solo: input.solo },
   );
   return { id: r.slug, team_id: r.teamId, slug: r.slug, state: r.state, hub_url: `/t/${r.slug}`, server_time: r.receipt.server_time, receipt: r.receipt };
+}
+
+/** Captain only: this is the final team (roster locked, recruiting off, open invites revoked). The tool asked first. */
+export async function lockTeam(ctx: Ctx) {
+  if (!ctx.member.team_id) throw new AppError("CONFLICT", { userMessage: "Create or join a team first." });
+  const receipt = await teams.confirmFinalTeam({ member: ctx.member, actor: ctx.actor }, ctx.member.team_id);
+  const t = await teamRow(ctx.member.team_id);
+  return { team: t ? { slug: t.slug, name: t.name, state: t.state, hub_url: `/t/${t.slug}` } : null, receipt };
 }
 
 /** Accept an invite code (the tool asked the person first; teams.ts checks lock and cap in one transaction). */
@@ -218,19 +255,11 @@ export async function validateIdea(ctx: Ctx, input: { project_idea: string; publ
 }
 
 /** Overlaps with other teams' *opted-in public summaries* only. */
-export async function ideaOverlap(m: MemberRow) {
-  if (!m.team_id) throw new AppError("FORBIDDEN", { userMessage: "Join a team first." });
-  const [own] = await query<{ id: number; discovery_opt_in: boolean }>("select id, discovery_opt_in from ideas where team_id = $1", [m.team_id]);
-  if (!own) return { opted_in: false, overlaps: [] };
-  if (!own.discovery_opt_in) return { opted_in: false, overlaps: [], note: "Opt in to idea discovery on the Idea tab to compare summaries." };
-  const overlaps = await query<{ label: string | null; similarity: string | null; explanation: string | null; public_summary: string | null; team: string }>(
-    `select e.label, e.similarity, e.explanation, i.public_summary, t.name as team
-       from idea_similarity_edges e join ideas i on i.id = e.target_idea_id join teams t on t.id = i.team_id
-      where e.source_idea_id = $1 and i.discovery_opt_in and i.public_summary is not null
-      order by e.similarity desc nulls last limit 10`,
-    [own.id],
-  );
-  return { opted_in: true, overlaps };
+/** Save the team's idea (the Idea tab's form, same lock and revision rules). The tool asked first. */
+export async function saveTeamIdea(ctx: Ctx, input: { title: string; private_description: string; app_type?: string; kane_plan?: string; extra_info?: string }) {
+  if (!ctx.member.team_id) throw new AppError("CONFLICT", { userMessage: "Create or join a team first." });
+  const r = await ideas.saveIdea({ member: ctx.member, actor: ctx.actor }, ctx.member.team_id, { ...input, source: "mcp" });
+  return { title: r.idea.title, revision: r.idea.revision, receipt: r.receipt };
 }
 
 // ── help (→ src/server/help.ts) ──────────────────────────────────────────────

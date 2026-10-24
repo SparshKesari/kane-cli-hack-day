@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { challenge } from "@/data/hackday";
+import { challenge, trackLabel } from "@/data/hackday";
 import { listOpenTeams, listPoolForOps } from "@/server/flow";
 import ActionForm, { SelectField, TextField } from "../_kit/ActionForm";
 import { OpsPage, Panel, SectionLabel, StaffGate, Stats, fmtTime } from "../_kit/shell";
@@ -76,7 +76,7 @@ export default function OpsMatchmakingPage() {
                           {t.name}
                         </Link>
                         <span className="text-xs text-lightgray">
-                          {t.open_seats} open · {t.track}
+                          {t.open_seats} open · {trackLabel(t.track)}
                           {t.seeking_skills.length ? ` · wants ${t.seeking_skills.join(", ")}` : ""}
                         </span>
                       </li>

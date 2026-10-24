@@ -2,6 +2,7 @@ import { AppError, envelopeResponse, parse, z } from "@/server/core";
 import { enforceRateLimit } from "@/server/ratelimit";
 import { actingMember, previewInvite } from "@/server/teams";
 import { readBody } from "../../body";
+import { trackLabel } from "@/data/hackday";
 
 // POST /api/v1/teams/invites/inspect { code }
 // What an invite code points at, without using it: a safe team preview (name,
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
       status: blocked ? "needs_action" : "ok",
       message: blocked ? `Invite to ${p.team.name}, but it can't be used: ${blocked}.` : `Invite to ${p.team.name} · ${p.team.member_count}/${p.team.cap} members. Confirm to join.`,
       data: {
-        team: { id: p.team.id, slug: p.team.slug, name: p.team.name, track: p.team.track, summary: p.team.summary_public, members: p.team.member_count, capacity: p.team.cap, locked: p.team.locked },
+        team: { id: p.team.id, slug: p.team.slug, name: p.team.name, track: trackLabel(p.team.track), summary: p.team.summary_public, members: p.team.member_count, capacity: p.team.cap, locked: p.team.locked },
         open_seats: seats,
         expires_at: p.expiresAt.toISOString(),
         restricted: p.restricted,

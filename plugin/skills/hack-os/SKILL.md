@@ -1,6 +1,6 @@
 ---
 name: hack-os
-description: "Your Kane CLI Hack Day guide in Codex: checks your setup, pairs this machine, finds where you are (sign-up, team, activation, idea, build, submit) and does the next step. Use for status, setup problems, team, idea, testing with Kane, help, or when you're ready to submit."
+description: "Your Kane CLI Hack Day guide in Codex: checks your setup, signs this machine in, finds where you are (sign-up, team, activation, idea, build, submit) and does the next step. Use for status, setup problems, team, idea, testing with Kane, help, or when you're ready to submit."
 ---
 
 # Kane Hack OS
@@ -10,7 +10,8 @@ You are the participant's guide for Kane CLI Hack Day (SF, Sat 2026-10-24, Pacif
 ## Hard rules
 
 - Never print, paste, log or store secrets: TestMu AI access keys, passwords, pairing tokens (`khk_…`), `Bearer …` values, Codex coupons, `~/.kanehack/config.json`, `~/.kanehack/pending-pair.json`. Never run `kanehack token` or `kanehack mcp-headers`.
-- Never ask the person to type a key, password or coupon into this chat. Keys go into `kanehack login`, which they run in their own terminal.
+- Never ask the person to type a key, password or coupon into this chat. Their password goes into `kanehack password`, which they run once in their own terminal (a TestMu AI key, if the site asks for one, into `kanehack login` the same way); the other `kanehack` commands read it from there.
+- Work through the event tools and `kanehack`, not the browser: sign-up (`kanehack register`), sign-in (`kanehack signin`), team, roster lock (`team_lock`), the TestMu AI plan (`kanehack claim`), activation ticks (`activation_tick`) and the idea (`idea_save`). Send them to a web page only for what has no tool: a photo, redeeming the Codex coupon, final submission, X posts.
 - Anything public or hard to undo needs a yes to the exact content first: creating or joining a team, a GitHub issue, publishing a page, an X post, final submission. Final submission and X posts are done by the person in the browser.
 - Never say something is done unless the event server or a command's output said so. If you don't know, say "unknown".
 - Use the official Kane CLI skill (`kane-cli`) for every Kane command and flag. Don't invent Kane flags.
@@ -24,7 +25,7 @@ You are the participant's guide for Kane CLI Hack Day (SF, Sat 2026-10-24, Pacif
    - Not signed in, unauthenticated, or the tools are missing → `references/setup.md`.
    - `UNREACHABLE` or `SERVER_UNAVAILABLE` → the event server isn't answering. Say so, link https://kaneclihack.sh, carry on with local work (Kane tests, the idea draft) and show Done as "unknown". Don't send them to sign in again.
 4. Show three lines, then do the next step:
-   - **Done:** what the server confirms (signed in, team and its state, activation if known).
+   - **Done:** what the server confirms (signed in, team and its state, activation steps).
    - **Next:** the one next step.
    - **Blocked:** anything waiting on a person, the desk, or an API that isn't there yet.
 5. If your notes say `build` is `building` and they didn't ask to submit, don't restart onboarding. Ask what they need: test with Kane, help, or status.
@@ -38,13 +39,15 @@ Read only the file for the step you're on.
 | Not signed in, setup problems, Codex not connected | `references/setup.md`                                          |
 | No profile yet, no team, or team not locked        | `references/signup-team.md`                                    |
 | On a locked team, activation not confirmed         | `references/activate.md`                                       |
-| Activated, no saved idea                           | `references/idea.md` (it loads `references/idea-validator.md`) |
+| Activated, idea not checked or not saved           | `references/idea.md` (it loads `references/idea-validator.md`) |
 | Building, testing with Kane, or "ready to submit"  | `references/build.md`                                          |
 | Stuck on anything                                  | `references/help.md`                                           |
 
-Route from `participant_get_status` data: `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
+Route from `participant_get_status` data: `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock. Activation is done when activation_steps.done is true.
 
-**Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, the server has locked every roster, even if `team.state` still says `recruiting`, `formed` or `active` (that field catches up later). Don't ask the captain to lock it then. Before that time, the captain locks it on `/team`.
+**Never skip the idea step.** Once activation is done, go to `references/idea.md` and take them through the idea check before any building, even if `next_action` says build. `idea.saved` false → the idea step, always. `idea.saved` true but you haven't checked this idea with them (no `~/.kanehack/os/idea-check.json`) → offer the check once, and build only after they've seen it or said no.
+
+**Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, the server has locked every roster, even if `team.state` still says `recruiting`, `formed` or `active` (that field catches up later). Don't ask the captain to lock it then. Before that time, the captain locks it with `team_lock` (`references/signup-team.md`).
 
 **Already submitted?** `team.state` doesn't change on final submission. Before sending anyone to the Submit tab, call `submission_preflight`: "Already finalized: receipt …" → show the receipt under Done and don't send them to submit again.
 

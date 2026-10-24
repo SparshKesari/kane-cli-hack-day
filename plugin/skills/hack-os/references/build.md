@@ -2,9 +2,10 @@
 
 ## Start building
 
-1. `node <skill>/scripts/state.mjs set-build building`
-2. Say exactly: "You're ready to build. Use Kane as you work. Say `$hack-os ready to submit` when you're done."
-3. End the turn. Don't wait, sleep, poll or set timers. Building takes hours.
+1. Only after the idea step: `participant_get_status` shows `idea.saved` true and they've seen the idea check (or turned it down). Otherwise go to `references/idea.md` first.
+2. `node <skill>/scripts/state.mjs set-build building`
+3. Say exactly: "You're ready to build. Use Kane as you work. Say `$hack-os ready to submit` when you're done."
+4. End the turn. Don't wait, sleep, poll or set timers. Building takes hours.
 
 ## While building
 

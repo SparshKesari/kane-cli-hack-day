@@ -15,7 +15,7 @@ const skip = !QA ? "QA_DATABASE_URL not set" : QA === LIVE ? "QA_DATABASE_URL eq
 
 type Mods = { db: typeof import("../../src/lib/db.ts"); help: typeof import("../../src/server/help.ts") };
 let m: Mods;
-const tag = `qp${Date.now().toString(36)}`;
+const tag = `qp${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const ids = { team: 0, author: 0, mate: 0, staff: 0 };
 const slip = `H-${tag.slice(-6).toUpperCase()}`;
 

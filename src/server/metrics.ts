@@ -2,7 +2,7 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { query } from "@/lib/db";
 import { getEvent, PHASES, type HackEvent, type Phase } from "@/lib/event";
-import { freshnessOf } from "@/components/ui/FreshnessStamp";
+import { freshnessOf } from "@/lib/freshness";
 import {
   METRICS,
   METRIC_DEFINITION_VERSION,
@@ -128,23 +128,20 @@ const COMPUTE: Record<MetricName, (db: Q, e: HackEvent, prev: Map<MetricName, Co
   },
 
   async participants_activated(db, e, prev) {
+    // The three /activate steps all done stamps members.activated_at (event-activation.ts).
     const r = await one(
       db,
-      `select count(*) filter (where verified) as value,
-              count(*) filter (where not verified) as without_receipt
-         from (select m.id,
-                      exists (select 1 from activation_sessions s
-                               where s.member_id = m.id and s.receipt_code is not null
-                                 and s.status in ('browser_verified', 'active')) as verified
-                 from members m
-                where m.event_id = $1 and m.deleted_at is null and m.role = 'participant' and m.activated_at is not null) x`,
+      `select count(*) as value,
+              count(*) filter (where exists (select 1 from testmu_plan_claims c where c.member_id = m.id and c.status = 'claimed')) as plan_claimed
+         from members m
+        where m.event_id = $1 and m.deleted_at is null and m.role = 'participant' and m.activated_at is not null`,
       [e.id],
     );
     return {
       name: "participants_activated",
       value: num(r.value),
       denominator: prev.get("participants_registered")?.value ?? null,
-      breakdown: { activated_without_receipt: num(r.without_receipt) },
+      breakdown: { plan_claimed: num(r.plan_claimed) },
     };
   },
 

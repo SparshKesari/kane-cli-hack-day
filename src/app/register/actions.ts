@@ -28,12 +28,13 @@ export async function profileAction(_prev: ProfileState, form: FormData): Promis
   const values = Object.fromEntries(KEEP.map((k) => [k, String(form.get(k) ?? "")]));
   const viewer = await getPersonalMember();
   if (!viewer && !(await isRegistrationOpen())) return { error: "Registration is closed. Ask at the help desk.", values };
-  // Proof attempts (password / desk code for an existing email) are throttled like sign-in.
+  // Proof attempts (password / desk code for an existing email) are throttled like sign-in:
+  // per email, and per client only against floods (the venue shares one public IP).
   const proving = !!(form.get("proof_password") || form.get("proof_code"));
   if (proving) {
     const email = values.email.trim().toLowerCase();
     const [a, b] = await Promise.all([
-      rateLimit(`register-proof:${await clientKey()}`, { limit: 10, windowSec: 300 }),
+      rateLimit(`register-proof:${await clientKey()}`, { limit: 200, windowSec: 300 }),
       rateLimit(`register-proof-email:${sha256(email)}`, { limit: 10, windowSec: 900 }),
     ]);
     if (!a.ok || !b.ok) return { error: "Too many tries. Wait a few minutes, or ask at the desk.", needsProof: true, values };

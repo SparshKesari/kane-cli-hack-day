@@ -2,7 +2,7 @@ import { notifyTeam } from "./member-notifications";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
-import { challenge } from "@/data/hackday";
+import { DEFAULT_TRACK, LEGACY_TRACKS, challenge, trackLabel } from "@/data/hackday";
 import { query } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { slugify } from "@/lib/teams";
@@ -185,8 +185,8 @@ export async function listRecruitingTeams(opts: { excludeTeamId?: number | null;
 
 export const createTeamSchema = z.object({
   name: zx.text(60),
-  /** Optional now (same rubric for every track); teams created without one are Wildcard. */
-  track: z.string().trim().optional().transform((s) => s || "Wildcard").refine((s) => challenge.tracks.includes(s), "Pick a track."),
+  /** Optional now (same rubric for every track); teams created without one are Other, and old track names become Other. */
+  track: z.string().trim().optional().transform((s) => (!s || LEGACY_TRACKS.includes(s) ? DEFAULT_TRACK : s)).refine((s) => challenge.tracks.includes(s), "Pick a track."),
   /** Optional: lets teammates sign in on a shared device with name + password, as at registration. */
   password: z.string().max(200).optional().transform((s) => (s ? s : null)).refine((s) => s === null || s.length >= 8, "Use at least 8 characters."),
   summary_public: zx.optText(280),
@@ -333,7 +333,7 @@ export async function previewInvite(code: string, viewer: MemberRow | null): Pro
   const team = await getTeamInfo({ id: inv.team_id });
   if (!team) return null;
   return {
-    team: { id: team.id, slug: team.slug, name: team.name, track: team.track, member_count: team.member_count, cap: team.cap, locked: team.locked, summary_public: team.summary_public },
+    team: { id: team.id, slug: team.slug, name: team.name, track: trackLabel(team.track), member_count: team.member_count, cap: team.cap, locked: team.locked, summary_public: team.summary_public },
     expiresAt: inv.expires_at,
     restricted: inv.invited_member_id !== null,
     forYou: inv.invited_member_id === null || inv.invited_member_id === viewer?.id,
@@ -613,7 +613,7 @@ export const formTeamSchema = z.object({
     .transform((v) => [...new Set(Array.isArray(v) ? v : [v])])
     .refine((v) => v.length >= 2 && v.length <= TEAM_SIZE_CAP, `Pick 2 to ${TEAM_SIZE_CAP} people.`),
   name: zx.text(60),
-  track: z.string().trim().refine((s) => challenge.tracks.includes(s), "Pick a track."),
+  track: z.string().trim().transform((s) => (LEGACY_TRACKS.includes(s) ? DEFAULT_TRACK : s)).refine((s) => challenge.tracks.includes(s), "Pick a track."),
   reason: zx.optText(500),
   idempotency_key: zx.idempotencyKey,
 });
@@ -765,7 +765,7 @@ export function normalizeTags(v: string | string[] | undefined | null): string[]
 
 /** What anyone signed in may read about a team that isn't theirs. */
 export function publicTeamInfo(t: TeamInfo): PublicTeamInfo {
-  return { id: t.id, slug: t.slug, name: t.name, track: t.track, member_count: t.member_count, cap: t.cap, locked: t.locked, recruiting_open: t.recruiting_open, summary_public: t.summary_public };
+  return { id: t.id, slug: t.slug, name: t.name, track: trackLabel(t.track), member_count: t.member_count, cap: t.cap, locked: t.locked, recruiting_open: t.recruiting_open, summary_public: t.summary_public };
 }
 
 export type PublicTeamInfo = Pick<TeamInfo, "id" | "slug" | "name" | "track" | "member_count" | "cap" | "locked" | "recruiting_open" | "summary_public">;

@@ -5,7 +5,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { query } from "@/lib/db";
 import { getEvent } from "@/lib/event";
 import { getFlags } from "@/lib/flags";
-import { challenge } from "@/data/hackday";
+import { DEFAULT_TRACK, challenge } from "@/data/hackday";
 import { AppError, parse, serverNow, siteUrl, toAppError, toEnvelope, z, zx, type EnvelopeAction, type Evidence } from "./core";
 import { tokenActor, type BearerAuth } from "./auth";
 import { KANE_CAPABILITIES, proposeMilestone, recordRun, type KaneCaller } from "./kane";
@@ -150,7 +150,7 @@ export function buildMcpServer(auth: BearerAuth) {
         deadlines: { team_lock: e.teamLockAt.toISOString(), idea_lock: e.ideaLockAt.toISOString(), submission_lock: e.submissionLocksAt.toISOString(), demos: e.demosStartAt.toISOString(), ends: e.endsAt.toISOString() },
         integrations: systems.map((s) => ({ system: s.system, status: s.status })),
         features: flags,
-        resources: [siteUrl("/t"), siteUrl("/help"), siteUrl("/live")],
+        resources: [siteUrl("/me"), siteUrl("/help"), siteUrl("/live")],
       },
       links: [
         { label: "Live mission control", url: "/live" },
@@ -194,18 +194,6 @@ export function buildMcpServer(auth: BearerAuth) {
       };
     },
   );
-
-  tool("idea_check_overlap", { title: "Idea overlap", description: "Similar opted-in public idea summaries from other teams. Private ideas are never compared.", input: {}, readOnly: true }, async () => {
-    const r = await A.ideaOverlap(member);
-    return {
-      status: r.opted_in ? "ok" : "needs_action",
-      message: r.opted_in ? `${r.overlaps.length} similar idea(s).` : "Your team hasn't opted in to idea discovery.",
-      data: r,
-      links: [{ label: "Idea tab", url: member.team_id ? "/t" : "/match" }],
-      uiType: "idea_radar",
-      fallbackText: r.opted_in ? r.overlaps.map((o) => `${o.team}: ${o.label ?? "similar"}: ${o.explanation ?? ""}`).join("\n") || "No overlaps found." : "Opt in on the Idea tab to compare.",
-    };
-  });
 
   tool(
     "harness_get_capabilities",
@@ -368,6 +356,29 @@ export function buildMcpServer(auth: BearerAuth) {
   });
 
   tool(
+    "activation_tick",
+    {
+      title: "Tick an activation step",
+      description:
+        "Tick /activate step 1 (testmu_signup: they signed up on TestMu AI) or step 3 (codex_credits: they redeemed the Codex coupon from their email). Step 2 is ticked by `kanehack claim`. Needs explicit confirmation.",
+      input: { step: z.enum(["testmu_signup", "codex_credits"]), done: z.boolean().optional(), explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      const done = args.done ?? true;
+      const what = args.step === "codex_credits" ? "redeemed the Codex coupon from your email" : "signed up on TestMu AI";
+      if (args.explicit_confirmation !== true) return confirmFirst("activation_tick", done ? "Tick this step" : "Untick this step", `${done ? "Mark" : "Unmark"} “${what}” as done.`, "builder_passport", { step: args.step, done });
+      const r = await A.tickActivation(ctx, args.step, done);
+      return {
+        message: r.activated ? "All three activation steps are done." : `${done ? "Ticked" : "Unticked"} ${args.step}.`,
+        data: r,
+        links: [{ label: "Activation", url: "/activate" }],
+        uiType: "builder_passport",
+        fallbackText: r.activated ? "Activated: all three steps are done." : `${args.step}: ${done ? "done" : "not done"}`,
+      };
+    },
+  );
+
+  tool(
     "readiness_report",
     {
       title: "Report readiness",
@@ -381,7 +392,7 @@ export function buildMcpServer(auth: BearerAuth) {
         status: r.ready ? "ok" : "needs_action",
         message: r.ready ? "All checks pass." : `Failing: ${r.failing.join(", ")}.`,
         data: r,
-        links: [{ label: "Setup guide", url: member.team_id ? "/t" : "/passport" }],
+        links: [{ label: "Setup guide", url: "/setup" }],
         uiType: "readiness_check",
         fallbackText: input.checks.map((c) => `${c.status === "pass" ? "✓" : c.status === "fail" ? "✗" : "!"} ${c.id}${c.version ? ` ${c.version}` : ""}`).join("\n"),
       };
@@ -392,12 +403,12 @@ export function buildMcpServer(auth: BearerAuth) {
     "team_create",
     {
       title: "Create a team",
-      description: `Create a team with you as captain. Needs explicit confirmation. One active team per person. Tracks: ${challenge.tracks.join(" | ")} (default: the first).`,
+      description: `Create a team with you as captain. Needs explicit confirmation. One active team per person. Tracks: ${challenge.tracks.join(" | ")} (default: ${DEFAULT_TRACK}).`,
       input: { name: z.string(), track: z.string().optional(), recruiting: z.boolean().optional(), solo: z.boolean().optional(), explicit_confirmation: confirmField },
     },
     async (args, ctx) => {
       const input = parse(A.teamCreateSchema, { name: args.name, track: args.track, recruiting: args.recruiting, solo: args.solo });
-      const track = input.track ?? challenge.tracks[0];
+      const track = input.track ?? DEFAULT_TRACK;
       if (args.explicit_confirmation !== true) return confirmFirst("team_create", `Create team “${input.name}”`, `Create team “${input.name}” on the “${track}” track (${input.solo ? "solo" : input.recruiting ? "recruiting" : "not recruiting"}).`, "team_match", { ...input, track });
       const r = await A.createTeam(ctx, input);
       return { message: `Team ${input.name} created.`, data: r, links: [{ label: "Team hub", url: r.hub_url }], uiType: "team_match", fallbackText: `Created ${input.name}: ${siteUrl(r.hub_url)}` };
@@ -409,6 +420,44 @@ export function buildMcpServer(auth: BearerAuth) {
     const r = await A.joinTeam(ctx, args.invite_code);
     return { message: "You joined the team.", data: r, links: [{ label: "Team hub", url: r.hub_url }], uiType: "team_match", fallbackText: `Joined: ${siteUrl(r.hub_url)}` };
   });
+
+  tool(
+    "team_lock",
+    {
+      title: "Lock the final team",
+      description: "Captain only: this is our final team. Locks the roster (no joins, leaves or invites; an organizer can reopen it), stops recruiting and revokes open invites. Needs explicit confirmation.",
+      input: { explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("team_lock", "Lock the final team", "Lock your team as final: nobody can join, leave or be invited after this (an organizer can reopen it).", "team_match");
+      const r = await A.lockTeam(ctx);
+      return { message: `${r.team?.name ?? "Your team"} is locked in.`, data: r, links: r.team ? [{ label: "Team hub", url: r.team.hub_url }] : [], uiType: "team_match", fallbackText: `Team locked: ${r.team ? siteUrl(r.team.hub_url) : ""}` };
+    },
+  );
+
+  tool(
+    "idea_save",
+    {
+      title: "Save the team idea",
+      description:
+        "Save your team's idea (what the Idea tab saves; private to your team). Run idea_validate on it first and show the person the result. Refused after the idea lock. Needs explicit confirmation.",
+      input: {
+        title: z.string().trim().min(1).max(120),
+        private_description: z.string().trim().min(1).max(4000),
+        app_type: z.string().trim().max(120).optional().describe("Web App, Mobile App, or what else it is"),
+        kane_plan: z.string().trim().max(4000).optional().describe("How Kane CLI will test it"),
+        extra_info: z.string().trim().max(4000).optional(),
+        explicit_confirmation: confirmField,
+      },
+    },
+    async (args, ctx) => {
+      const { explicit_confirmation: _c, ...input } = args;
+      if (args.explicit_confirmation !== true) return confirmFirst("idea_save", `Save “${input.title}”`, `Save “${input.title}” as your team's idea (private to your team).`, "idea_radar", input);
+      const r = await A.saveTeamIdea(ctx, input);
+      const url = (await A.participantStatus(member)).idea?.url ?? "/team";
+      return { message: `Saved “${r.title}” (revision ${r.revision}).`, data: r, links: [{ label: "Idea tab", url }], uiType: "idea_checklist", fallbackText: `Idea saved: ${r.title} · ${siteUrl(url)}` };
+    },
+  );
 
   tool(
     "idea_validate",
@@ -423,7 +472,7 @@ export function buildMcpServer(auth: BearerAuth) {
         status: r.verdict === "qualifies" ? "ok" : "needs_action",
         message: `Advisory verdict: ${r.verdict.replace("_", " ")} (${r.generator === "llm" ? "AI draft" : "rule-based"}). Not a score.`,
         data: r,
-        links: [{ label: "Idea tab", url: "/t" }],
+        links: [{ label: "Idea tab", url: (await A.participantStatus(member)).idea?.url ?? "/team" }],
         warnings: r.warning ? [r.warning] : [],
         uiType: "idea_checklist",
         fallbackText: [...r.criteria.map((c) => `${c.met === "yes" ? "✓" : c.met === "partly" ? "!" : "✗"} ${c.id}: ${c.note}`), "Changes:", ...r.changes.map((c, i) => `${i + 1}. ${c}`)].join("\n"),
@@ -751,7 +800,6 @@ export const MCP_TOOL_NAMES = [
   "event_get_brief",
   "participant_get_status",
   "team_find",
-  "idea_check_overlap",
   "harness_get_capabilities",
   "help_get_status",
   "submission_preflight",
@@ -761,9 +809,12 @@ export const MCP_TOOL_NAMES = [
   "help_diagnose",
   "participant_update_profile",
   "activation_begin",
+  "activation_tick",
   "readiness_report",
   "team_create",
   "team_join",
+  "team_lock",
+  "idea_save",
   "idea_validate",
   "kane_record_run",
   "milestone_propose",

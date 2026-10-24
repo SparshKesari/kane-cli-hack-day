@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { event } from "@/data/hackday";
+import { event, trackLabel } from "@/data/hackday";
 import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { getEventPhotos, getMemberProfiles, getTeamPhotoInfo, photoSrc } from "@/lib/photos";
 import { isAdmin } from "@/lib/session";
@@ -56,7 +56,7 @@ async function Detail({ params }: Pick<PageProps<"/ops/t/[slug]">, "params">) {
         </Link>
         <h1 className="mt-4 font-display text-4xl text-bright">{team.name}</h1>
         <p className="mt-2 font-plex text-sm text-lightgray">
-          {team.is_solo ? "Solo" : "Team"} · {team.track} · registered {when.format(team.created_at)} ·{" "}
+          {team.is_solo ? "Solo" : "Team"} · {trackLabel(team.track)} · registered {when.format(team.created_at)} ·{" "}
           <Link href={`/t/${team.slug}`} className="text-bright hover:text-lime">
             /t/{team.slug}
           </Link>

@@ -1,9 +1,10 @@
 import "server-only";
 import { isEnabled, requireFlag } from "@/lib/flags";
 import { AppError, parse, siteUrl, z, zx, type toEnvelope } from "./core";
-import { PROJECT_TYPES, assessIdea, getIdea, ideaRadar, latestAssessment, saveIdea, validateTeamIdea, type Assessment } from "./ideas";
+import { PROJECT_TYPES, assessIdea, getIdea, latestAssessment, saveIdea, validateTeamIdea, type Assessment } from "./ideas";
 import { suggestions } from "./match";
 import { createTeam, currentTeamOf, joinTeam, listRecruitingTeams, type ActingMember } from "./teams";
+import { trackLabel } from "@/data/hackday";
 
 // Envelope builders for the teams-ideas use cases, shared by /api/v1 route
 // handlers (wrap in envelopeResponse) and the event MCP server (wrap in
@@ -42,13 +43,13 @@ export async function teamFindTool(who: ActingMember, input: unknown): Promise<E
     return {
       status: "partial",
       message: `${teams.length} open teams. People matching is switched off right now.`,
-      data: { teams: teams.map((t) => ({ id: t.id, name: t.name, track: t.track, open_seats: t.cap - t.member_count, summary: t.summary_public, seeking: t.seeking_skills })), people: [] },
+      data: { teams: teams.map((t) => ({ id: t.id, name: t.name, track: trackLabel(t.track), open_seats: t.cap - t.member_count, summary: t.summary_public, seeking: t.seeking_skills })), people: [] },
       warnings: ["Matchmaker disabled by organizers"],
       links: [{ label: "Team finder", url: "/match" }],
     };
   }
   const r = await suggestions(who, { skill: f.skill, show: f.show });
-  const teams = r.teams.map((t) => ({ id: t.team_id, name: t.name, track: t.track, open_seats: t.open_seats, summary: t.summary_public, seeking: t.seeking_skills, why: t.explanation }));
+  const teams = r.teams.map((t) => ({ id: t.team_id, name: t.name, track: trackLabel(t.track), open_seats: t.open_seats, summary: t.summary_public, seeking: t.seeking_skills, why: t.explanation }));
   const people = r.people.map((p) => ({ member_id: p.member_id, name: p.name, skills: p.skills, interests: p.interests, availability: p.availability, why: p.explanation }));
   const lines = [
     ...teams.slice(0, 5).map((t) => `Team ${t.name} (${t.open_seats} open): ${t.why}`),
@@ -172,25 +173,3 @@ export async function ideaGetTool(who: ActingMember): Promise<EnvelopeInput> {
     fallbackText: `${idea.title} (${idea.status}). Edit at ${siteUrl(`/t/${team.slug}/idea`)}`,
   };
 }
-
-export async function ideaCheckOverlapTool(who: ActingMember): Promise<EnvelopeInput> {
-  const team = await myTeamId(who);
-  const r = await ideaRadar(who, team.team_id);
-  if (r.status === "needs_opt_in") {
-    return {
-      status: "needs_action",
-      message: "Share a public summary first; the radar only compares summaries teams chose to share.",
-      links: [{ label: "Idea lab", url: `/t/${team.slug}/idea` }],
-      actions: [{ id: "opt_in", label: "Opt in with a public summary", requires_human_confirmation: true, href: siteUrl(`/t/${team.slug}/idea`) }],
-      fallbackText: `Opt in with a public summary at ${siteUrl(`/t/${team.slug}/idea`)}, then run the radar again.`,
-    };
-  }
-  return {
-    message: r.matches.length ? `${r.matches.length} related shared ideas. Overlap is allowed; differentiate or collaborate.` : "Nothing close among shared ideas.",
-    data: { matches: r.matches.map((m) => ({ team: m.team_name, label: m.label, similarity: m.similarity, public_summary: m.public_summary, explanation: m.explanation })), method: r.method, compared: r.compared },
-    warnings: r.warning ? [r.warning] : [],
-    links: [{ label: "Idea Radar", url: `/t/${team.slug}/idea/radar` }],
-    fallbackText: r.matches.length ? r.matches.map((m) => `${m.label.replace("_", " ")}: ${m.team_name} — ${m.explanation}`).join("\n") : "No related shared ideas (private ideas are never compared).",
-  };
-}
-

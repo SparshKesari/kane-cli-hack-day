@@ -18,6 +18,7 @@ import { IntroButtons } from "../match/parts";
 import { Panel, StateLine } from "./blocks";
 import PublicPool from "./PublicPool";
 import { CreateTeamForm, FinalTeamConfirm, InviteForm, WaitingForCaptain, JoinByCodeForm, LeaveTeamForm, RevokeInviteButton, SettingsForm } from "./parts";
+import { trackLabel } from "@/data/hackday";
 
 export const metadata: Metadata = { title: "Your team" };
 
@@ -205,7 +206,7 @@ async function Personal({ searchParams }: Pick<PageProps<"/team">, "searchParams
             </div>
             <p className="mt-3 font-display text-3xl text-bright">{team.name}</p>
             <p className="mt-1 font-plex text-sm text-lightgray">
-              {team.member_count}/{team.cap} · {team.track}
+              {team.member_count}/{team.cap} · {trackLabel(team.track)}
               {team.table_label ? ` · table ${team.table_label}` : ""}
               {captain ? " · you're captain" : ""}
             </p>

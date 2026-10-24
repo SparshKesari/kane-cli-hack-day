@@ -25,7 +25,7 @@ type Mods = {
   jar: Map<string, string>;
 };
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const ids = { teams: [] as number[], members: [] as number[], staff: [] as number[] };
 
 before(async () => {

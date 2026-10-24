@@ -1,8 +1,14 @@
 # Sign-up and team
 
-## Sign-up
+## Sign-up (here, with `kanehack register`)
 
-There is no sign-up in this chat. Send them to `https://kaneclihack.sh/register`: name, the email they used on Luma, LinkedIn, X and GitHub, a password, then a photo or skip. When the profile is saved the page shows their TestMu AI username and access key once. Then they run `kanehack login` in their own terminal (`references/setup.md`, step 2). Wait for them to say they're done.
+1. Their password must be saved first: `kanehack password --check --json`. Exit 2 → `references/setup.md`, step 2.
+2. Collect, in their words: full name, the email they used on Luma, LinkedIn (URL or handle), X handle, GitHub handle (optional), and whether they're looking for teammates. Show it back and ask "Save this profile?"
+3. `kanehack register --name "<name>" --email <email> --linkedin <linkedin> --x <x handle> [--github <handle>] [--looking] --json`
+   - 0 → the profile is saved and this machine is signed in. Codex not connected to the event tools yet → `references/setup.md`, step 3.
+   - 2 and "already registered" → `kanehack signin --email <email> --json`.
+   - 2 naming a field → fix it with them and run it again.
+4. A photo is optional; they can add one at `https://kaneclihack.sh/passport`.
 
 ## Team
 
@@ -19,6 +25,6 @@ After a write, call `participant_get_status` and confirm `team.name` and `team.s
 
 ## Lock the team
 
-The captain confirms the final roster on `https://kaneclihack.sh/team`, which locks it. Teammates wait on that page until it's locked. The skill can't lock it. Locked shows as `team.state` = `roster_locked` in `participant_get_status`. Once locked, the TestMu side moves everyone into the captain's organization; that happens on its own.
+When everyone has joined, the captain locks it. Say what it does (nobody can join, leave or be invited after this; an organizer can reopen it), ask "Lock <team name> as your final team?", then `team_lock` with `explicit_confirmation: true`. Only the captain can; teammates wait until `participant_get_status` shows `team.state` = `roster_locked`. A solo team locks the same way. Once locked, the TestMu side moves everyone into the captain's organization; that happens on its own.
 
 Then → `references/activate.md`.

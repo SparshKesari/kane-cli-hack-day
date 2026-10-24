@@ -8,6 +8,9 @@
 //   GET  /api/v1/kane/runs                          401 without a valid bearer; 403 for a member with no team
 //   POST /api/v1/kane/runs                          records a run; source_verified = paired + completion event + exit code
 //   POST /api/v1/pair/start, /api/v1/pair/confirm   the device flow (user_code / device_code, 410 PAIR_EXPIRED)
+//   POST /api/v1/auth/register                      profile + password; client "kanehack" → a bearer token (409 if the email exists with another password)
+//   POST /api/v1/auth/token                         email + password → a bearer token (401 if they don't match)
+//   POST /api/v1/activation/claim                   bearer + password → outcome claimed (or error for another password)
 //   POST /mcp                                       initialize, tools/list, notifications (202), and tools/call:
 //                                                   readiness_report, help_create, help_get_status, submission_preflight
 //
@@ -40,6 +43,7 @@ const pairings = new Map(); // device_code → { user_code, status, expires, tea
 const tokens = new Map(); // token → { revoked, team }
 const runs = [];
 const tickets = new Map();
+const accounts = new Map(); // email → { password, member_id }
 const mcpAuthed = { count: 0, methods: [] }; // POST /mcp requests with a valid bearer (GET /__mock/mcp)
 const MCP_TOOLS = ["readiness_report", "help_create", "help_get_status", "submission_preflight"];
 
@@ -67,6 +71,7 @@ const ERR = {
   FORBIDDEN: [403, "Join or create a team first; Kane runs belong to a team project.", "Ask an organizer if you think this is wrong."],
   VALIDATION_FAILED: [400, "Some fields need another look.", "Fix the highlighted fields and try again."],
   NOT_FOUND: [404, "We couldn't find that.", "Check the link."],
+  CONFLICT: [409, "That conflicts with the current state.", "Reload and try again."],
 };
 const errEnv = (code, msg) => {
   const [status, userMessage, nextAction] = ERR[code];
@@ -155,6 +160,38 @@ async function handle(req, res) {
     const token = `khk_${randomBytes(24).toString("base64url")}`;
     tokens.set(token, { revoked: false, team: pr.team !== false });
     return send(res, 200, env({ message: "Paired as Ana (P-1057).", data: { status: "approved", token, token_id: tokens.size, expires_at: new Date(Date.now() + 30 * 86400_000).toISOString(), member: { public_code: "P-1057", name: "Ana" } }, warnings: ["Store this token securely. It is shown once; revoke it from /pair if it leaks."] }));
+  }
+
+  // ── no-browser sign-in (kanehack register / signin / claim) ──
+  const issue = (email) => {
+    const token = `khk_${randomBytes(24).toString("base64url")}`;
+    tokens.set(token, { revoked: false, team: true, email });
+    return { token, token_id: tokens.size, expires_at: new Date(Date.now() + 14 * 86400_000).toISOString() };
+  };
+  if (p === "/api/v1/auth/register" && req.method === "POST") {
+    const b = parseJson(body);
+    if (![b.name, b.email, b.linkedin, b.x].every((v) => typeof v === "string" && v.trim()) || typeof b.password !== "string" || b.password.length < 8) return send(res, ...errEnv("VALIDATION_FAILED"));
+    const email = b.email.toLowerCase();
+    const had = accounts.get(email);
+    if (had && b.proof_password !== had.password) return send(res, ...errEnv("CONFLICT", "That email already has an account. Send proof_password (its password) or proof_code (a one-time code from the desk)."));
+    const acct = had ?? { password: b.password, member_id: accounts.size + 1 };
+    accounts.set(email, acct);
+    const t = b.client === "kanehack" ? issue(email) : {};
+    return send(res, 200, env({ message: "Profile saved.", data: { member_id: acct.member_id, created: !had, testmu: null, next: `${site}/activate`, ...t }, warnings: ["TestMu AI activation isn't configured on this deployment yet."] }));
+  }
+  if (p === "/api/v1/auth/token" && req.method === "POST") {
+    const b = parseJson(body);
+    const acct = typeof b.email === "string" ? accounts.get(b.email.toLowerCase()) : null;
+    if (!acct || b.password !== acct.password) return send(res, ...errEnv("UNAUTHENTICATED", "That email and password don't match."));
+    return send(res, 200, env({ message: "Signed in as Suite.", data: { ...issue(b.email.toLowerCase()), member: { public_code: "P-2001", name: "Suite" } } }));
+  }
+  if (p === "/api/v1/activation/claim" && req.method === "POST") {
+    const t = bearer(req);
+    if (!t) return send(res, ...errEnv("UNAUTHENTICATED"));
+    const b = parseJson(body);
+    if (accounts.get(t.email)?.password !== b.password)
+      return send(res, 200, env({ status: "needs_action", message: "That email already has a TestMu AI account with a different password.", data: { outcome: "error", message: "different password" } }));
+    return send(res, 200, env({ message: "Plan activated.", data: { outcome: "claimed", message: "Plan activated." } }));
   }
 
   // ── Kane runs ──
