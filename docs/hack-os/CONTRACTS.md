@@ -231,7 +231,7 @@ Shared touch points you may need: the hub dashboard (`src/app/t/[slug]/page.tsx`
 - **Public pages** (`/ship`, `/live`, `/passport/badge`) render from server-side DTOs that leave out private fields. Don't hide data with CSS. No emails, tokens or private idea text.
 - **Metrics:** never render 0 for unknown values (show "—" plus a FreshnessStamp). Label a failing run SUSPECTED and an unbacked claim UNVERIFIED.
 - **Outbox:** for side effects (Slack, renders, social), insert `outbox_events` in the same transaction. The cron drain (admissions-ops) delivers them. Slack failures never block the web flow.
-- **Env vars already used:** `DATABASE_URL(_UNPOOLED)`, `SESSION_SECRET`, `ADMIN_PASSWORD`, `BLOB_READ_WRITE_TOKEN`, `EXPORT_TOKEN`. New in the foundation: `SITE_URL` (optional, default https://kaneclihack.sh), `HACKOS_MODEL` (optional), `AI_GATEWAY_API_KEY` (local only; OIDC on Vercel). Expected by areas: `RECEIPT_SIGNING_KEY`, `CRON_SECRET`, `SLACK_WEBHOOK_URL`, `GITHUB_WEBHOOK_SECRET`.
+- **Env vars already used:** `DATABASE_URL(_UNPOOLED)`, `SESSION_SECRET`, `ADMIN_PASSWORD`, `BLOB_READ_WRITE_TOKEN`, `EXPORT_TOKEN`. New in the foundation: `SITE_URL` (optional, default https://kaneclihack.sh), `HACKOS_MODEL` (optional), `AI_GATEWAY_API_KEY` (local only; OIDC on Vercel). Expected by areas: `RECEIPT_SIGNING_KEY`, `CRON_SECRET`, `SLACK_WEBHOOK_URL`, `GITHUB_WEBHOOK_SECRET`. Codex coupon by email (`/api/v1/codex/coupon`): `SMTP_USER` + `SMTP_PASS` (a Gmail app password by default), optional `SMTP_HOST` / `SMTP_PORT` / `MAIL_FROM`; the internal `/api/import/roster` needs `ROSTER_API_TOKEN` (16+ characters).
 
 ---
 

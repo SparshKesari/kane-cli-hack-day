@@ -511,7 +511,7 @@ export type CheckinHit = {
   publicCode: string | null;
   teamName: string | null;
   teamSlug: string | null;
-  source: "luma_csv" | "walk_in" | "manual_offline" | "registration";
+  source: "luma_csv" | "walk_in" | "manual_offline" | "api" | "registration";
   approval: ApprovalStatus | null;
   admission: AdmissionStatus | null;
   memberAdmission: string | null;
@@ -866,6 +866,41 @@ export async function admitRegisteredMember(input: { memberId: number; note?: st
   const [m] = await query<{ name: string; email: string; display_name: string | null }>("select name, email, display_name from members where id = $1 and deleted_at is null", [input.memberId]);
   if (!m) throw new AppError("NOT_FOUND");
   return admitWalkIn({ name: m.name, email: m.email, displayName: m.display_name, note: input.note ?? "registered on site, not on the Luma roster", idempotencyKey: input.idempotencyKey }, staff);
+}
+
+// ── Internal API: add people to the participant list ─────────────────────────
+
+export type RosterAddOutcome = "added" | "already_on_list" | "revoked";
+
+/**
+ * /api/import/roster: put people on the participant list (source 'api', approved and
+ * admitted) so they can get a Codex coupon. Nobody is checked in and no member is
+ * created. An email already on the list is left as it is; one an organizer revoked
+ * stays revoked (re-admit them at /ops/checkin).
+ */
+export async function addRosterPeople(people: { email: string; name: string | null }[]) {
+  const actor: Actor = { type: "system", label: "roster-api" };
+  return withAudit(actor, "roster.api_add", "roster_guest", async (tx) => {
+    await tx.query("select pg_advisory_xact_lock(hashtext('roster:api_add'))");
+    const results: { email: string; outcome: RosterAddOutcome }[] = [];
+    for (const p of people) {
+      const hash = emailHash(p.email);
+      const { rows } = await tx.query<{ admission_status: AdmissionStatus }>("select admission_status from roster_guests where event_id = current_event_id() and email_hash = $1", [hash]);
+      if (rows.some((r) => r.admission_status === "revoked")) results.push({ email: p.email, outcome: "revoked" });
+      else if (rows.length) results.push({ email: p.email, outcome: "already_on_list" });
+      else {
+        await tx.query(
+          `insert into roster_guests (source, name, email_hash, email_hint, email_ciphertext, approval_status, admission_status, source_version)
+           values ('api', $1, $2, $3, $4, 'approved', 'admitted', 'api')`,
+          [p.name ?? p.email.split("@")[0], hash, maskEmail(p.email), encryptEmail(p.email)],
+        );
+        results.push({ email: p.email, outcome: "added" });
+      }
+    }
+    const count = (o: RosterAddOutcome) => results.filter((r) => r.outcome === o).length;
+    const summary = { added: count("added"), already_on_list: count("already_on_list"), revoked: count("revoked") };
+    return { result: { ...summary, people: results }, resourceId: "api", payload: summary };
+  });
 }
 
 // ── Badge ────────────────────────────────────────────────────────────────────
