@@ -35,6 +35,12 @@ test("credentials written in plain English are redacted", opts, () => {
     ["use pin 4242 and OTP 918273", "use pin [redacted] and OTP [redacted]"],
     ["pin: 4242", "pin: [redacted]"],
     ["Enter verification code 551234.", "Enter verification code [redacted]."],
+    ["type 'correct horse battery' as the password", "type '[redacted]' as the password"],
+    ["Type 'it\u2019s a secret' in the password field", "Type '[redacted]' in the password field"],
+    ["Enter the code 123456 from the email", "Enter the code [redacted] from the email"],
+    ["Log in with user demo and pass Secret99", "Log in with user demo and pass [redacted]"],
+    ["credentials: admin / hunter2", "credentials: [redacted]"],
+    ["enter password (hunter2)", "enter password ([redacted])"],
   ];
   assert.deepEqual(redact(cases.map((c) => c[0])), cases.map((c) => c[1]));
 });
@@ -48,6 +54,9 @@ test("login steps that name the password field but carry no value are left alone
     "Enter password and press Sign in",
     "Pin 3 items to the board",
     "Type 'standard_user' into the username field",
+    "Type 'Hello' into the code editor",
+    "Check the status code 200",
+    "The run should pass",
   ];
   assert.deepEqual(redact(plain), plain);
 });
@@ -165,10 +174,24 @@ test("the ffmpeg renderer refuses a storyboard that still has placeholders", opt
   assert.notEqual(r.code, 0);
   assert.match(r.err, /placeholder.*problem/s);
   assert.equal(existsSync(mp4), false);
-  // Positive control: the same storyboard, filled in, gets past the check.
+  // Positive control: the same storyboard, filled in, gets past the check. It then renders,
+  // or, without Pillow, stops at the Pillow import, which comes after the check.
   const ok = videoDir("Families text lists and forget half of them");
-  const r2 = py([join(SCRIPTS, "render_ffmpeg.py"), join(ok.out, "storyboard.json"), "--out", join(ok.out, "showcase.mp4")]);
+  const okMp4 = join(ok.out, "showcase.mp4");
+  const r2 = py([join(SCRIPTS, "render_ffmpeg.py"), join(ok.out, "storyboard.json"), "--out", okMp4]);
   assert.doesNotMatch(r2.err, /placeholder/);
+  assert.ok((r2.code === 0 && existsSync(okMp4)) || /Pillow is required/.test(r2.err), r2.err);
+});
+
+test("a placeholder anywhere in the storyboard counts, whatever the scene", opts, () => {
+  const story = { project: "Listly", pitch: "TODO: one line", brand: BRAND, scenes: [
+    { id: "open", kind: "title", title: "Listly", narration: "Ever bought milk twice?" },
+    { id: "demo", kind: "demo", images: ["a.png"], narration: "TODO narration: walk through the demo" },
+    { id: "outro", kind: "outro", links: ["TODO: ship page"], narration: "Listly." },
+  ] };
+  const r = py(["-c", "import json, sys; sys.path.insert(0, sys.argv[1]); from evidence_to_storyboard import placeholder_scenes; print(json.dumps(placeholder_scenes(json.load(sys.stdin))))", SCRIPTS], JSON.stringify(story));
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(JSON.parse(r.out), ["demo", "outro", "pitch"]);
 });
 
 test("the Remotion renderer refuses placeholders before it sets anything up", opts, () => {

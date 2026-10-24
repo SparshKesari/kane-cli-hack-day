@@ -31,21 +31,22 @@ try:
 except Exception:  # pragma: no cover
     yaml = None
 
-SECRET_KEYS = r"password|passwd|pwd|token|secret|api[_-]?key|access[_-]?key|session|auth|cookie"
+SECRET_KEYS = r"password|passwd|pwd|credentials?|token|secret|api[_-]?key|access[_-]?key|session|auth|cookie"
 KANE_TOKEN = r"\bkhk_[A-Za-z0-9_-]+"
 LONG_TOKEN = r"(?<![A-Za-z0-9_+/-])[A-Za-z0-9_+/-]{32,}={0,2}(?![A-Za-z0-9_+/-])"
 # Credentials as people write them in a run objective or step title: "log in with password
 # hunter2", "enter 'Abc123!' in the password field", "OTP 918273".
 CREDENTIAL = (r"(?:pass(?:word|wd|code|phrase)|pwd|pin|t?otp|one[- ]time\s+(?:pass)?code"
               r"|(?:verification|security|2fa|mfa|auth(?:entication)?)\s+code)(?![\w-])")
+# "the code 123456", "pass Secret99": only as the word before a value ("code editor" stays).
+LOOSE_CREDENTIAL = r"(?:pass|code)(?![\w-])"
 QUOTES = "\"'`\u201c\u2018"
 QUOTED = r"\"[^\"\n]*\"|'[^'\n]*'|`[^`\n]*`|\u201c[^\u201d\n]*\u201d|\u2018[^\u2019\n]*\u2019"
-QUOTED_WORD = r"\"[^\"\s]+\"|'[^'\s]+'|`[^`\s]+`|\u201c[^\u201d\s]+\u201d|\u2018[^\u2019\s]+\u2019"
 SPOKEN_AFTER = re.compile(
-    r"(?P<prefix>(?<![\w-])" + CREDENTIAL + r"(?:\s+(?:field|input|box))?"
+    r"(?P<prefix>(?<![\w-])(?:" + CREDENTIAL + "|" + LOOSE_CREDENTIAL + r")(?:\s+(?:field|input|box))?"
     r"(?:\s*[:=]|\s+(?:is|as|to|of|with|set\s+to))?\s+)(?P<value>" + QUOTED + r"|[^\s\"'`]\S*)", re.I)
 SPOKEN_BEFORE = re.compile(
-    r"(?P<value>" + QUOTED_WORD + r"|(?<!\S)[^\s\"'`]+)"
+    r"(?P<value>" + QUOTED + r"|(?<!\S)[^\s\"'`]+)"
     r"(?P<suffix>\s+(?:in|into|as|for)(?:\s+(?:the|your|a))?\s+(?<![\w-])" + CREDENTIAL + ")", re.I)
 
 
@@ -54,9 +55,10 @@ def hide_spoken(value: str) -> str:
     looks like one (a digit or a symbol), so "password field" and "pin it" stay readable."""
     if value[0] in QUOTES:
         return value[0] + "[redacted]" + value[-1]
-    core = value.rstrip(".,;:)]}")
+    lead = value[:len(value) - len(value.lstrip("([{"))]
+    core = value[len(lead):].rstrip(".,;:)]}")
     if len(core) >= 4 and re.search(r"[\d_!@#$%^&*+=?~]", core):
-        return "[redacted]" + value[len(core):]
+        return lead + "[redacted]" + value[len(lead) + len(core):]
     return value
 
 
@@ -261,8 +263,7 @@ def placeholder_scenes(sb: dict) -> list:
     """Ids of the scenes whose on-screen text or narration is still a drafted placeholder."""
     left = [str(s.get("id") or f"scene {i + 1}") for i, s in enumerate(sb.get("scenes") or [])
             if PLACEHOLDER.search(json.dumps(s))]
-    if PLACEHOLDER.search(str(sb.get("project", ""))):
-        left.append("project")
+    left += [k for k, v in sb.items() if k != "scenes" and PLACEHOLDER.search(json.dumps(v))]
     return left
 
 
