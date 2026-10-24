@@ -53,5 +53,6 @@ export const PLAN_MESSAGES = {
   rateLimited: "TestMu AI had too many tries in a short time. Wait a minute, then try again with your TestMu AI password (forgot it? reset it on testmuai.com).",
   alreadyActive: "Your TestMu AI account already has an active plan or trial, so no hack-day trial was added. If Kane CLI says you have no seats, ask at the help desk.",
   passwordLength: "The password needs at least 8 characters (and at most 255).",
+  previewOff: "Previews don’t activate TestMu AI plans: they share the live database. Activate yours on kaneclihack.sh/activate.",
   outOfCodes: "We’re out of codes right now. Please reach out to the support staff at the help desk.",
 } as const;
