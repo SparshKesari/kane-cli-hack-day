@@ -9,11 +9,13 @@ test("a complete profile passes", () => {
   assert.deepEqual(checkProfileFields({ ...ok, linkedin: "https://www.linkedin.com/in/riya-k/", x: "https://x.com/riya_dev", github: "https://github.com/riya-dev/" }, { passwordRequired: true }), {});
 });
 
-test("LinkedIn and X are required, GitHub is optional", () => {
+test("LinkedIn is required; X and GitHub are optional", () => {
   const e = checkProfileFields({ ...ok, linkedin: "", x: "" }, { passwordRequired: true });
   assert.match(e.linkedin, /Add your LinkedIn/);
-  assert.match(e.x, /Add your X/);
+  assert.equal(e.x, undefined);
   assert.equal(e.github, undefined);
+  assert.deepEqual(checkProfileFields({ ...ok, x: "" }, { passwordRequired: true }), {});
+  assert.deepEqual(checkProfileFields({ ...ok, x: undefined }, { passwordRequired: true }), {});
 });
 
 test("each bad field gets its own plain message", () => {

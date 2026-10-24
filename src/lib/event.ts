@@ -137,12 +137,6 @@ export function lockTime(e: HackEvent, kind: LockKind) {
   return kind === "team" ? e.teamLockAt : kind === "idea" ? e.ideaLockAt : e.submissionLocksAt;
 }
 
-/** Has this deadline passed, by the server clock? Pass an event you already read to save a query. */
-export async function isLocked(kind: LockKind, e?: HackEvent): Promise<boolean> {
-  const ev = e ?? (await getEvent());
-  return ev.now.getTime() >= lockTime(ev, kind).getTime();
-}
-
 /** Milliseconds until a deadline (negative once passed), by the server clock. */
 export function msUntil(e: HackEvent, kind: LockKind) {
   return lockTime(e, kind).getTime() - e.now.getTime();

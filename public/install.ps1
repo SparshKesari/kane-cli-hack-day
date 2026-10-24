@@ -1,5 +1,5 @@
 # Kane CLI Hack Day installer for Windows: https://www.kaneclihack.sh/install.ps1
-# Version: 0.1.12
+# Version: 0.1.28
 #
 # Read me before you run me. This script checks Node, Git, Chrome, the OpenAI
 # Codex CLI, Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
@@ -29,9 +29,9 @@ param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [swit
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-$KanehackVersion = "0.1.12"
-$KanehackSha256 = "a4f054d7d1c05c75d050fac30b84d8389306f02eb0507e7e5228467e869b2214"
-$SkillsSha256 = "25f48ccfb22cb1a4f758b57241c7e076f0ac180a9716e70cbff25613e2ab0da6"
+$KanehackVersion = "0.1.28"
+$KanehackSha256 = "08fbfe56afd3004d682a44aba2291953bd53686e8c115c9b0009cb2c2dab3557"
+$SkillsSha256 = "17127409b9bbee1c211b917bce622a4f01b6053ae11967d6000c5d24f0c95ccd"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -294,7 +294,6 @@ if ($khHave -and (Test-Path $cmdShim)) {
 # first). Codex's config gets the URL plus `kanehack mcp-headers`, which prints the auth header
 # when Codex connects: the token is never written there or printed here.
 # A different server with that name is left alone.
-$agentsShown = $false
 function ConnectAgent($agent, $label, $where) {
   # Native stderr must not become a terminating error here (Windows PowerShell 5.1).
   $ErrorActionPreference = "Continue"
@@ -302,7 +301,7 @@ function ConnectAgent($agent, $label, $where) {
   $rc = $LASTEXITCODE
   if ($rc -eq 0) { Pass "$($agent)_mcp" "$label already connected to the event server (kane-hack-event)"; return }
   if ($rc -eq 2) { Warn "$($agent)_mcp" "another kane-hack-event server is configured; left alone" "Run $kh connect $agent to see it"; return }
-  if (Ask "Connect $label to the event server (adds kane-hack-event to $where; no token is stored)?") {
+  if (Ask "Connect $label to the event server and let its sandbox reach the network and ~/.kanehack (in $where; no token is stored)?") {
     & node $entry connect $agent
     if ($LASTEXITCODE -eq 0) { Pass "$($agent)_mcp" "$label -> kane-hack-event (pair, then start a new $label session)" }
     else { Warn "$($agent)_mcp" "not connected" "$kh connect $agent" }
@@ -311,18 +310,13 @@ function ConnectAgent($agent, $label, $where) {
 if (-not $NoAgents) {
   $khReady = $khHave -and (Test-Path $entry)
   if ((Have codex) -or (Test-Path $CodexDir)) {
-    $agentsShown = $true
     if ($khReady) { ConnectAgent "codex" "Codex" (Join-Path $CodexDir "config.toml") }
     else { Warn "codex_mcp" "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex" }
   }
 }
 
-Write-Host "`nNext, in this terminal:"
-Write-Host "  1. $kh pair        link this machine to your passport (approve the code it shows in your browser)"
-Write-Host "  2. $kh doctor      re-check your setup"
-Write-Host "  3. $kh report -- kane-cli run `"Open $Site and find the schedule`" --agent"
-Write-Host "     (your first Kane run, sent to your team's Proof tab)"
-if ($agentsShown) { Write-Host 'Then in Codex: start a new session and type $hack-os' }
+Write-Host ""
+Write-Host 'Next: start a Codex session and enter $hack-os'
 Write-Host "Web: $Site/passport"
 if ($script:NoTtySkips -gt 0) {
   $siteArg = if ($Site -ne $DefaultSite) { " -Site $Site" } else { "" }

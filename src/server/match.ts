@@ -338,7 +338,7 @@ export async function inviteToTeam(who: ActingMember, targetMemberId: number, me
   const text = message?.trim().slice(0, 280) || null;
   return withAudit(who.actor, "match.team_invite", "teammate_introduction", async (tx) => {
     const { rows: team } = await tx.query<{ ok: boolean; name: string }>(
-      `select t.name, (t.state not in ('roster_locked','submitted','withdrawn') and t.roster_locked_at is null
+      `select t.name, (t.state not in ('roster_locked','submitted','withdrawn')
                and (select count(*) from team_memberships tm where tm.team_id = t.id and tm.left_at is null) < least(t.max_size, ${TEAM_SIZE_CAP})) as ok
          from teams t where t.id = $1`,
       [myTeam.team_id],
@@ -524,9 +524,9 @@ export async function matchAggregates(): Promise<MatchAggregates> {
          where p.discoverable and not exists (select 1 from team_memberships tm where tm.member_id = p.member_id and tm.left_at is null)) as looking,
        coalesce((select sum(greatest(0, least(t.max_size, ${TEAM_SIZE_CAP}) - (select count(*) from team_memberships tm where tm.team_id = t.id and tm.left_at is null)))::int
           from teams t join hack_events e on e.id = coalesce(t.event_id, current_event_id())
-         where t.recruiting_open and t.state in ('recruiting','formed','active') and (t.roster_locked_at is not null or now() < e.team_lock_at)), 0) as open_seats,
+         where t.recruiting_open and t.state in ('recruiting','formed','active')), 0) as open_seats,
        (select count(*)::int from teams t join hack_events e on e.id = coalesce(t.event_id, current_event_id())
-         where t.recruiting_open and t.state in ('recruiting','formed','active') and (t.roster_locked_at is not null or now() < e.team_lock_at)) as recruiting_teams,
+         where t.recruiting_open and t.state in ('recruiting','formed','active')) as recruiting_teams,
        now() as as_of`,
   );
   return row;

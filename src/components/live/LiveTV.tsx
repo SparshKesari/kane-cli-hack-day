@@ -249,7 +249,7 @@ export default function LiveTV({
               </p>
             </div>
             <div aria-live="off">
-              <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">Submissions lock</p>
+              <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">Submissions due</p>
               <p
                 className={`font-dots text-[clamp(1.5rem,2.2vw,2.75rem)] leading-none font-black ${
                   left != null && left > 0 && left < 30 * 60_000 ? "text-warning" : "text-bright"

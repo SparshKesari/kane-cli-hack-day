@@ -359,7 +359,8 @@ export async function getSubmissionContext(teamId: number): Promise<SubmissionCo
     prize: { shipped: shippedMinimum(new Set(done)), done },
     locksAt,
     serverNow: now,
-    locked: now.getTime() >= locksAt.getTime(),
+    // The deadline time no longer locks a submission (event day, 2026-10-24). Kept for API clients.
+    locked: false,
   };
 }
 
@@ -465,7 +466,10 @@ export async function checkGithubCommit(repoUrl: string | null, sha: string | nu
 
 // ── Clock ───────────────────────────────────────────────────────────────────
 
-/** Inside a transaction: is the submission window closed, by the DB clock? */
+/**
+ * Inside a transaction: the DB clock and the official deadline. `locked` only says the deadline
+ * time has passed (audit, receipts); nothing is refused for it (event day, 2026-10-24).
+ */
 export async function lockState(db: Db) {
   const [row] = await rowsOf<{ now: Date; locks_at: Date; locked: boolean }>(
     db,
@@ -474,12 +478,6 @@ export async function lockState(db: Db) {
   if (!row) throw new AppError("INTERNAL", { message: "hack_events row missing" });
   return row;
 }
-
-export const lockedError = (c: { now: Date; locks_at: Date }) =>
-  new AppError("SUBMISSION_LOCKED", {
-    userMessage: `Submissions locked at ${new Date(c.locks_at).toISOString()} (server time). Server time now: ${new Date(c.now).toISOString()}.`,
-    details: { locks_at: new Date(c.locks_at).toISOString(), server_time: new Date(c.now).toISOString() },
-  });
 
 // ── Writes: team ────────────────────────────────────────────────────────────
 
@@ -523,7 +521,6 @@ export async function saveDraft(slug: string, input: unknown, as?: ActingAs): Pr
 
   return transaction(async (tx) => {
     const clock = await lockState(tx);
-    if (clock.locked) throw lockedError(clock);
 
     if (draft.kane_run_ids.length) {
       const ok = await rowsOf<{ id: number }>(tx, "select id from kane_runs where project_id = $1 and id = any($2::bigint[])", [project.id, draft.kane_run_ids]);
@@ -669,7 +666,6 @@ export async function finalizeSubmission(slug: string, input: unknown, as?: Acti
         };
       }
       const clock = await lockState(tx);
-      if (clock.locked) throw lockedError(clock);
       if (!current || current.status === "withdrawn") throw new AppError("VALIDATION_FAILED", { userMessage: "Save your draft before finalizing." });
 
       const draft = normalizeDraft(current.draft);
@@ -874,12 +870,10 @@ export async function listSubmissionsForOps(staff: Staff): Promise<OpsSubmission
   );
 }
 
-/** After the deadline: finalized → locked for every team (status only moves forward). */
+/** Finalized → locked for every team (status only moves forward). The organizer decides when. */
 export async function lockFinalized(staff: Staff) {
   if (!hasRole(staff, "organizer")) throw new AppError("FORBIDDEN");
   return transaction(async (tx) => {
-    const clock = await lockState(tx);
-    if (!clock.locked) throw new AppError("VALIDATION_FAILED", { userMessage: "The submission deadline hasn't passed yet (server time)." });
     const { rows } = await tx.query<{ id: number }>("update submissions set status = 'locked' where status = 'finalized' returning id");
     await writeAudit(staffActor(staff), { action: "submission.lock_all", resourceType: "submission", resourceId: "all", payload: { count: rows.length } }, tx);
     return rows.length;

@@ -50,6 +50,9 @@ export const MCP_SERVER_INFO = { name: "kane-hack-event", version: "0.1.0" } as 
 
 type Env = Parameters<typeof toEnvelope>[0];
 
+// Event day, 2026-10-24: no deadline time locks anything. Agents on older skills read this in the brief.
+const NO_CLOCK_LOCKS = "Nothing locks on the clock: teams, ideas and submissions stay open after their due times.";
+
 const INJECTION = [
   /ignore (all |any |the )?(previous|prior|above) (instructions|rules)/i,
   /you are now (an? )?(admin|organizer|judge)/i,
@@ -133,7 +136,7 @@ export function buildMcpServer(auth: BearerAuth) {
 
   // ── Read tools ─────────────────────────────────────────────────────────────
 
-  tool("event_get_brief", { title: "Event brief", description: "Official clock, phase, deadlines, resources and integration status for Kane CLI Hack Day.", input: {}, readOnly: true }, async () => {
+  tool("event_get_brief", { title: "Event brief", description: "Official clock, phase, due times, resources and integration status for Kane CLI Hack Day. Nothing locks on the clock.", input: {}, readOnly: true }, async () => {
     const [e, systems, flags] = await Promise.all([
       getEvent(),
       query<{ system: string; status: string; updated_at: Date }>("select system, status, updated_at from integration_state order by system").catch(() => []),
@@ -142,12 +145,13 @@ export function buildMcpServer(auth: BearerAuth) {
     const degraded = systems.filter((s) => s.status === "degraded" || s.status === "down");
     return {
       status: e.fallback ? "partial" : "ok",
-      message: `${e.name}: phase ${e.phase.toUpperCase()}. Submissions lock at ${e.submissionLocksAt.toISOString()} (server clock).`,
+      message: `${e.name}: phase ${e.phase.toUpperCase()}. ${NO_CLOCK_LOCKS} Submissions due ${e.submissionLocksAt.toISOString()} (server clock).`,
       data: {
         event: { name: e.name, slug: e.slug, timezone: e.timezone, is_demo: e.isDemo },
         server_time: e.now.toISOString(),
         phase: e.phase,
         phase_source: e.phaseSource,
+        clock_locks: NO_CLOCK_LOCKS,
         deadlines: { team_lock: e.teamLockAt.toISOString(), idea_lock: e.ideaLockAt.toISOString(), submission_lock: e.submissionLocksAt.toISOString(), demos: e.demosStartAt.toISOString(), ends: e.endsAt.toISOString() },
         integrations: systems.map((s) => ({ system: s.system, status: s.status })),
         features: flags,
@@ -160,7 +164,7 @@ export function buildMcpServer(auth: BearerAuth) {
       warnings: [...(e.fallback ? ["Event config came from defaults; the database was unreachable."] : []), ...degraded.map((s) => `${s.system} is ${s.status}.`)],
       uiType: "metric_pulse",
       freshness: { as_of: e.now.toISOString(), state: e.fallback ? "stale" : "fresh", source: "event-db" },
-      fallbackText: `Phase ${e.phase.toUpperCase()} · submissions lock ${e.submissionLocksAt.toISOString()} · ${degraded.length ? `degraded: ${degraded.map((s) => s.system).join(", ")}` : "all systems ok"}`,
+      fallbackText: `Phase ${e.phase.toUpperCase()} · submissions due ${e.submissionLocksAt.toISOString()} · ${degraded.length ? `degraded: ${degraded.map((s) => s.system).join(", ")}` : "all systems ok"}`,
     };
   });
 
@@ -224,7 +228,7 @@ export function buildMcpServer(auth: BearerAuth) {
 
   tool(
     "submission_preflight",
-    { title: "Submission preflight", description: "The same preflight as the Submit tab: what's missing or uncertain, and the server lock time. Finalize needs the team name typed as confirm_phrase.", input: { project_id: zx.id.optional() }, readOnly: true },
+    { title: "Submission preflight", description: "The same preflight as the Submit tab: what's missing or uncertain, and the due time. Finalize needs the team name typed as confirm_phrase.", input: { project_id: zx.id.optional() }, readOnly: true },
     async (args) => {
       const p = await A.submissionPreflight(member, args.project_id);
       const done = p.submission && ["finalized", "locked", "organizer_exception"].includes(p.submission.status);
@@ -235,7 +239,7 @@ export function buildMcpServer(auth: BearerAuth) {
           : p.locked
             ? "Submissions are locked."
             : p.ready
-              ? `Ready to finalize. Locks at ${p.locks_at} (server clock).`
+              ? `Ready to finalize. Due ${p.locks_at} (server clock); finalizing later still works.`
               : `Missing: ${p.missing.join(", ")}.`,
         data: p,
         evidence: p.verified_run_ids.map((id): Evidence => ({ kind: "kane_run", id: `KR-${id}`, confidence: "verified" })),
@@ -243,7 +247,7 @@ export function buildMcpServer(auth: BearerAuth) {
         links: [{ label: "Submit tab", url: `/t/${p.team_slug}/submit` }],
         warnings: p.warnings,
         uiType: "submission_receipt",
-        fallbackText: [...p.requirements.map((r) => `${r.state === "ok" ? "✓" : r.state === "uncertain" ? "?" : "✗"} ${r.label}`), `Locks at ${p.locks_at}`].join("\n"),
+        fallbackText: [...p.requirements.map((r) => `${r.state === "ok" ? "✓" : r.state === "uncertain" ? "?" : "✗"} ${r.label}`), `Due ${p.locks_at}`].join("\n"),
       };
     },
   );
@@ -450,6 +454,21 @@ export function buildMcpServer(auth: BearerAuth) {
   });
 
   tool(
+    "team_invite_create",
+    {
+      title: "Create a team join code",
+      description: "A join code for your team, shown once: any current member, while seats remain and the roster is open. A teammate enters it with team_join. Needs explicit confirmation.",
+      input: { explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("team_invite_create", "Create a join code", "Create a join code for your team: anyone who has it can join until it expires or the roster is locked.", "team_match");
+      const r = await A.createTeamInvite(ctx);
+      const team = r.team?.name ?? "your team";
+      return { message: `Join code for ${team}: ${r.code} (until ${r.expires_at}). Give it only to your teammates; they enter it with $hack-os in their Codex.`, data: r, links: r.team ? [{ label: "Team hub", url: r.team.hub_url }] : [], uiType: "team_match", fallbackText: `Join code for ${team}: ${r.code}` };
+    },
+  );
+
+  tool(
     "team_lock",
     {
       title: "Lock the final team",
@@ -468,7 +487,7 @@ export function buildMcpServer(auth: BearerAuth) {
     {
       title: "Save the team idea",
       description:
-        "Save your team's idea (what the Idea tab saves; private to your team). Run idea_validate on it first and show the person the result. Refused after the idea lock. Needs explicit confirmation.",
+        "Save your team's idea (what the Idea tab saves; private to your team). Run idea_validate on it first and show the person the result. Works at any time. Needs explicit confirmation.",
       input: {
         title: z.string().trim().min(1).max(120),
         private_description: z.string().trim().min(1).max(4000),
@@ -770,7 +789,7 @@ export function buildMcpServer(auth: BearerAuth) {
     "public_evidence_remove",
     {
       title: "Remove public evidence",
-      description: "Unpublish one public evidence object (the public link stops working). Works before the submission lock and needs explicit confirmation.",
+      description: "Unpublish one public evidence object (the public link stops working). Needs explicit confirmation.",
       input: { object_id: z.string().trim().max(40), reason: z.string().max(300).optional(), explicit_confirmation: confirmField },
       destructive: true,
     },
@@ -842,6 +861,7 @@ export const MCP_TOOL_NAMES = [
   "readiness_report",
   "team_create",
   "team_join",
+  "team_invite_create",
   "team_lock",
   "idea_save",
   "idea_validate",

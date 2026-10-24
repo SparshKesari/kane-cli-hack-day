@@ -21,7 +21,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from evidence_to_storyboard import redact, redact_data
+sys.dont_write_bytecode = True  # the import below must not leave __pycache__ in the installed skill
+from evidence_to_storyboard import PLACEHOLDER, redact, redact_data  # noqa: E402
+
+# Short narration still leaves a scene long enough to take in: screenshots, the verdict, the links.
+MIN_SECONDS = {"demo": 6.0, "verdict": 4.0, "outro": 5.0, "title": 4.0}
+NO_AUDIO = {
+    "say": "macOS `say` wrote an empty file. Inside Codex's sandbox it can't reach the speech service: run this "
+           "tts.py command outside the sandbox (approve it when Codex asks), or choose --provider edge.",
+}
 
 
 def have(cmd):
@@ -41,7 +49,7 @@ def duration(path: Path) -> float:
 def normalise(src: Path):
     tmp = src.with_suffix(".norm.mp3")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
-                    "-af", "loudnorm=I=-16:TP=-3:LRA=11", str(tmp)], check=True)
+                    "-af", "loudnorm=I=-16:TP=-3:LRA=11", "-ar", "48000", "-ac", "1", str(tmp)], check=True)
     tmp.replace(src)
 
 
@@ -107,8 +115,8 @@ def main():
     if provider == "say" and not have("say"):
         sys.exit("--provider say requires macOS say; --provider edge sends text to Microsoft; "
                  "--provider openai costs money on your OpenAI account.")
-    if not have("ffmpeg"):
-        sys.exit("ffmpeg is required")
+    if not have("ffmpeg") or not have("ffprobe"):
+        sys.exit("ffmpeg and ffprobe are required")
     sb_path = Path(a.storyboard).resolve()
     sb = redact_data(json.loads(sb_path.read_text(encoding="utf-8")))
     out = Path(a.out).resolve()
@@ -117,13 +125,18 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     fn = {"openai": tts_openai, "edge": tts_edge, "say": tts_say}[provider]
     print(f"provider: {provider}")
+    spoken = [s["id"] for s in sb["scenes"] if "[redacted]" in (s.get("narration") or "")]
+    if spoken:
+        print(f"warning: the voice will say \"redacted\" in: {', '.join(spoken)}. Rewrite those lines without the "
+              "secret, then rerun.", file=sys.stderr)
 
     t = 0.0
     srt = []
     for i, scene in enumerate(sb["scenes"], start=1):
         text = (scene.get("narration") or "").strip()
-        if not text or "TODO" in text:
-            print(f"  skip {scene['id']}: narration missing or TODO")
+        if not text or PLACEHOLDER.search(text):
+            print(f"  skip {scene['id']}: narration missing or still a TODO placeholder")
+            scene.pop("audio", None)  # an earlier take must not play under new, unvoiced narration
             t += float(scene.get("seconds", 4))
             continue
         dest = out / f"{i:02d}.mp3"
@@ -132,10 +145,16 @@ def main():
         except Exception as exc:
             # Provider errors can echo credentials; never expose a raw traceback.
             sys.exit(f"TTS provider {provider} failed: {redact(str(exc))}")
-        normalise(dest)
+        if duration(dest) <= 0:
+            sys.exit(f"no audio for scene {scene['id']}: " + NO_AUDIO.get(provider, f"{provider} returned an empty file."))
+        try:
+            normalise(dest)
+        except subprocess.CalledProcessError:
+            sys.exit(f"ffmpeg couldn't level the audio for scene {scene['id']} ({dest.name}).")
         d = duration(dest)
         scene["audio"] = dest.relative_to(sb_path.parent).as_posix()
-        scene["seconds"] = round(max(d + a.pad, float(scene.get("min_seconds", 2.5))), 2)
+        floor = float(scene.get("min_seconds") or MIN_SECONDS.get(scene.get("kind", ""), 2.5))
+        scene["seconds"] = round(max(d + a.pad, floor), 2)
         srt.append(f"{i}\n{srt_time(t)} --> {srt_time(t + d)}\n{text}\n")
         t += scene["seconds"]
         print(f"  {scene['id']}: {d:.1f}s audio, scene {scene['seconds']}s")

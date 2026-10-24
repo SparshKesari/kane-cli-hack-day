@@ -149,10 +149,10 @@ function StatusBand({ ctx, frozen }: { ctx: SubmissionContext; frozen: boolean }
           ) : ctx.locked ? (
             <StatusPill tone="danger">Not submitted · locked</StatusPill>
           ) : (
-            <StatusPill tone="pending">{minutesLeft < 60 ? `${minutesLeft} min left` : "Not finalized"}</StatusPill>
+            <StatusPill tone="pending">{minutesLeft >= 0 && minutesLeft < 60 ? `${minutesLeft} min left` : "Not finalized"}</StatusPill>
           )}
           <span>
-            Locks {clock.format(ctx.locksAt)} · server time {clock.format(ctx.serverNow)}
+            Due {clock.format(ctx.locksAt)} · server time {clock.format(ctx.serverNow)}
           </span>
         </div>
       </div>

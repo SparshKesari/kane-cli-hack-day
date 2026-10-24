@@ -6,7 +6,6 @@ import { Avatar } from "@/components/Account";
 import FlowProgress from "@/components/FlowProgress";
 import Button from "@/components/ui/Button";
 import GreetingHeader from "@/components/ui/GreetingHeader";
-import { formatEventTime, getEvent } from "@/lib/event";
 import { query } from "@/lib/db";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc } from "@/server/avatar";
@@ -52,20 +51,17 @@ async function Personal({ searchParams }: Pick<PageProps<"/team">, "searchParams
   const member = await getPersonalMember();
   if (!member) return <SignedOut code={code} />;
 
-  const [cur, event] = await Promise.all([currentTeamOf(member.id), getEvent()]);
+  const cur = await currentTeamOf(member.id);
   if (!cur) {
     const preview = code ? await previewInvite(code, member) : null;
     const previewRoster = preview?.forYou ? await getRoster(preview.team.id) : [];
     const [pool] = await query<{ looking: boolean | null }>("select looking_for_team as looking from members where id = $1", [member.id]);
-    const lockPassed = event.now >= event.teamLockAt;
     return (
       <section className="py-12 sm:py-16">
         <div className="container-page space-y-10">
           <p className="inline-flex items-center gap-2 border border-hairline px-3 py-1.5 font-plex text-sm text-lightgray">
             <span aria-hidden="true">◷</span>
-            {lockPassed
-              ? `The team lock passed at ${formatEventTime(event.teamLockAt, event)}. You can still start solo; an organizer can add people.`
-              : `Teams lock at ${formatEventTime(event.teamLockAt, event)}. Up to 4 people per team.`}
+            Up to 4 people per team. Teams stay open: anyone can join with an invite code.
           </p>
           <div className="grid items-start gap-6 lg:grid-cols-2">
             <section id="create" className="brackets flex flex-col gap-6 border border-hairline p-6 sm:p-8" aria-labelledby="create-title">

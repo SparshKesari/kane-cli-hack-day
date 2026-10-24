@@ -136,6 +136,8 @@ try {
     check("password without a terminal → exit 2 NEEDS_TERMINAL (never asked for in an agent)", r.code === 2 && r.json?.error?.code === "NEEDS_TERMINAL" && /own terminal/.test(r.err), r.show);
     r = kh(["password", "--check", "--json"]);
     check("password --check with none saved → exit 2", r.code === 2 && r.json?.stored?.password === false, r.show);
+    r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--json"]);
+    check("register without --x gets past the flags (X is optional): exit 2 NO_PASSWORD, not USAGE", r.code === 2 && r.json?.error?.code === "NO_PASSWORD", r.show);
     r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
     check("register with no saved password → exit 2 NO_PASSWORD, pointing at kanehack password", r.code === 2 && r.json?.error?.code === "NO_PASSWORD" && /kanehack password/.test(r.err), r.show);
     r = kh(["claim", "--json"]);
@@ -176,6 +178,7 @@ try {
     check("pair --start still gives a browser code when a password is saved", r.code === 0 && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(r.json?.user_code ?? ""), r.show);
     r = kh(["claim", "--json"]);
     check("claim uses the separate TestMu AI password when one is saved", r.code === 2 && r.json?.outcome === "error", r.show);
+    check("a refused separate TestMu AI password points at TestMu AI's password reset", /accounts\.lambdatest\.com\/password\/reset/.test(r.err) && /kanehack password --testmu/.test(r.err), r.show);
     r = kh(["password", "--forget", "--testmu", "--json"]);
     const left = existsSync(creds) ? JSON.parse(readFileSync(creds, "utf8")) : {};
     check("password --forget --testmu keeps the main password", r.code === 0 && left.password === PW && !("testmu_password" in left), r.show);
@@ -222,14 +225,29 @@ try {
   const toml = (d) => readFileSync(join(d, "config.toml"), "utf8");
   const baks = (d) => readdirSync(d).filter((f) => f.endsWith(".bak")).length;
   const mcpUrl = `${API}/mcp`;
+  let t = "";
   let cx = codexCase("absent");
   r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
   check("connect codex --check with no config → exit 1 absent", r.code === 1 && r.json?.state === "absent", r.show);
   r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
   check("connect codex with no config.toml → added, no backup", r.code === 0 && r.json?.state === "added" && r.json?.backup === null && toml(cx).includes(`url = "${mcpUrl}"`), r.show);
+  // Codex's default sandbox has no network and can't write ~/.kanehack, and some approval policies
+  // never offer the escalation: connect codex lets the sandbox reach the network and write ~/.kanehack.
+  const khDir = join(HOME, ".kanehack");
+  const sandboxOk = (text) => /^\[sandbox_workspace_write\]$/m.test(text) && /^network_access = true$/m.test(text) && (text.split(/\r?\n/).find((l) => l.startsWith("writable_roots")) ?? "").includes(khDir);
+  check("connect codex: Codex's sandbox may reach the network and write ~/.kanehack", sandboxOk(toml(cx)) && r.json?.sandbox === "added", r.show + "\n" + toml(cx));
+  cx = codexCase("sandbox-mine", 'model = "x"\n\n[sandbox_workspace_write]\nwritable_roots = ["/tmp/mine"]\nnetwork_access = false\n');
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  t = toml(cx);
+  check("connect codex next to an own sandbox section → network on, ~/.kanehack added, own roots kept, one section", r.code === 0 && r.json?.sandbox === "updated" && sandboxOk(t) && t.includes('"/tmp/mine"') && t.match(/\[sandbox_workspace_write\]/g).length === 1 && !/network_access = false/.test(t), r.show + "\n" + t);
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("connect codex again with that sandbox → current, unchanged", r.code === 0 && r.json?.state === "current" && r.json?.sandbox === "current" && toml(cx) === t, r.show);
+  writeFileSync(join(cx, "config.toml"), t.replace(/\[sandbox_workspace_write\][\s\S]*?(?=\n\[|$)/, ""));
+  r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
+  check("connect codex --check without the sandbox settings → exit 1 (run connect codex again)", r.code === 1 && r.json?.state === "current" && r.json?.sandbox === "absent", r.show);
   cx = codexCase("existing", '# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n');
   r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
-  let t = toml(cx);
+  t = toml(cx);
   check("connect codex next to other servers → added, backup made, others kept", r.code === 0 && r.json?.state === "added" && baks(cx) === 1 && t.startsWith('# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n') && t.includes("[mcp_servers.kane-hack-event]"), r.show + "\n" + t);
   check("codex config: url + http_headers_helper (kanehack mcp-headers), no token", t.includes(`url = "${mcpUrl}"`) && /http_headers_helper = ".*kanehack.*mcp-headers"/.test(t) && !t.includes(cfg.token) && !/khk_/.test(t), t);
   const helperLine = t.split(/\r?\n/).find((l) => l.startsWith("http_headers_helper"));
@@ -356,6 +374,36 @@ try {
   check("submit --preflight --json → exit 0 if ready else 1, data.ready boolean", typeof r.json?.data?.ready === "boolean" && r.code === (r.json.data.ready ? 0 : 1), r.show);
   r = kh(["submit", "--json"]);
   check("submit without --preflight → exit 2", r.code === 2, r.show);
+
+  // ── publish: a participant-approved file to the public evidence bucket (request → PUT → complete) ──
+  const shot = join(work, "shot.png");
+  writeFileSync(shot, Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.from("not a real png body")]));
+  r = kh(["publish", shot, "--json"]);
+  check("publish without --yes and no TTY → exit 2 APPROVAL_NEEDED", r.code === 2 && r.json?.error?.code === "APPROVAL_NEEDED", r.show);
+  r = kh(["publish", join(work, "run.evidence"), "--yes", "--json"]);
+  check("publish a file that isn't there → exit 2 NOT_FOUND", r.code === 2 && r.json?.error?.code === "NOT_FOUND", r.show);
+  writeFileSync(join(work, "run.evidence"), "PK");
+  r = kh(["publish", join(work, "run.evidence"), "--yes", "--json"]);
+  check("publish a Kane evidence pack → refused before any upload, exit 2 REFUSED", r.code === 2 && r.json?.error?.code === "REFUSED" && /never published/.test(r.json?.error?.message ?? ""), r.show);
+  writeFileSync(join(work, "notes.docx"), "PK");
+  r = kh(["publish", join(work, "notes.docx"), "--yes", "--json"]);
+  check("publish a type the bucket doesn't take → exit 2 REFUSED", r.code === 2 && r.json?.error?.code === "REFUSED", r.show);
+  if (APPROVE === "mock") {
+    r = kh(["publish", shot, "--yes", "--json"]);
+    const pe = r.json?.object_id;
+    check("publish --yes → PUT with the signed headers, completed, a public URL", r.code === 0 && r.json?.ok === true && /^PE-\d+$/.test(String(pe)) && /^https:\/\//.test(String(r.json?.public_url)) && r.json?.kind === "screenshot", r.show);
+    r = kh(["publish", shot, "--yes", "--json"]);
+    check("publish the same file again → the same object, already public", r.code === 0 && r.json?.object_id === pe, r.show);
+    await fetch(`${API}/__mock/s3-fail`, { method: "POST" });
+    const vid = join(work, "showcase.mp4");
+    writeFileSync(vid, Buffer.from("000000186674797069736f6d0000020069736f6d69736f32", "hex"));
+    r = kh(["publish", vid, "--yes", "--json"]);
+    check("storage refuses the PUT → exit 1 UPLOAD_FAILED, says to run it again", r.code === 1 && r.json?.error?.code === "UPLOAD_FAILED" && /again/.test(r.json?.error?.message ?? ""), r.show);
+    r = kh(["publish", vid, "--yes", "--json"]);
+    check("publish a video → kind video, and the next step names the Submit tab's video field", r.code === 0 && r.json?.kind === "video" && /Demo video URL/.test(r.err), r.show);
+    const objs = await (await fetch(`${API}/__mock/evidence`)).json();
+    check("each public object got exactly one good PUT", objs.length === 2 && objs.every((o) => o.status === "public" && o.puts === 1), JSON.stringify(objs));
+  }
   r = kh(["consent", "no", "--json"]);
   check("consent no", r.code === 0 && r.json?.consent === false, r.show);
   r = kh(["report", "--json", "--", "kane-cli", "run", objective, "--agent"]);

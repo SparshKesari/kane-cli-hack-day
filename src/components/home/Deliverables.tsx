@@ -5,7 +5,7 @@ import Reveal from "@/components/ui/Reveal";
 import { to12h } from "@/lib/time";
 
 // The three things attendees hand in, in order, each linking to the full
-// instructions on /submit. Content hour sits between evaluation and lock.
+// instructions on /submit. Content hour sits between evaluation and the 6:00 due time.
 const steps = [
   {
     id: "team",
@@ -38,7 +38,7 @@ export default function Deliverables() {
         eyebrow="Submissions"
         dim="Three deadlines,"
         bright="One submission."
-        intro="Everything you hand in today, in order. Each one has a hard lock."
+        intro="Everything you hand in today, in order. Each one has a due time."
       />
 
       <ol className="mt-14 grid gap-px border border-dashed border-hairline bg-hairline md:grid-cols-3">
@@ -48,7 +48,7 @@ export default function Deliverables() {
               <div className="flex items-baseline justify-between">
                 <span className="font-pixel text-xs tracking-[0.25em] text-lightgray">Step {i + 1}</span>
                 <span className="border border-lime px-1.5 py-0.5 font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">
-                  Lock {to12h(s.deadline)}
+                  Due {to12h(s.deadline)}
                 </span>
               </div>
               <p className="font-dots text-6xl leading-none font-black text-bright">{to12h(s.deadline)}</p>

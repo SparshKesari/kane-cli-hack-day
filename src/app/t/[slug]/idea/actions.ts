@@ -36,11 +36,11 @@ export async function validateIdeaAction(slug: string, _prev: ValidateState, for
   });
 }
 
-/** Lock and submit the idea (after it's been validated). The form's confirm box must be ticked. */
+/** Lock and submit the idea (after it has been validated). The form's confirm box must be ticked. */
 export async function submitIdeaAction(slug: string, _prev: SubmitIdeaState, form: FormData): Promise<SubmitIdeaState> {
   return runAction(async () => {
     const { teamId, who } = await teamMember(slug);
-    if (form.get("confirm") !== "on") throw new AppError("VALIDATION_FAILED", { userMessage: "Tick the box to confirm: this locks the idea for your whole team." });
+    if (form.get("confirm") !== "on") throw new AppError("VALIDATION_FAILED", { userMessage: "Tick the box to confirm: this submits the idea for your whole team." });
     const receipt = await submitIdea(who, teamId);
     refresh();
     return { data: null, receipt };

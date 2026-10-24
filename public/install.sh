@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.12
+# Version: 0.1.28
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
@@ -33,9 +33,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.12"
-KANEHACK_SHA256="a4f054d7d1c05c75d050fac30b84d8389306f02eb0507e7e5228467e869b2214"
-SKILLS_SHA256="25f48ccfb22cb1a4f758b57241c7e076f0ac180a9716e70cbff25613e2ab0da6"
+KANEHACK_VERSION="0.1.28"
+KANEHACK_SHA256="08fbfe56afd3004d682a44aba2291953bd53686e8c115c9b0009cb2c2dab3557"
+SKILLS_SHA256="17127409b9bbee1c211b917bce622a4f01b6053ae11967d6000c5d24f0c95ccd"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -357,14 +357,13 @@ fi
 # kanehack does the editing (and backs up ~/.codex/config.toml first). Codex's config gets the
 # URL plus `kanehack mcp-headers`, which prints the auth header when Codex connects: the token
 # itself is never written there or printed here. A different server with that name is left alone.
-AGENTS_SHOWN=""
 connect_agent() { # $1 codex  $2 display name  $3 where it's written
   rc=0; "${PREFIX}/bin/kanehack" connect "$1" --check >/dev/null 2>&1 || rc=$?
   case "$rc" in
     0) pass "${1}_mcp" "$2 already connected to the event server (kane-hack-event)" ;;
     2) warn "${1}_mcp" "another kane-hack-event server is configured; left alone" "Run ${KH} connect $1 to see it" ;;
     *)
-      if ask "Connect $2 to the event server (adds kane-hack-event to $3; no token is stored)?"; then
+      if ask "Connect $2 to the event server and let its sandbox reach the network and ~/.kanehack (in $3; no token is stored)?"; then
         rc=0; "${PREFIX}/bin/kanehack" connect "$1" || rc=$?
         if [ "$rc" -eq 0 ]; then pass "${1}_mcp" "$2 → kane-hack-event (pair, then start a new $2 session)"
         else warn "${1}_mcp" "not connected" "${KH} connect $1"; fi
@@ -374,19 +373,13 @@ connect_agent() { # $1 codex  $2 display name  $3 where it's written
 }
 if [ -z "$NO_AGENTS" ]; then
   if have codex || [ -d "$CODEX_DIR" ]; then
-    AGENTS_SHOWN=1
     if [ -n "$KH_HAVE" ] && [ -x "${PREFIX}/bin/kanehack" ]; then connect_agent codex Codex "${CODEX_DIR}/config.toml"
     else warn codex_mcp "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex"; fi
   fi
 fi
 
 echo
-echo "Next, in this terminal:"
-echo "  1. ${KH} pair        link this machine to your passport (approve the code it shows in your browser)"
-echo "  2. ${KH} doctor      re-check your setup"
-echo "  3. ${KH} report -- kane-cli run \"Open ${SITE} and find the schedule\" --agent"
-echo "     (your first Kane run, sent to your team's Proof tab)"
-if [ -n "$AGENTS_SHOWN" ]; then echo 'Then in Codex: start a new session and type $hack-os'; fi
+echo 'Next: start a Codex session and enter $hack-os'
 echo "Web: ${SITE}/passport"
 if [ "$NO_TTY_SKIPS" -gt 0 ]; then
   SITE_ARG=""; [ "$SITE" != "$DEFAULT_SITE" ] && SITE_ARG=" --site ${SITE}"

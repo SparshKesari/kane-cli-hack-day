@@ -1,6 +1,6 @@
 ---
 name: hack-gtm
-description: "Launch kit for a Kane CLI Hack Day project built with OpenAI and tested with Kane CLI. From a project brief (idea, how Kane CLI was used, repo, Ship Page, Kane runs) it drafts an X thread and LinkedIn post that tag TestMu AI and OpenAI and read human, a Show HN post, a launch blog, an HTML deck, and an MP4 showcase video with voice-over built from the Kane CLI evidence pack. Use it when a participant or organizer says launch, GTM, announce, write the post, write the blog, make the deck or make the video. For submitting or finalizing, use hack-os."
+description: "Launch kit for a Kane CLI Hack Day project built with OpenAI and tested with Kane CLI. From a project brief (idea, how Kane CLI was used, repo, Ship Page, Kane runs) it drafts an X thread and LinkedIn post that tag TestMu AI and OpenAI and read human, a Show HN title and comment outline, a launch blog, an HTML deck, and an MP4 showcase video with voice-over built from the Kane CLI evidence pack. Use it when a participant or organizer says launch, GTM, announce, write the post, write the blog, make the deck or make the video. For submitting or finalizing, use hack-os."
 ---
 
 # hack-gtm
@@ -18,7 +18,7 @@ Collect these before writing anything. Ask once, in one message, for whatever is
 | What was built with OpenAI (model, API, Codex, Agents SDK, Realtime, etc.) | "Built with OpenAI" claim must be specific and true |
 | How Kane CLI was used: commands run, what was asserted, bugs it caught, number of runs, pass/fail history | This is the story. Vague "we tested it" is not usable |
 | Repo URL and submitted SHA | Ship Page and HN both need it |
-| Ship Page URL (`/ship/<team>`), and the deck URL (`/ship/<team>/deck`) if they published a deck in the site's Studio | The Ship Page goes in X post 1 so people can find the project |
+| Ship Page URL (`/ship/<team>`), and the deck URL (`/ship/<team>/deck`), which opens once the Ship Page is published | X post 1, the HN first comment and the blog link to it. A teammate publishes it in the browser, in the site's Studio (typed slug plus a consent check); agents can't publish it, and until it is published `/ship/<team>` is a 404 for everyone outside the team. Draft before it is live; post nothing that links to it until it loads |
 | Path to the `.evidence` pack(s) | Source for the video and the proof screenshots. The pack itself stays private (non-negotiable 8) |
 | Team members, their X and LinkedIn handles, who posts | Tagging and authorship |
 | Demo URL, screenshots, any recorded screen capture | Optional, improves blog and video |
@@ -29,14 +29,14 @@ If the brief does not say what Kane CLI caught, ask "what did a Kane run fail on
 ## Non-negotiables
 
 1. Tag the right accounts, with the right form per platform (see `references/handles.md`). TestMu AI on X is `@testmuai`; on LinkedIn it is the company page `TestMu AI` (linkedin.com/company/testmu-ai). Kane CLI has no separate account; write "Kane CLI" in text and tag TestMu AI. OpenAI is `@OpenAI` on X and the `OpenAI` company page on LinkedIn.
-2. Know what counts. The site's minimum for the shipped prize: the three essentials (repo, live URL or run command, Kane CLI run report) plus any two of video, blog, X post and HN post, all live by 18:00 Pacific on event day, with their links added on the team's Submit tab. Deck and video are never required. The event team asks for the full set, so offer all of it, but never tell anyone a piece is required when the site doesn't require it. The Submit tab's preflight (the `submission_preflight` tool in hack-os) is the authority. Put the Ship Page URL in X post 1, not in a reply.
+2. Know what counts. The shipped prize is counted from the "Shipped prize bundle" checklist on the team's Submit tab (`https://kaneclihack.sh/t/<team-slug>/submit`): all three essentials (Repo, Live URL or run command, Kane CLI run report) plus any two content rows (Video, Blog, X post, HN post), all live by 18:00 Pacific today. A row counts only when a signed-in team member pastes its live link, ticks its box and presses Save, in the browser; the site refuses a tick without a link, and no agent tool can tick a row. The receipt records whether the minimum was met when the captain finalized, so fill the rows before the captain finalizes. The `submission_preflight` tool in hack-os checks only what finalizing needs and never looks at the video, blog, X or HN rows, so a passing preflight does not mean the content counts. LinkedIn has no row; its link goes in "Social posts" on the Submit form. Deck and video are never required. The event team asks for the full set, so offer all of it, but never tell anyone a piece is required when the site doesn't require it. Put the Ship Page URL in X post 1, not in a reply.
 3. Credit both layers in one breath: "built with OpenAI, tested with Kane CLI". OpenAI's team asked for "association", not "partnership", so never write "in partnership with OpenAI" or imply OpenAI endorsed the project. The event is "Kane CLI Hack Day" (OpenAI is a supporter); never call it "Kane CLI x OpenAI Hack Day".
 4. Every claim about what Kane CLI did must trace to a real run: a command, a step, a screenshot in the evidence pack. No invented pass counts. Use the official Kane CLI skill (`kane-cli`) for any Kane command; don't invent flags.
 5. Write like a person. Apply `references/humanize.md` to every piece before handing it over. Vary sentence length, use the author's own words from the brief, name specifics, drop filler. Never ship copy with em dashes, "here's the thing", negative parallelism, tricolons, or "delve/leverage/robust/seamless".
 6. Media is not spam. One real asset per post, project first and tooling as a one-line credit, no logo walls, no reposting, no tagging people who were not involved. `references/media.md` is the rulebook; run its checklist on every image, video and PDF.
 7. The person approves every piece before it goes anywhere public: each post, every teammate variant, the blog, the HN post, the deck and the video (its narration and every line of text on screen). Show the exact content, wait for a yes. Never post for them, by API or by driving a website: hand them the text and files, and they post it themselves.
-8. Evidence packs stay private. They hold network and console logs that can include cookies, tokens and test passwords, and the site shows them only to the team, judges and organizers. Never commit a `.evidence` pack, or anything extracted from it, to a public repo; never attach one to a post; never tell readers they can open it. Describe what Kane checked and show screenshots the person has looked at. The scripts redact what they copy, but read every frame's text with the person before rendering.
-9. Ask before installing anything or spending money. The video needs Python 3.9+, ffmpeg and Pillow (ffmpeg path) or Node 18+ (Remotion path, whose first render runs `npm install` and downloads a headless Chrome into `launch/remotion`). The voice is macOS `say` (free, local) unless they choose edge-tts (free, sends the narration text to Microsoft) or OpenAI TTS (paid, on their own OpenAI account). On Windows use `python` or `py -3` instead of `python3`, and Git Bash for `render.sh`.
+8. Evidence packs stay private. They hold network and console logs that can include cookies, tokens and test passwords, and the site shows them only to the team, judges and organizers. Never commit a `.evidence` pack, or anything extracted from it, to a public repo; never attach one to a post; never tell readers they can open it. Describe what Kane checked and show screenshots the person has looked at. The scripts redact what they copy, but read every frame's text with the person before rendering. `launch/` holds drafts and images taken from packs, so it stays out of the public repo too: add `launch/` to the project's `.gitignore` before the next commit. The video script writes `launch/video/.gitignore` itself; the rest of `launch/` still needs the line.
+9. Ask before installing anything or spending money. The video needs Python 3.9+, ffmpeg and Pillow (ffmpeg path) or Node 18+ (Remotion path, whose first render runs `npm install` and downloads a headless Chrome into `launch/remotion`). The voice is macOS `say` (free, local) unless they choose edge-tts (free, sends the narration text to Microsoft) or OpenAI TTS (paid, on their own OpenAI account). On Windows use `python` or `py -3` instead of `python3`, and Git Bash for `render.sh`. Windows and Linux have no free local voice: offer edge-tts or OpenAI TTS, or skip the video (it's optional).
 
 ## Workflow
 
@@ -44,7 +44,11 @@ Run in this order. Later steps reuse earlier ones.
 
 ### 1. Read and reduce the brief
 
-Produce `launch/brief.md`: a 10-line digest with the pitch, the problem, the OpenAI usage, the three most concrete Kane CLI moments (command, what it checked, what happened), the URLs, and the author's voice notes. Every other asset is written from this digest, which keeps them consistent.
+Produce `launch/brief.md` from `assets/brief-template.md`. First add `launch/` to the project's `.gitignore` (non-negotiable 8).
+
+The `key: value` lines at the top are the contract for the video. The video script reads only those lines, takes the first line for each key, treats a value that is still the template's `(...)` hint as empty, and names any key it can't find. Keep them at the top, one line each. `hero` and `demo` are paths, relative to the project folder, to image files the person has looked at and approved.
+
+Below them, write the digest every other asset is written from, which keeps them consistent: the pitch, the problem, the OpenAI usage, the three most concrete Kane CLI moments (command, what it checked, what happened), the URLs, and the author's voice notes.
 
 If an evidence pack is provided, run step 1 of 5a first (storyboard extraction) so you have real step names and screenshots to quote in the blog and posts. `<skill>` below is the folder this file is in (usually `~/.agents/skills/hack-gtm`); run the scripts from the project folder so `launch/` lands there.
 
@@ -58,7 +62,7 @@ Read `references/social.md`. Write:
 
 ### 3. Hacker News
 
-Read `references/hackernews.md`. Write `launch/hackernews.md` with a `Show HN:` title under 80 characters that says what it does in plain words, a first comment from the author (why they built it, what is rough, what Kane CLI caught, direct questions for the thread), and a note on timing. The submitted URL is the project's showcase page on kaneclihack.sh (`/ship/<team>`); the repo URL goes in the first comment.
+Read `references/hackernews.md`. Write `launch/hackernews.md` with a `Show HN:` title under 80 characters that says what it does in plain words, the URL to submit, an outline for the author's first comment with the real facts filled in (why they built it, what is rough, what Kane CLI caught, direct questions for the thread), and a note on timing. Hand over an outline and facts, not a finished comment: the site tells people to post on HN from their own account, in their own words, because HN flags generated text. The submitted URL is the repo or the live demo, which is what the site's rubric asks the HN post to link; the Ship Page can go in the first comment.
 
 ### 4. Launch blog
 
@@ -72,23 +76,31 @@ Read `references/blog.md`. Write `launch/blog.md` with these sections, each publ
 
 Target 1,400 to 2,200 words. Include a front-matter block (title, description under 160 chars, tags, canonical URL placeholder, hero image suggestion). Add a one-paragraph TL;DR after the title. Describe the proof in words and checked screenshots; never link or attach the evidence pack, which stays private.
 
+Then the person publishes it: they pick a host the site names (dev.to, Medium, Hashnode or their own site), paste it, add the approved images, check the links in the preview, and publish before 18:00 Pacific. The live URL goes in the Blog row on the Submit tab, ticked and saved (non-negotiable 2).
+
 ### 5. Deck
 
-Read `references/deck.md`. Build `launch/deck/index.html`: a self-contained HTML deck (keyboard navigation, 16:9, prints to PDF), 8 to 10 slides, following the Hack OS deck guideline: title, problem, what we built, demo (video or screenshots), how it works, the Kane CLI proof slide (one failed run, one passed run, checked screenshots), what we learned, team and links. Few boxes per slide, one idea per slide, large type. This deck is for presenting from a laptop or keeping in the repo, so it must work with no external dependencies. The public deck at `/ship/<team>/deck` is the one the team publishes in the site's Studio (`/studio/<team>/deck`); custom HTML is never shown publicly, so reuse the slide text there.
+Read `references/deck.md`. Build `launch/deck/index.html` from `assets/deck-template.html`: a self-contained HTML deck (keyboard navigation, 16:9, prints to PDF), 10 slides in the template's order: title, problem, what we built, demo (video or screenshots), how it works, built with OpenAI, the Kane CLI proof slide (one failed run, one passed run, checked screenshots), what we learned, what's next, team and links. Few boxes per slide, one idea per slide, large type. Copy the images the person approved next to `index.html` (`hero.png`, `fail-annotated.png`); the demo slide plays `../video/showcase.mp4`. Remove any image or video whose file isn't there and drop a slide that is left empty; never leave a broken reference. The site scores a deck at a hosted or shared link. The public one is `/ship/<team>/deck`, which opens once the Ship Page is published and which the team edits in the site's Studio (`/studio/<team>/deck`). The site never shows custom HTML, so this local file is for presenting from a laptop or exporting a PDF; reuse its slide text in the Studio deck.
 
 ### 5a. Video with voice-over
 
 Read `references/video.md`. Pipeline:
 
 ```bash
-# 1. storyboard from the evidence pack (real steps, screenshots, verdict)
-python3 <skill>/scripts/evidence_to_storyboard.py <pack.evidence> --brief launch/brief.md --out launch/video/
+# 1. storyboard from the evidence packs (real steps, screenshots, verdict). --fail is the earlier
+#    failed run: it gives the video what Kane caught and the fix. Leave it out only if there was none.
+python3 <skill>/scripts/evidence_to_storyboard.py <passed.evidence> --fail <failed.evidence> --brief launch/brief.md --out launch/video/
 #    screenshots are left out until the person has looked at each one; after their yes,
-#    rerun with --include-screenshots (before editing narration: a rerun rewrites the drafts)
+#    rerun with --include-screenshots (before editing narration: a rerun rewrites the drafts).
+#    The brief's hero and demo screenshots are copied into launch/video/assets/, and
+#    launch/video/ keeps itself out of git (it holds pack-derived files).
 
 # 2. write narration into launch/video/storyboard.json (one line per scene; the script seeds drafts),
-#    then show the person every scene's narration and on-screen text and get a yes
-# 3. voice-over: macOS say by default; --provider edge or openai only if they chose it
+#    then show the person every scene's narration and on-screen text and get a yes.
+#    Both renderers refuse a storyboard that still has a TODO: placeholder in it.
+# 3. voice-over: macOS say by default; --provider edge or openai only if they chose it.
+#    In Codex, run this one command outside the sandbox (ask the person to approve it): inside it,
+#    macOS say writes silent files and the script stops with "no audio".
 python3 <skill>/scripts/tts.py launch/video/storyboard.json --out launch/video/audio/
 
 # 4a. render with Remotion (preferred)
@@ -102,38 +114,40 @@ Three acts, in this order, and the order is the point:
 
 1. The pitch (35 to 40s): hook, problem, who pays, what it does, demo screens, why it matters. Shark Tank shape. No tooling named yet. A viewer who stops here knows the product.
 2. How we built it (8 to 10s): the OpenAI layer, model named, one decision.
-3. How effectively we used Kane CLI (25 to 35s): the objective string, the failed run with annotated screenshots and the error, the fix, the passing run, the verdict from `run.yaml`.
+3. How effectively we used Kane CLI (25 to 35s): the objective string, the failed run with annotated screenshots and the error, the fix, the passing run, the verdict from the pack.
 4. Close (7s): both URLs and the credits.
 
 60 to 90 seconds. Never trim the pitch act to fit more Kane steps. Deliver `showcase.mp4` (1920x1080) plus a 1080x1920 cut if the user wants Shorts or Reels. The brief fields `hook`, `problem`, `who`, `solution`, `demo`, `why` feed the pitch act; if they are empty, ask for them before rendering, since the pitch cannot be derived from the evidence pack.
 
 ### 6. Package and hand over
 
-Write `launch/README.md`: the posting order and timing, who posts what, the approval checklist, and the single list of links. Then show the person each piece verbatim, one at a time, and ask for approval. Do not post. Remind them to add each live link on the team's Submit tab before 18:00 Pacific; hack-os walks the captain through finalizing.
+Write `launch/README.md`: the posting order and timing, who posts what, the approval checklist, and the single list of links. Then show the person each piece verbatim, one at a time, and ask for approval. Do not post. Then tell them what makes each piece count (non-negotiable 2): before 18:00 Pacific, and before the captain finalizes, a signed-in teammate opens the Submit tab (`https://kaneclihack.sh/t/<team-slug>/submit`) in the browser and, under "Shipped prize bundle", pastes each live link into its row (Video, Blog, X post, HN post, and the essentials), ticks the box and presses Save. You can't tick rows for them, and a passing `submission_preflight` doesn't mean these count. The video link also goes in "Demo video URL" and the LinkedIn link in "Social posts". hack-os walks the captain through finalizing.
 
 ## Posting order (default)
 
-Everything that should count for the prize goes live today, before 18:00 Pacific, and its link goes on the Submit tab. After that they can keep sharing; it just doesn't count.
+Everything that should count for the prize goes live today, Saturday, before 18:00 Pacific, and its link goes in its row on the Submit tab (non-negotiable 2). After that they can keep sharing; it just doesn't count. Drafting can start before the Ship Page is live; posting waits for it.
 
-1. Ship Page live (if they want, check it loads with a Kane run, written with the Kane CLI skill).
+1. A teammate publishes the Ship Page in the Studio (typed slug plus a consent check; agents can't publish it). Check the URL loads in a private window before posting anything that links to it: signed-in teammates see a preview even when it isn't published, and everyone else gets a 404. If they want, also check it with a Kane run written with the Kane CLI skill.
 2. Blog published (so the posts have somewhere to send people).
-3. X thread from the team captain's account.
-4. LinkedIn post from the captain; teammates share with their own variant.
-5. Show HN, with the author ready to answer comments. (A weekday morning US Eastern gets more readers, but for the prize it has to be live today.)
-6. Video uploaded natively to X and LinkedIn (not as a YouTube link).
+3. X thread from the team captain's account. Attach the video to post 1 only if it is ready; don't hold the thread for it.
+4. LinkedIn post from the captain; teammates share their own variant a little later, before 18:00 if it should count.
+5. Show HN from the author's own account, in their own words, with the author ready to answer comments.
+6. Video link. "Demo video URL" and the Video row take a link, not a file. After the person agrees the video can be public, `kanehack publish launch/video/showcase.mp4 --yes --json` (kanehack 0.1.20 or later, files up to 50 MB) returns a `public_url`; or they upload it to YouTube or Loom. Uploading it natively to X or LinkedIn is separate and doesn't give that link.
+
+Then the captain finalizes, before 18:00.
 
 ## Files in this skill
 
 - `references/handles.md` : exact handles, tag syntax per platform, what not to say about OpenAI
 - `references/humanize.md` : the anti-AI-tell pass, with before/after examples
 - `references/social.md` : X thread and LinkedIn structure, length, hooks that work for dev tools
-- `references/hackernews.md` : Show HN rules and first-comment template
+- `references/hackernews.md` : Show HN rules, what to submit, and the first-comment outline
 - `references/blog.md` : launch blog structure, SEO block, how to write the Kane CLI section from evidence
 - `references/deck.md` : slide list and HTML deck conventions
 - `references/media.md` : anti-spam rules for every image, video, carousel and PDF, plus distribution behaviour
 - `references/video.md` : evidence pack layout, storyboard schema, Remotion and ffmpeg paths, TTS options
-- `scripts/evidence_to_storyboard.py` : unzips `.evidence`, reads `run.yaml`, `result.yaml`, `steps/*/step.json`, copies screenshots, drafts narration; redacts what it copies
-- `scripts/tts.py` : voice-over from storyboard (macOS `say` by default; edge-tts or OpenAI TTS only when the person picks them)
+- `scripts/evidence_to_storyboard.py` : unzips `.evidence`, reads `run.yaml`, `result.yaml`, `steps/*/step.json` and `failure.yaml` (PyYAML optional), copies screenshots, drafts narration; redacts what it copies
+- `scripts/tts.py` : voice-over from storyboard (macOS `say` by default; edge-tts or OpenAI TTS only when the person picks them); stops with a clear message if a voice comes back silent
 - `scripts/render_ffmpeg.py` : dependency-light renderer
 - `scripts/remotion/` : Remotion project (`render.sh`, `src/Showcase.tsx`) reading the same storyboard
 - `assets/brief-template.md` : intake form

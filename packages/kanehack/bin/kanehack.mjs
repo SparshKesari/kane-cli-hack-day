@@ -2,7 +2,7 @@
 // kanehack: the Kane CLI Hack Day helper. No dependencies, Node >= 18.17.
 //
 //   kanehack password [--testmu|--check|--forget]  type your password once, in your own terminal (hidden; ~/.kanehack/credentials.json, mode 600)
-//   kanehack register --name --email --linkedin --x [--github] [--looking]  save your profile and sign this machine in (no browser)
+//   kanehack register --name --email --linkedin [--x] [--github] [--looking]  save your profile and sign this machine in (no browser)
 //   kanehack signin [--email E]            sign this machine in with your email + the saved password (no browser)
 //   kanehack claim                         claim your TestMu AI hack-day plan (/activate step 2) with the saved password
 //   kanehack login [--username U --access-key K]  save your TestMu AI username + access key (mandatory sign-in)
@@ -39,7 +39,9 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.12";
+const VERSION = "0.1.28";
+// TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
+const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -128,7 +130,7 @@ function fail(msg, code = EXIT.FAIL, errCode = "ERROR", extra = {}) {
 }
 
 // Flags that never take a value, so `--json yes` keeps "yes" as an argument.
-const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check", "forget", "testmu", "looking"]);
+const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check", "forget", "testmu", "looking", "yes"]);
 
 function args(argv) {
   const out = { _: [], flags: {} };
@@ -331,10 +333,10 @@ async function register(a) {
   const cfg = loadConfig();
   if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
   const f = (k) => (a.flags[k] === undefined || a.flags[k] === true ? "" : String(a.flags[k]).trim());
-  const body = { name: f("name"), email: f("email"), linkedin: f("linkedin"), x: f("x"), ...(f("github") ? { github: f("github") } : {}), ...(a.flags.looking ? { looking: "yes" } : {}) };
-  const missing = ["name", "email", "linkedin", "x"].filter((k) => !body[k]);
+  const body = { name: f("name"), email: f("email"), linkedin: f("linkedin"), ...(f("x") ? { x: f("x") } : {}), ...(f("github") ? { github: f("github") } : {}), ...(a.flags.looking ? { looking: "yes" } : {}) };
+  const missing = ["name", "email", "linkedin"].filter((k) => !body[k]);
   if (missing.length)
-    fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> --x <handle> [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
+    fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> [--x <handle>] [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
   const pw = needPassword();
   const r = await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/register", json({ ...body, password: pw, proof_password: pw, client: "kanehack", label: deviceLabel() }));
   // A 401 here is this email's account having another password, not a missing sign-in.
@@ -391,7 +393,14 @@ async function claim() {
   const code = outcome === "claimed" ? EXIT.OK : outcome === "in_progress" ? EXIT.PENDING : env.status === "error" && !outcome ? EXIT.FAIL : EXIT.ACTION;
   printEnvelope(env);
   if (outcome === "not_registered") say(dim("Then run kanehack claim again."));
-  if (outcome === "error" && !creds.testmu_password) say(dim("TestMu AI account with a different password? In your own terminal: kanehack password --testmu, then kanehack claim."));
+  if (outcome === "error" && /different password/i.test(env.message ?? ""))
+    say(
+      dim(
+        creds.testmu_password
+          ? `Still refused? Set a new TestMu AI password at ${TESTMU_RESET_URL} (same email; a Google or GitHub sign-up has none yet), save it in your own terminal with kanehack password --testmu, then kanehack claim.`
+          : `In your own terminal: kanehack password --testmu (that account's password), then kanehack claim. Don't know it, or signed up with Google or GitHub? Set one at ${TESTMU_RESET_URL} first.`,
+      ),
+    );
   emit({ ok: code === EXIT.OK, exit_code: code, outcome, ...envJson(env) });
   if (code !== EXIT.OK) exit(code);
 }
@@ -716,6 +725,49 @@ function codexEntryText(e, url, helper) {
   return [...e.lines.slice(0, e.start), ...block, ...kept, ...e.lines.slice(e.end)].join(e.eol);
 }
 
+// Codex's default sandbox (workspace-write) has no network and can't write outside the project,
+// so kanehack (and Kane CLI, npm) fail inside Codex unless the person approves an escalation, which
+// some approval policies never offer. connect codex lets that sandbox reach the network and write
+// ~/.kanehack: [sandbox_workspace_write] network_access = true, writable_roots += ~/.kanehack.
+const SANDBOX_TABLE = "sandbox_workspace_write";
+const tomlPath = (v) => (v.includes("'") ? JSON.stringify(v) : `'${v}'`);
+
+/** The sandbox settings in `text`: current / absent / outdated (fixable) / unrecognized (left alone), and the text with them set. */
+function codexSandbox(text, eol) {
+  const lines = text === "" ? [] : text.split(/\r?\n/);
+  if (lines.some((l) => new RegExp(String.raw`^[ \t]*${SANDBOX_TABLE}[ \t]*[.=]`).test(l))) return { state: "unrecognized", text };
+  const start = lines.findIndex((l) => new RegExp(String.raw`^[ \t]*\[${SANDBOX_TABLE}\][ \t]*(#.*)?$`).test(l));
+  const comment = "# Added by kanehack (Kane CLI Hack Day): Codex's sandbox may reach the network (kanehack, Kane CLI, npm) and write ~/.kanehack.";
+  if (start < 0) {
+    const block = [`[${SANDBOX_TABLE}]`, comment, "network_access = true", `writable_roots = [${tomlPath(DIR)}]`];
+    const sep = text === "" ? "" : (text.endsWith("\n") ? "" : eol) + eol;
+    return { state: "absent", text: text + sep + block.join(eol) + eol };
+  }
+  let end = lines.findIndex((l, i) => i > start && /^[ \t]*\[/.test(l));
+  if (end < 0) end = lines.length;
+  const body = lines.slice(start + 1, end);
+  const netAt = body.findIndex((l) => /^[ \t]*network_access[ \t]*=/.test(l));
+  const rootsAt = body.findIndex((l) => /^[ \t]*writable_roots[ \t]*=/.test(l));
+  const rootsLine = rootsAt < 0 ? null : body[rootsAt];
+  if (rootsLine !== null && !/\][ \t]*(#.*)?$/.test(rootsLine)) return { state: "unrecognized", text };
+  const roots = rootsLine === null ? [] : [...rootsLine.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map((m) => (m[2] !== undefined ? m[2] : JSON.parse(`"${m[1]}"`)));
+  const netOn = netAt >= 0 && /=[ \t]*true[ \t]*(#.*)?$/.test(body[netAt]);
+  const hasRoot = roots.includes(DIR);
+  if (netOn && hasRoot) return { state: "current", text };
+  const next = [...body];
+  if (!netOn) {
+    if (netAt >= 0) next[netAt] = "network_access = true";
+    else next.unshift("network_access = true");
+  }
+  if (!hasRoot) {
+    const at = next.findIndex((l) => /^[ \t]*writable_roots[ \t]*=/.test(l));
+    if (at >= 0) next[at] = next[at].replace(/\[([^\]]*)\]/, (_, inner) => `[${inner.trim() ? `${inner.trimEnd()}, ` : ""}${tomlPath(DIR)}]`);
+    else next.splice(next.findIndex((l) => /^[ \t]*network_access[ \t]*=/.test(l)) + 1, 0, `writable_roots = [${tomlPath(DIR)}]`);
+  }
+  if (!next.some((l) => l.startsWith("# Added by kanehack"))) next.unshift(comment);
+  return { state: "outdated", text: [...lines.slice(0, start + 1), ...next, ...lines.slice(end)].join(eol) };
+}
+
 function codexCli() {
   const r = probe("codex", ["--version"], { timeout: 20_000 });
   return r.found && r.code === 0 ? r.stdout.trim().split("\n")[0].slice(0, 40) || "codex" : null;
@@ -753,22 +805,31 @@ async function connectCodex(a, cfg) {
     const what = e.state === "different" ? `another server named ${MCP_NAME} (${e.existing.url ?? e.existing.command ?? "no url"})` : `${MCP_NAME} in a form kanehack doesn't edit`;
     fail(`${file} already has ${what}. Left it alone. To replace it: codex mcp remove ${MCP_NAME}, then kanehack connect codex`, EXIT.ACTION, "MCP_NAME_TAKEN", { ...base, state: e.state });
   }
+  const eol = e.eol ?? "\n";
+  const sb = codexSandbox(e.state === "current" ? e.text : codexEntryText(e, url, helper), eol);
+  const sandbox = sb.state === "outdated" ? "updated" : sb.state === "absent" ? (e.state === "current" && a.flags.check ? "absent" : "added") : sb.state;
+  if (sb.state === "unrecognized") say(warn(`${file} sets [${SANDBOX_TABLE}] in a form kanehack doesn't edit: make sure it has network_access = true and ${DIR} in writable_roots.`));
   if (a.flags.check) {
-    const current = e.state === "current";
-    if (!JSON_MODE) say(current ? ok(`Codex is connected to ${url}.`) : warn(`Codex isn't connected (${e.state === "absent" ? `no ${MCP_NAME} in ${file}` : "old setup"}). Run: kanehack connect codex`));
-    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state });
+    const current = e.state === "current" && (sb.state === "current" || sb.state === "unrecognized");
+    if (!JSON_MODE)
+      say(
+        current
+          ? ok(`Codex is connected to ${url}.`)
+          : warn(`Codex isn't ${e.state === "current" ? "set up for kanehack (its sandbox can't reach the network or ~/.kanehack)" : `connected (${e.state === "absent" ? `no ${MCP_NAME} in ${file}` : "old setup"})`}. Run: kanehack connect codex`),
+      );
+    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state, sandbox: sb.state === "absent" ? "absent" : sb.state === "outdated" ? "outdated" : sb.state });
     process.exitCode = current ? EXIT.OK : EXIT.FAIL;
     return;
   }
-  if (e.state === "current") {
+  if (e.state === "current" && (sb.state === "current" || sb.state === "unrecognized")) {
     say(ok(`Codex is already connected: ${MCP_NAME} → ${url}`));
     nextSteps(cfg);
-    return emit({ ok: true, exit_code: 0, ...base, state: "current", backup: null });
+    return emit({ ok: true, exit_code: 0, ...base, state: "current", sandbox, backup: null });
   }
   mkdirSync(codexHome(), { recursive: true });
   const backup = e.text !== null ? `${file}.kanehack-${stamp()}.bak` : null;
   if (backup) copyFileSync(file, backup);
-  writeAtomic(file, codexEntryText(e, url, helper));
+  writeAtomic(file, sb.text);
   if (cli) {
     const g = codexGet();
     const t = g.json?.transport ?? {};
@@ -779,9 +840,10 @@ async function connectCodex(a, cfg) {
     }
   }
   say(ok(`Codex ${e.state === "absent" ? "connected" : "updated"}: ${MCP_NAME} → ${url} (${cli ? "checked with codex mcp get" : "codex isn't on PATH, so not checked"}). No token is stored in ${file}.`));
+  if (sandbox === "added" || sandbox === "updated") say(dim(`Codex's sandbox may now reach the network and write ${DIR} ([${SANDBOX_TABLE}] in ${file}), so kanehack and Kane CLI work inside Codex.`));
   if (backup) say(dim(`Backup of the old file: ${backup}`));
   nextSteps(cfg);
-  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : "updated", backup, verified_with_codex: Boolean(cli) });
+  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : e.state === "current" ? "current" : "updated", sandbox, backup, verified_with_codex: Boolean(cli) });
 }
 
 async function connect(a) {
@@ -1093,6 +1155,69 @@ async function submit(a) {
   finishEnvelope(env, env.data?.ready ? EXIT.OK : EXIT.FAIL);
 }
 
+// ── publish ──────────────────────────────────────────────────────────────────
+
+// Public evidence (docs/api/PUBLIC_EVIDENCE.md): extension → [kind, content type]. The server checks the same rules.
+const PUBLISH_TYPES = { png: ["screenshot", "image/png"], jpg: ["screenshot", "image/jpeg"], jpeg: ["screenshot", "image/jpeg"], webp: ["screenshot", "image/webp"], mp4: ["video", "video/mp4"], webm: ["video", "video/webm"], ndjson: ["ndjson", "application/x-ndjson"], jsonl: ["ndjson", "application/x-ndjson"], json: ["report", "application/json"], md: ["testmd", "text/markdown"], log: ["log", "text/plain"], txt: ["log", "text/plain"] };
+const NEVER_PUBLISHED = ["zip", "evidence", "har", "html", "htm", "xhtml", "svg", "svgz", "pdf"];
+const mb = (n) => `${(n / 1048576).toFixed(1)} MB`;
+
+async function publish(a) {
+  const file = a._[1];
+  if (!file) fail("Usage: kanehack publish <file> [--kind screenshot|video|report|testmd|ndjson|log] [--run KR-12] [--yes]", EXIT.ACTION, "USAGE");
+  if (!existsSync(file) || !statSync(file).isFile()) fail(`No such file: ${file}`, EXIT.ACTION, "NOT_FOUND");
+  const ext = extname(file).slice(1).toLowerCase();
+  if (NEVER_PUBLISHED.includes(ext))
+    fail(`.${ext} files are never published: Kane evidence packs and HAR files hold cookies and auth headers, and HTML, SVG and PDF can run script. Publish a screenshot, the video or the run report instead.`, EXIT.ACTION, "REFUSED");
+  const type = PUBLISH_TYPES[ext];
+  if (!type) fail(`Can't publish a .${ext || "(no extension)"} file: use .png, .jpg, .webp, .mp4, .webm, .ndjson, .json, .md, .log or .txt.`, EXIT.ACTION, "REFUSED");
+  const kind = a.flags.kind ? String(a.flags.kind) : type[0];
+  const bytes = readFileSync(file);
+  const name = basename(file).replace(/\.jpeg$/i, ".jpg");
+  // Publishing is public: the person says yes to this exact file, here or (for an agent) before it passes --yes.
+  if (!a.flags.yes) {
+    if (!interactive())
+      fail(`Publishing puts ${name} at a public link anyone can open. Show the person the file; only after they say yes, run: kanehack publish "${file}" --yes`, EXIT.ACTION, "APPROVAL_NEEDED");
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    const ans = (await rl.question(`Publish ${name} (${mb(bytes.length)}) at a public link anyone can open? [y/N] `)).trim().toLowerCase();
+    rl.close();
+    if (ans !== "y" && ans !== "yes") fail("Not published.", EXIT.ACTION, "NOT_APPROVED");
+  }
+  const cfg = loadConfig();
+  needToken(cfg);
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const req = await tool(cfg, "public_evidence_request_upload", {
+    kind,
+    filename: name,
+    content_type: type[1],
+    size_bytes: bytes.length,
+    sha256,
+    ...(a.flags.run ? { run_id: String(a.flags.run) } : {}),
+    participant_approved: true,
+    idempotency_key: `kanehack-publish-${randomUUID()}`,
+  });
+  if (req.status === "error") return finishEnvelope(req);
+  let receipt = req;
+  if (req.data?.status === "upload_required") {
+    const up = req.data;
+    say(dim(`Uploading ${name} (${mb(bytes.length)})…`));
+    let put;
+    try {
+      // Straight to storage with exactly the signed headers; no app token on this request.
+      put = await fetch(up.url, { method: up.method || "PUT", headers: up.headers, body: bytes, signal: AbortSignal.timeout(600_000) });
+    } catch (e) {
+      fail(`Uploading ${name} failed (${e.cause?.code ?? e.name}). Run the same command again.`, EXIT.UNREACHABLE, "UPLOAD_FAILED");
+    }
+    if (put.status !== 200) fail(`Uploading ${name} failed: storage answered HTTP ${put.status}. Run the same command again.`, EXIT.FAIL, "UPLOAD_FAILED", { http_status: put.status });
+    receipt = await tool(cfg, "public_evidence_complete", { object_id: up.object_id });
+    if (receipt.status === "error") return finishEnvelope(receipt);
+  }
+  const d = receipt.data ?? {};
+  printEnvelope(receipt);
+  if (kind === "video") say(`Next: paste ${d.public_url} into "Demo video URL" on your team's Submit tab.`);
+  emit({ ok: true, exit_code: EXIT.OK, object_id: d.object_id ?? null, public_url: d.public_url ?? null, kind, sha256, ...envJson(receipt) });
+}
+
 function consent(a) {
   const v = a._[1];
   if (v === undefined || v === "status") {
@@ -1163,7 +1288,7 @@ function usage() {
 
   kanehack password [--testmu]                type your password once, in YOUR OWN terminal (hidden; never in Codex)
   kanehack password --check | --forget         is one saved? / remove it
-  kanehack register --name N --email E --linkedin L --x X [--github G] [--looking]
+  kanehack register --name N --email E --linkedin L [--x X] [--github G] [--looking]
                                               save your profile and sign this machine in (uses the saved password)
   kanehack signin [--email E]                 sign this machine in (email + the saved password)
   kanehack claim                              claim your TestMu AI hack-day plan (/activate step 2)
@@ -1182,6 +1307,9 @@ function usage() {
   kanehack help "<what's wrong>" [--category kane_cli|auth|…] [--priority low|normal|high]
   kanehack help --status H-0042
   kanehack submit --preflight                 what's missing before you can submit
+  kanehack publish <file> [--kind K] [--run KR-12] [--yes]
+                                              put a screenshot, the demo video (.mp4/.webm, up to 50 MB) or a
+                                              run report at a public link; asks first (--yes: the person already said yes)
   kanehack consent yes|no|status              allow / stop / show sending run summaries
   kanehack hook status|enable|disable         optional Codex status hook (off until enabled)
   kanehack hook emit <event> [--model M]      send one status ping (Codex hooks call this; never fails)
@@ -1200,7 +1328,7 @@ Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
 const a = args(process.argv.slice(2));
 JSON_MODE = Boolean(a.flags.json);
 const cmd = a._[0];
-const commands = { password, register, signin, claim, login, logout, pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
+const commands = { password, register, signin, claim, login, logout, pair, token, doctor, report, status, help, submit, publish, consent, hook, connect, "mcp-headers": mcpHeaders };
 const run = Object.hasOwn(commands, cmd) ? commands[cmd] : null;
 
 Promise.resolve()

@@ -1,6 +1,6 @@
 # Idea validator
 
-From the event team (2026-10-24). `references/idea.md` says when to use it. Apply everything below the line yourself, in this session: the person's Idea tab fields are the input, and your answer is one JSON object, written to a file for `scripts/idea-check.mjs`. If this session has a web search tool, use it for criterion 9; otherwise score it null with "not checked".
+From the event team (2026-10-24). `references/idea.md` says when to use it. Apply everything below the line yourself, in this session: the person's Idea tab fields are the input, and your answer is one JSON object, written to a file for `scripts/idea-check.mjs`. If this session has a web search tool, use it for criterion 9; otherwise score it from what you know only when the category is plainly crowded, else null with "not checked".
 
 ---
 
@@ -43,13 +43,13 @@ THE 9 CRITERIA (score 0 missing, 1 weak, 2 ok, 3 strong; one line of evidence ea
 6. kane_feasible: the named flows are something Kane can drive given the facts above and the app type.
 7. agent_kane_loop: the plan says how the agent runs Kane and reacts to the result (skill or --agent, read NDJSON, fix, rerun, or a hook on change). Kane run by hand at the end = 0 or 1.
 8. unique_kane_usage: how far the plan goes past the standard flow, and whether Kane is part of the product or a check on it. 0 = run only at the end by hand. 1 = kane-cli run in the agent loop. 2 = tests as _test.md committed and replayed, kane-cli generate from a description, or Kane used on a surface the docs do not feature (an API-first flow, a mobile app, DevTools assertions). 3 = the assurance loop (ingest a spec, design tests, run, show kane-cli cover), exploration on a deployed URL with its designed tests then run, or Kane wired as the product itself: a reward signal for an agent, a merge gate, the eyes of another agent, the input to a tool. Name the credit cost in the note; a 3 on paper is a plan, not a promise.
-9. unique_in_market (requires web search; search before scoring): run two or three short queries built from the description's nouns (the task, the user, the input), not the product name. List the 2 or 3 closest shipped products with a one-line summary and URL. Score 0 if a shipped product does the same thing for the same user and the submission names no difference. 1 if the category is crowded and the difference is a feature competitors could add in a week. 2 if the submission has a clear wedge: a user, input or workflow the existing products do not serve. 3 if no shipped product does this, or the comparables are a stretch. Write one line on what would make it distinct, phrased as a change the team could make today. Never accuse a team of copying. If search is unavailable, score null and note "not checked".
+9. unique_in_market (requires web search; search before scoring): run two or three short queries built from the description's nouns (the task, the user, the input), not the product name. List the 2 or 3 closest shipped products with a one-line summary and URL. Score 0 if a shipped product does the same thing for the same user and the submission names no difference. 1 if the category is crowded and the difference is a feature competitors could add in a week. 2 if the submission has a clear wedge: a user, input or workflow the existing products do not serve. 3 if no shipped product does this, or the comparables are a stretch. Write one line on what would make it distinct, phrased as a change the team could make today. Never accuse a team of copying. If search is unavailable: when the idea is a plainly crowded category (a todo list, notes, a chat app, a weather app, a URL shortener, a calculator, a recipe or expense tracker) with no wedge named, score 0 or 1 from what you know, name no URLs, and note "not searched"; otherwise score null and note "not checked".
 
 VERDICT (compute from scores; never overridden by prose)
-- ready: criteria 1, 2, 4, 5, 6 all at 2 or 3; no criterion at 0 (null does not count); criterion 7 at 1 or above.
+- ready: criteria 1, 2, 4, 5, 6 all at 2 or 3; no criterion at 0 (null does not count); criterion 7 at 1 or above; criterion 9 at 2, 3 or null.
 - needs_work: any of 1, 2, 4, 5, 6 at 1, or criterion 7 at 0, or any other criterion at 0.
-- rethink: any of 1, 2, 4, 5, 6 at 0, or criterion 3 at 0.
-Criterion 9 never blocks. It feeds the headline when it is the lowest score and one of the three improvements when it is 0 or 1.
+- rethink: any of 1, 2, 4, 5, 6 at 0, or criterion 3 at 0, or criterion 9 at 0 (a shipped product already does this for the same user).
+Criterion 9 at 1 (crowded, the difference is easy to copy) makes it needs_work. Criterion 9 at null (not checked) never counts. When criterion 9 drives the verdict, it is the headline and the first of the three improvements: the wedge that would make the idea distinct.
 
 KANE UPGRADE PATH (always present, even for a strong plan)
 Every submission gets a ladder from where it is to where it could be. Fill kane_upgrade with:

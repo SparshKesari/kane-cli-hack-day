@@ -3,8 +3,8 @@
 ## Sign-up (here, with `kanehack register`)
 
 1. Their password must be saved first: `kanehack password --check --json`. Exit 2 → `references/setup.md`, step 2.
-2. Collect, in their words: full name, the email they used on Luma, LinkedIn (URL or handle), X handle, GitHub handle (optional), and whether they're looking for teammates. Show it back and ask "Save this profile?"
-3. `kanehack register --name "<name>" --email <email> --linkedin <linkedin> --x <x handle> [--github <handle>] [--looking] --json`
+2. Collect, in their words: full name, the email they used on Luma, LinkedIn (URL or handle), X handle (optional), GitHub handle (optional), and whether they're looking for teammates. Show it back and ask "Save this profile?"
+3. `kanehack register --name "<name>" --email <email> --linkedin <linkedin> [--x <x handle>] [--github <handle>] [--looking] --json` (leave out `--x` if they have no X account)
    - 0 → the profile is saved and this machine is signed in. Codex not connected to the event tools yet → `references/setup.md`, step 3.
    - 2 and "already registered" → `kanehack signin --email <email> --json`.
    - 2 naming a field → fix it with them and run it again.
@@ -17,7 +17,7 @@ Team registration closes at 11:00 Pacific (check `event_get_brief`). Solo counts
 Ask which they want, then follow one path:
 
 - **Join a team**: the captain gives them a join code; they type it here. Show the code back and ask "Join this team?" before calling `team_join` with `invite_code` and `explicit_confirmation: true`. Never put a code in a link.
-- **Start a team** (they become captain): agree the name, ask "Create team <name>?", then `team_create` with `name` and `explicit_confirmation: true`. The captain gets join codes for teammates on `https://kaneclihack.sh/team`.
+- **Start a team** (they become captain): agree the name, ask "Create team <name>?", then `team_create` with `name` and `explicit_confirmation: true`. Then the join codes, here: ask "Create a join code for <team name>?", then `team_invite_create` with `explicit_confirmation: true`. Show the code once and say: give it only to your teammates; they enter it with $hack-os in their own Codex. One code per teammate is fine, and any member of the team can make one while seats remain.
 - **Go solo**: ask "Create a solo team <name>?", then `team_create` with `name`, `solo: true`, `explicit_confirmation: true`.
 - **Looking for teammates**: `team_find` (optionally `skill`, e.g. "frontend") lists recruiting teams and people open to teaming up; the pool is also on `https://kaneclihack.sh/match`.
 

@@ -3,7 +3,7 @@ import DegradedServiceAlert from "@/components/ui/DegradedServiceAlert";
 import StatusPill from "@/components/ui/StatusPill";
 import { formatEventTime, getEvent } from "@/lib/event";
 import { isEnabled } from "@/lib/flags";
-import { getIdea, latestAssessment, listRevisions, submittedEarly } from "@/server/ideas";
+import { getIdea, latestAssessment, isSubmitted, listRevisions } from "@/server/ideas";
 import { Panel } from "@/app/team/blocks";
 import Hub, { type HubContext } from "../hub";
 import IdeaChecklist, { AdvisoryBanner, AssessmentPill } from "./checklist";
@@ -29,18 +29,19 @@ async function IdeaLab({ team, me }: HubContext) {
   const [latest, revisions] = await Promise.all([latestAssessment(idea.id), listRevisions(idea.id)]);
   // Validation itself adds a revision, so any later revision is an edit the check hasn't seen.
   const stale = !!latest && latest.revision < idea.revision;
-  const canEdit = !!me && !idea.locked;
+  const submitted = isSubmitted(idea);
+  // Submitted ideas are read-only in the site (Codex can still save: ideas never lock).
+  const canEdit = !!me && !idea.locked && !submitted;
   const slug = team.slug;
-  const submitted = submittedEarly(idea);
   // Saved, and the validator has seen this version.
-  const canSubmit = !!me && !idea.locked && idea.revision > 0 && !!latest && !stale;
+  const canSubmit = canEdit && idea.revision > 0 && !!latest && !stale;
 
   return (
     <section className="py-10 sm:py-14">
       <div className="container-page space-y-10">
         {submitted && (
           <div className="brackets border border-lime bg-lime-deep p-6 sm:p-8">
-            <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">Idea locked · {formatEventTime(idea.frozen_at!, event)}</p>
+            <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">Idea submitted</p>
             <p className="mt-3 font-dots text-4xl leading-none font-black text-bright sm:text-5xl">Go hack.</p>
             <p className="mt-4 max-w-xl font-plex text-sm leading-relaxed text-lightgray">
               “{idea.title}” is your team&apos;s idea. Build it with Codex and run Kane CLI as you go: a failed run that finds a bug, then the green rerun, is the proof judges look for.
@@ -49,11 +50,7 @@ async function IdeaLab({ team, me }: HubContext) {
         )}
 
         <div className="flex flex-wrap items-center justify-end gap-4">
-          {submitted ? null : idea.locked ? (
-            <StatusPill tone="pending">Frozen at {formatEventTime(idea.idea_lock_at, event)}</StatusPill>
-          ) : (
-            <span className="font-plex text-xs text-lightgray">Ideas freeze at {formatEventTime(idea.idea_lock_at, event)}</span>
-          )}
+          {idea.locked && <StatusPill tone="pending">Frozen{idea.frozen_at ? ` at ${formatEventTime(idea.frozen_at, event)}` : ""}</StatusPill>}
         </div>
 
         {!on && (
@@ -112,7 +109,7 @@ async function IdeaLab({ team, me }: HubContext) {
                   <p className="font-plex text-sm text-lightgray">Feedback on your idea, its uniqueness and your Kane CLI plan, from the same validator $hack-os uses in Codex. Save your idea, then validate here.</p>
                 </div>
               )}
-              {me && on && !idea.locked && (
+              {canEdit && on && (
                 <div className="mt-6 border-t border-dashed border-hairline pt-6">
                   <ValidateForm slug={slug} disabled={false} />
                 </div>
@@ -122,7 +119,7 @@ async function IdeaLab({ team, me }: HubContext) {
             {canSubmit && (
               <Panel title="Lock and submit">
                 <p className="mb-4 font-plex text-sm leading-relaxed text-lightgray">
-                  Happy with it? Submit it as your team&apos;s idea and start building. You can keep editing and re-validating until you lock it.
+                  Happy with it? Submit it as your team&apos;s idea and start building. You can keep editing and re-validating until you submit.
                 </p>
                 <SubmitIdeaForm slug={slug} />
               </Panel>

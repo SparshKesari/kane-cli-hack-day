@@ -2,7 +2,7 @@
 //   - 20 simultaneous help tickets all land, with distinct codes
 //   - two mentors claim the same ticket: exactly one wins, the other gets 409
 //   - finalize twice returns the same receipt
-//   - finalize after the server-clock lock returns SUBMISSION_LOCKED
+//   - after the submission deadline time drafts still save and finalize isn't locked
 //   - a manual receipt can be recorded when online finalize is unavailable
 //
 // Never point this at the live database. It refuses to run unless
@@ -97,7 +97,7 @@ async function signInAsCaptain(teamIdx: number) {
   await m.session.setMemberSession({ memberId: ids.members[teamIdx * 4], personal: true });
 }
 
-test("finalize twice returns the same receipt; after the lock it is SUBMISSION_LOCKED", { skip }, async () => {
+test("finalize twice returns the same receipt; after the deadline time drafts still save and finalize isn't locked", { skip }, async () => {
   const slug = `${tag}-t1`;
   const teamId = ids.teams[1];
   await signInAsCaptain(1);
@@ -122,13 +122,15 @@ test("finalize twice returns the same receipt; after the lock it is SUBMISSION_L
   assert.equal(a.data.receipt_code, c.data.receipt_code);
   assert.equal(c.data.already, true);
 
-  // Lock: move the deadline into the past on this branch, then a fresh team can't finalize.
+  // The deadline time no longer locks anything (event day, 2026-10-24): move it into the past on
+  // this branch, then a fresh team can still save, and finalize fails only on what's missing.
   const [ev] = await m.db.query<{ locks: Date }>("select submission_locks_at as locks from hack_events where id = current_event_id()");
   await m.db.query("update hack_events set submission_locks_at = now() - interval '1 minute' where id = current_event_id()");
   try {
     await signInAsCaptain(2);
-    await assert.rejects(m.sub.finalizeSubmission(`${tag}-t2`, { ...body, confirm_phrase: `${tag} team 2`, idempotency_key: `${tag}-final-3` }), (e: { code?: string }) => e.code === "SUBMISSION_LOCKED" || e.code === "VALIDATION_FAILED");
-    await assert.rejects(m.sub.saveDraft(`${tag}-t2`, { project_name: "late" }), (e: { code?: string }) => e.code === "SUBMISSION_LOCKED");
+    await m.sub.saveDraft(`${tag}-t2`, { project_name: "late" });
+    await assert.rejects(m.sub.finalizeSubmission(`${tag}-t2`, { ...body, confirm_phrase: `${tag} team 2`, idempotency_key: `${tag}-final-3` }), (e: { code?: string }) => e.code === "VALIDATION_FAILED");
+    assert.equal((await m.sub.getSubmissionContext(ids.teams[2])).locked, false);
   } finally {
     await m.db.query("update hack_events set submission_locks_at = $1 where id = current_event_id()", [ev.locks]);
   }

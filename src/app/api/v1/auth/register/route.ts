@@ -10,7 +10,7 @@ import { readBody } from "../../teams/body";
 
 // POST /api/v1/auth/register: save the profile and activate TestMu AI; returns the access key once.
 // No TestMu key needed: this is where it comes from.
-//   { name, email (the Luma one), linkedin, x, github?, password (8+), looking?: "yes",
+//   { name, email (the Luma one), linkedin, x?, github?, password (8+), looking?: "yes",
 //     proof_password? | proof_code? (only when the email already has an account) }
 // The same profile as /register. Saves it, then activates the person on TestMu AI
 // with it: TestMu answers with their username + access key, returned here ONCE as

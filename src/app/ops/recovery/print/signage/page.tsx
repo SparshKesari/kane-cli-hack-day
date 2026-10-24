@@ -14,8 +14,8 @@ export const metadata: Metadata = { title: "QR signage", robots: { index: false 
 const POSTERS = [
   { path: "/activate", eyebrow: "Start here", title: "Activate your Hacker Passport", body: "Your personal passport is separate from team registration. Selfie and photo permissions are optional and separate. Stuck? The check-in desk can do it with you." },
   { path: "/help", eyebrow: "Stuck?", title: "Get a mentor", body: "Open a help ticket: category, table, one sentence. Never paste passwords, tokens or secret logs. If this page is down, take a paper ticket at the help desk." },
-  { path: "/match", eyebrow: "Looking for a team?", title: "Team finder", body: "Share your skills and interests only if you want to be discoverable. Teams choose whom to invite. Team registration closes at {teamLock}." },
-  { path: "/live", eyebrow: "Mission Control", title: "Live clock and announcements", body: "The official submission clock. If the screen says STALE, the deadline still stands: {lock}." },
+  { path: "/match", eyebrow: "Looking for a team?", title: "Team finder", body: "Share your skills and interests only if you want to be discoverable. Teams choose whom to invite. Teams are due at {teamLock}." },
+  { path: "/live", eyebrow: "Mission Control", title: "Live clock and announcements", body: "The official submission clock. If the screen says STALE, submissions are still due {lock}." },
 ] as const;
 
 export default function SignagePage() {
@@ -49,7 +49,7 @@ export default function SignagePage() {
                           </p>
                         )}
                         <p>
-                          Submission lock <span className="text-bright">{v.lock}</span>
+                          Submissions due <span className="text-bright">{v.lock}</span>
                         </p>
                         {v.helpContact && (
                           <p>

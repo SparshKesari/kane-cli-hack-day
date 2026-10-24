@@ -24,8 +24,12 @@ export function smtpConfig(env: Env = process.env): SmtpConfig | null {
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function couponEmail(input: { name: string | null; code: string }) {
+/** A redemption link stored with the code (an extra CSV column): https only, no spaces or markup characters. */
+const safeLink = (link: unknown) => (typeof link === "string" && /^https:\/\/[^\s"'<>]+$/.test(link) ? link : null);
+
+export function couponEmail(input: { name: string | null; code: string; link?: unknown }) {
   const who = input.name?.trim() || "there";
+  const link = safeLink(input.link);
   const subject = "Your OpenAI Codex coupon for Kane CLI Hack Day";
   const text = [
     `Hi ${who},`,
@@ -34,7 +38,8 @@ export function couponEmail(input: { name: string | null; code: string }) {
     "",
     `    ${input.code}`,
     "",
-    "Redeem it on OpenAI to add the credits to your account, then go back to Codex and carry on with $hack-os.",
+    link ? `Redeem it here: ${link}` : "Redeem it on OpenAI to add the credits to your account.",
+    "Then go back to Codex and carry on with $hack-os.",
     "",
     "One coupon per person: please keep it to yourself.",
     "Questions? Ask at the help desk or at https://www.kaneclihack.sh/help.",
@@ -44,7 +49,7 @@ export function couponEmail(input: { name: string | null; code: string }) {
   const html = `<p>Hi ${escapeHtml(who)},</p>
 <p>Here is your OpenAI Codex coupon for Kane CLI Hack Day:</p>
 <p style="font:600 18px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.04em">${escapeHtml(input.code)}</p>
-<p>Redeem it on OpenAI to add the credits to your account, then go back to Codex and carry on with <code>$hack-os</code>.</p>
+<p>${link ? `<a href="${escapeHtml(link)}">Redeem it here</a> (signed in to OpenAI).` : "Redeem it on OpenAI to add the credits to your account."} Then go back to Codex and carry on with <code>$hack-os</code>.</p>
 <p>One coupon per person: please keep it to yourself.<br>Questions? Ask at the help desk or at <a href="https://www.kaneclihack.sh/help">kaneclihack.sh/help</a>.</p>
 <p>Kane CLI Hack Day</p>`;
   return { subject, text, html };

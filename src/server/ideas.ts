@@ -5,6 +5,7 @@ import { requireFlag } from "@/lib/flags";
 import { IDEA_VALIDATOR_PROMPT } from "@/generated/idea-validator-prompt";
 import { draftObject } from "./ai";
 import { AppError, parse, sha256, withAudit, writeAudit, z, zx, type Receipt } from "./core";
+import { hasRole, type Staff } from "./auth";
 import { receiptOf, type ActingMember } from "./teams";
 
 // Ideas (SPEC §4, E6). A team's idea is private by default; every save is a
@@ -51,7 +52,7 @@ export type Idea = {
   frozen_at: Date | null;
   updated_at: Date;
   idea_lock_at: Date;
-  /** Past the idea lock by the server clock (or already frozen). */
+  /** Always false: ideas never lock (event day, 2026-10-24). Kept for callers and API clients. */
   locked: boolean;
   revision: number;
 };
@@ -184,14 +185,13 @@ export type IdeaInput = {
 const IDEA_SELECT = `
   select i.id, i.team_id, i.title, i.private_description, i.app_type, i.kane_plan, i.extra_info, i.public_summary, i.discovery_opt_in, i.project_type,
          i.qualification, i.status, i.frozen_at, i.updated_at, e.idea_lock_at,
-         (i.status = 'frozen' or now() >= e.idea_lock_at) as locked,
+         false as locked,
          coalesce((select max(r.revision) from idea_revisions r where r.idea_id = i.id), 0)::int as revision
     from ideas i join teams t on t.id = i.team_id
     join hack_events e on e.id = coalesce(t.event_id, current_event_id())`;
 
 /** The team's idea (private fields included: callers must be that team or organizer staff). */
 export async function getIdea(teamId: number): Promise<Idea | null> {
-  await syncIdeaFreeze();
   const [row] = await query<Idea>(`${IDEA_SELECT} where i.team_id = $1`, [teamId]);
   if (row) return row;
   // Teams made before 011 ran, or created elsewhere: make the row so the tab always works.
@@ -201,6 +201,38 @@ export async function getIdea(teamId: number): Promise<Idea | null> {
 }
 
 export type Revision = { revision: number; created_at: Date; actor: string | null; title: string; verdict: Verdict | null; generator: string | null };
+
+export type OpsIdeaRow = {
+  team_id: number;
+  team_name: string;
+  team_slug: string;
+  team_state: string;
+  title: string | null;
+  app_type: string | null;
+  private_description: string | null;
+  kane_plan: string | null;
+  extra_info: string | null;
+  status: IdeaStatus | null;
+  updated_at: Date | null;
+  revision: number;
+  /** Something was saved: a revision, a description or a Kane plan (a team's blank row doesn't count). */
+  saved: boolean;
+};
+
+/** Every team's idea for /ops/ideas, newest first, teams with nothing saved last; withdrawn teams left out. Organizer only. */
+export async function listIdeasForOps(staff: Staff | null): Promise<OpsIdeaRow[]> {
+  if (!hasRole(staff, "organizer")) throw new AppError("FORBIDDEN");
+  return query<OpsIdeaRow>(
+    `select t.id as team_id, t.name as team_name, t.slug as team_slug, t.state as team_state,
+            i.title, i.app_type, i.private_description, i.kane_plan, i.extra_info, i.status, i.updated_at, coalesce(r.n, 0) as revision,
+            (coalesce(r.n, 0) > 0 or coalesce(i.private_description, '') <> '' or coalesce(i.kane_plan, '') <> '') as saved
+       from teams t
+       left join ideas i on i.team_id = t.id
+       left join lateral (select max(x.revision)::int as n from idea_revisions x where x.idea_id = i.id) r on true
+      where t.state <> 'withdrawn'
+      order by (coalesce(r.n, 0) > 0 or coalesce(i.private_description, '') <> '' or coalesce(i.kane_plan, '') <> '') desc, i.updated_at desc nulls last, t.name`,
+  );
+}
 
 export async function listRevisions(ideaId: number, limit = 20) {
   return query<Revision>(
@@ -221,23 +253,8 @@ export async function latestAssessment(ideaId: number) {
   return row ?? null;
 }
 
-/** Freeze every idea once the idea lock passes (server clock). Lazy; the cron may call it too. */
-export async function syncIdeaFreeze() {
-  const rows = await query<{ id: number }>(
-    `update ideas i set status = 'frozen', frozen_at = now(), updated_at = now()
-       from teams t, hack_events e
-      where t.id = i.team_id and e.id = coalesce(t.event_id, current_event_id())
-        and i.status <> 'frozen' and now() >= e.idea_lock_at
-      returning i.id`,
-  ).catch((err) => {
-    console.error("[ideas] freeze sync failed", err);
-    return [];
-  });
-  for (const r of rows) {
-    await writeAudit({ type: "system", label: "idea lock" }, { action: "idea.freeze", resourceType: "idea", resourceId: r.id, reason: "Idea lock time reached" }).catch(() => {});
-  }
-  return rows.length;
-}
+// Ideas never freeze (event day, 2026-10-24: teams kept refining after noon). An idea frozen
+// before that is still editable, and saving it takes it out of the freeze.
 
 // ── Save (T-IDEA-01, T-IDEA-04) ──────────────────────────────────────────────
 
@@ -256,13 +273,11 @@ export const ideaSchema = z
   })
   .refine((v) => !v.discovery_opt_in || !!v.public_summary, { message: "Write a public summary before sharing it with other teams.", path: ["public_summary"] });
 
-/** Save a new revision. Any team member; refused after the idea lock. */
+/** Save a new revision. Any team member, at any time. */
 export async function saveIdea(who: ActingMember, teamId: number, input: unknown): Promise<{ idea: Idea; receipt: Receipt }> {
   const data = parse(ideaSchema, input);
   const cur = await getIdea(teamId);
   if (!cur) throw new AppError("NOT_FOUND");
-  if (cur.locked) throw new AppError("DEADLINE_PASSED", { userMessage: "Ideas froze at the idea lock. Ask an organizer if something needs to change." });
-
   const next = { app_type: data.app_type ?? cur.app_type, kane_plan: data.kane_plan ?? cur.kane_plan, extra_info: data.extra_info ?? cur.extra_info };
   const textChanged =
     cur.title !== data.title ||
@@ -278,8 +293,8 @@ export async function saveIdea(who: ActingMember, teamId: number, input: unknown
     const { rows } = await tx.query<{ now: Date; revision: number }>(
       `with u as (
          update ideas set title = $2, private_description = $3, public_summary = $4, discovery_opt_in = $5, project_type = $6,
-                qualification = $7, status = $8, app_type = $11, kane_plan = $12, extra_info = $13, updated_at = now()
-          where id = $1 and status <> 'frozen' returning id)
+                qualification = $7, status = $8, app_type = $11, kane_plan = $12, extra_info = $13, frozen_at = null, updated_at = now()
+          where id = $1 returning id)
        insert into idea_revisions (idea_id, revision, user_submitted, actor_id)
        select u.id, coalesce((select max(revision) from idea_revisions where idea_id = u.id), 0) + 1, $9, $10 from u
        returning now() as now, revision`,
@@ -299,7 +314,7 @@ export async function saveIdea(who: ActingMember, teamId: number, input: unknown
         next.extra_info,
       ],
     );
-    if (!rows[0]) throw new AppError("DEADLINE_PASSED", { userMessage: "Ideas froze at the idea lock." });
+    if (!rows[0]) throw new AppError("NOT_FOUND");
     // Sharing is a per-person consent too: record the choice of whoever flipped it.
     if (cur.discovery_opt_in !== data.discovery_opt_in) {
       await tx.query("insert into member_consents (member_id, category, granted, source) values ($1, 'idea_discovery', $2, $3)", [who.member.id, data.discovery_opt_in, data.source]);
@@ -324,37 +339,36 @@ export async function selectIdea(who: ActingMember, teamId: number, captainId: n
   if (captainId !== who.member.id) throw new AppError("FORBIDDEN", { userMessage: "Only the team captain can lock in the idea." });
   const cur = await getIdea(teamId);
   if (!cur) throw new AppError("NOT_FOUND");
-  if (cur.locked) throw new AppError("DEADLINE_PASSED", { userMessage: "Ideas froze at the idea lock." });
   return withAudit(who.actor, "idea.select", "idea", async (tx) => {
-    const { rows } = await tx.query<{ now: Date }>("update ideas set status = 'selected', updated_at = now() where id = $1 and status <> 'frozen' returning now() as now", [cur.id]);
-    if (!rows[0]) throw new AppError("DEADLINE_PASSED");
+    const { rows } = await tx.query<{ now: Date }>("update ideas set status = 'selected', frozen_at = null, updated_at = now() where id = $1 returning now() as now", [cur.id]);
+    if (!rows[0]) throw new AppError("NOT_FOUND");
     return { result: receiptOf(`IDEA-${cur.id}`, rows[0].now), resourceId: cur.id, before: { status: cur.status }, after: { status: "selected" } };
   });
 }
 
-/** The team locked its own idea in before the event-wide idea lock (the site's "Lock and submit"). */
-export const submittedEarly = (idea: Pick<Idea, "status" | "frozen_at" | "idea_lock_at">) =>
-  idea.status === "frozen" && !!idea.frozen_at && new Date(idea.frozen_at) < new Date(idea.idea_lock_at);
+/** The team has submitted its idea (the site's "Lock and submit", or Codex's idea select). Saves keep it. */
+export const isSubmitted = (idea: Pick<Idea, "status">) => idea.status === "selected";
 
 /**
- * Lock and submit: freezes the team's idea now instead of at the idea lock, so
- * nobody (site or Codex) can change it afterwards. Only once the latest save
- * has been through the validator. Any team member; the form asks them to confirm.
+ * Lock and submit (the site's Idea tab): marks the idea as the team's choice,
+ * once the latest save has been through the validator. Ideas never lock on the
+ * server, so Codex can still save; the site shows the idea read-only with
+ * "Go hack". Any team member; the form asks them to confirm.
  */
 export async function submitIdea(who: ActingMember, teamId: number): Promise<Receipt> {
   const cur = await getIdea(teamId);
   if (!cur) throw new AppError("NOT_FOUND");
-  if (cur.locked) throw new AppError("CONFLICT", { userMessage: "Your idea is already locked." });
+  if (isSubmitted(cur)) throw new AppError("CONFLICT", { userMessage: "Your idea is already submitted." });
   const latest = await latestAssessment(cur.id);
   if (!cur.revision || !latest || latest.revision < cur.revision)
-    throw new AppError("CONFLICT", { userMessage: "Save your idea and run the validator on that version first, then lock it." });
+    throw new AppError("CONFLICT", { userMessage: "Save your idea and run the validator on that version first, then submit it." });
   return withAudit(who.actor, "idea.submit", "idea", async (tx) => {
     const { rows } = await tx.query<{ now: Date }>(
-      "update ideas set status = 'frozen', frozen_at = now(), updated_at = now() where id = $1 and status <> 'frozen' returning now() as now",
+      "update ideas set status = 'selected', frozen_at = null, updated_at = now() where id = $1 and status <> 'selected' returning now() as now",
       [cur.id],
     );
-    if (!rows[0]) throw new AppError("CONFLICT", { userMessage: "Your idea is already locked." });
-    return { result: receiptOf(`IDEA-${cur.id}`, rows[0].now), resourceId: cur.id, before: { status: cur.status }, after: { status: "frozen" } };
+    if (!rows[0]) throw new AppError("CONFLICT", { userMessage: "Your idea is already submitted." });
+    return { result: receiptOf(`IDEA-${cur.id}`, rows[0].now), resourceId: cur.id, before: { status: cur.status }, after: { status: "selected" } };
   });
 }
 
@@ -546,10 +560,10 @@ async function checkAndStore<A extends StoredAssessment>(who: ActingMember, team
         who.member.id,
       ],
     );
-    // A frozen idea keeps its state; the advisory result is still recorded.
+    // A frozen idea comes out of the freeze, like a save.
     await tx.query(
-      `update ideas set qualification = $2, status = case when status = 'draft' then 'validated' else status end, updated_at = now()
-        where id = $1 and status <> 'frozen'`,
+      `update ideas set qualification = $2, status = case when status in ('draft','frozen') then 'validated' else status end, frozen_at = null, updated_at = now()
+        where id = $1`,
       [idea.id, assessment.verdict],
     );
     return {

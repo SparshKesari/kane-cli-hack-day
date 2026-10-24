@@ -387,6 +387,37 @@ test("the idea's type, Kane plan and extra info save, and a save without them ke
   assert.deepEqual([idea.title, idea.app_type, idea.kane_plan], ["Ledger 2", "Web app", "Kane checks sign-up and settle-up after every change."]);
 });
 
+// The idea lock time no longer freezes ideas (event day, 2026-10-24): teams kept refining after noon.
+test("an idea still saves after the idea lock time, and nothing freezes it", { skip }, async () => {
+  const { saveIdea, getIdea } = await import("../../src/server/ideas.ts");
+  await register("ideaLate");
+  const me = (await viewer())!;
+  const { teamId } = await m.teams.createTeam(acting(me), { name: `${tag} Late Idea` });
+  const [saved] = await m.db.query<{ at: Date }>("select idea_lock_at as at from hack_events where id = current_event_id()");
+  await m.db.query("update hack_events set idea_lock_at = now() - interval '1 minute' where id = current_event_id()");
+  try {
+    await saveIdea(acting(me), teamId, { title: "After noon", private_description: "Still changing." });
+    const idea = (await getIdea(teamId))!;
+    assert.deepEqual([idea.title, idea.locked, idea.status === "frozen"], ["After noon", false, false]);
+  } finally {
+    await m.db.query("update hack_events set idea_lock_at = $1 where id = current_event_id()", [saved.at]);
+  }
+});
+
+// Ideas frozen at the idea lock before that was switched off still save, and come out of the freeze.
+test("a frozen idea still saves and is no longer frozen", { skip }, async () => {
+  const { saveIdea, getIdea } = await import("../../src/server/ideas.ts");
+  await register("ideaFrozen");
+  const me = (await viewer())!;
+  const { teamId } = await m.teams.createTeam(acting(me), { name: `${tag} Frozen Idea` });
+  await saveIdea(acting(me), teamId, { title: "Before noon", private_description: "First pass." });
+  await m.db.query("update ideas set status = 'frozen', frozen_at = now() where team_id = $1", [teamId]);
+  assert.equal((await getIdea(teamId))!.locked, false);
+  await saveIdea(acting(me), teamId, { title: "After noon", private_description: "Second pass." });
+  const idea = (await getIdea(teamId))!;
+  assert.deepEqual([idea.title, idea.status, idea.frozen_at, idea.locked], ["After noon", "draft", null, false]);
+});
+
 test("skills added on /match survive a later profile save", { skip }, async () => {
   await register("keepSkills", { skills: "", interests: "" });
   const me = (await viewer())!;

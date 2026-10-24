@@ -24,7 +24,7 @@ export async function GET() {
         submissions,
       },
       links: [{ label: "Event site", url: siteUrl("/") }],
-      fallbackText: `${event.name} ${event.city} on ${event.date}. ${event.tagline}${clock?.locks_at ? ` Submissions lock at ${new Date(clock.locks_at).toISOString()}.` : ""}`,
+      fallbackText: `${event.name} ${event.city} on ${event.date}. ${event.tagline}${clock?.locks_at ? ` Submissions due ${new Date(clock.locks_at).toISOString()}.` : ""}`,
     };
   });
 }

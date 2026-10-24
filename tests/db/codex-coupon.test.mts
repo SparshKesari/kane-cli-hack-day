@@ -43,12 +43,16 @@ before(async () => {
     import("../../src/server/mcp.ts"),
   ]);
   m = { db, coupon, roster, activation, A, mcp };
-  await db.query(`insert into codex_credit_codes (code, batch) select 'QA-${tag}-' || n, 'qa-${tag}' from generate_series(1, 10) n`);
+  // Like the real pool: each code keeps its redemption link (an extra CSV column) in `extra`.
+  await db.query(
+    `insert into codex_credit_codes (code, batch, extra)
+     select 'QA-${tag}-' || n, 'qa-${tag}', jsonb_build_object('link', 'https://platform.openai.com/p/QA-${tag}-' || n) from generate_series(1, 10) n`,
+  );
 });
 
 after(async () => {
   if (skip || !m) return;
-  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma", "kim", "lee", "max"].map((w) => hash(addr(w)));
+  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma", "kim", "lee", "max", "nia"].map((w) => hash(addr(w)));
   await m.db.query(`delete from codex_credit_codes where code like 'QA-${tag}-%'`).catch(() => {});
   await m.db
     .query(
@@ -144,6 +148,7 @@ test("someone on the list gets a code by email, and the response never carries i
   assert.equal(last.to, addr("ann"));
   assert.match(last.text, new RegExp(k.code));
   assert.match(last.text, /^Hi Ann QA,/);
+  assert.ok(last.text.includes(`Redeem it here: https://platform.openai.com/p/${k.code}`), "the code's redemption link is in the email");
 });
 
 test("asking again re-sends the same code instead of taking another", { skip }, async () => {
@@ -302,4 +307,22 @@ test("the event tool takes at most 10 requests an hour from one member", { skip 
   const ctx = { member: row as never, actor: { type: "member" as const, id: (row as { id: number }).id }, requestId: "qa" };
   for (let i = 0; i < 10; i++) assert.equal((await m.A.sendCodexCoupon(ctx, `${tag}.probe${i}@example.test`)).outcome, "not_on_list");
   await assert.rejects(m.A.sendCodexCoupon(ctx, `${tag}.probe10@example.test`), (e: { code?: string }) => e.code === "RATE_LIMITED");
+});
+
+// /activate step 3 promised an email that nothing on the page sent: only the event tool and the
+// REST route did. The button sends it to the signed-in email, like the tool.
+test("/activate: Email my Codex coupon sends it to the signed-in member's email", { skip }, async () => {
+  await addPeople({ email: addr("nia"), name: "Nia QA" });
+  const [mem] = await m.db.query<{ id: number }>("insert into members (name, email, email_hash) values ('Nia QA', $1, $2) returning id", [addr("nia"), hash(addr("nia"))]);
+  const headers = await import("../support/stubs/next-headers.mjs");
+  headers.jar.clear();
+  const { setMemberSession } = await import("../../src/lib/session.ts");
+  await setMemberSession({ memberId: mem.id, personal: true });
+  const before = (globalThis as unknown as { __mail?: { sent: unknown[] } }).__mail?.sent.length ?? 0;
+  const actions = await import("../../src/app/activate/actions.ts");
+  const r = await actions.sendCouponAction();
+  assert.equal(r?.ok, true, JSON.stringify(r));
+  assert.match(String(r?.message), /Sent the Codex coupon/);
+  assert.equal((await codeFor(addr("nia"))).length, 1, "a code is assigned to that roster row");
+  assert.equal((globalThis as unknown as { __mail: { sent: unknown[] } }).__mail.sent.length, before + 1, "one email went out");
 });

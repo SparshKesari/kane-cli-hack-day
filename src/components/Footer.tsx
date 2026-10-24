@@ -17,8 +17,7 @@ const columns = [
   {
     title: "Your day",
     links: [
-      { href: "/register", label: "Start here" },
-      { href: "/passport/login", label: "Sign in" },
+      { href: "/#start", label: "Start here" },
       { href: "/me", label: "Continue where you left off" },
       { href: "/setup", label: "Set up Codex" },
     ],

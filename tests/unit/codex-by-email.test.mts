@@ -14,6 +14,7 @@ test("step 3 on /activate says the Codex coupon comes by email, with no code but
   const page = readFileSync("src/app/activate/page.tsx", "utf8");
   assert.doesNotMatch(page, /<GetCodeButton/, "no code handout on the page");
   assert.match(page, /CODEX_BY_EMAIL\(email\)/, "the page shows which address the coupon goes to");
+  assert.match(page, /<SendCouponButton/, "a button on the page sends the coupon email");
 });
 
 test("the /setup coupon step explains the email instead of a placeholder", () => {
@@ -30,11 +31,10 @@ test("hack-os tells people the coupon arrives by email", () => {
   }
 });
 
-test("the installer's next steps are terminal commands, and only $hack-os is in Codex", () => {
+test("the installer's next step is $hack-os in a Codex session, not terminal commands", () => {
   for (const file of ["public/install.sh", "public/install.ps1"]) {
     const src = readFileSync(file, "utf8");
-    assert.doesNotMatch(src, /from Codex, no terminal/, file);
-    assert.match(src, /Next, in this terminal:/, file);
-    assert.match(src, /Then in Codex: start a new session and type \$hack-os/, file);
+    assert.match(src, /Next: start a Codex session and enter \$hack-os/, file);
+    assert.doesNotMatch(src, /Next, in this terminal:|link this machine to your passport/, file);
   }
 });

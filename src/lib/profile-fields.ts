@@ -28,8 +28,7 @@ export function checkProfileFields(v: ProfileFieldValues, opts: { passwordRequir
   else if (!LINKEDIN.test(li)) e.linkedin = "Paste your profile link (linkedin.com/in/your-name) or just the name after /in/, with no spaces.";
 
   const x = (v.x ?? "").trim();
-  if (!x) e.x = "Add your X (Twitter) handle.";
-  else if (!X.test(x)) e.x = "Use your handle (@riya_dev) or profile link (x.com/riya_dev): letters, numbers and _ only, up to 15 characters.";
+  if (x && !X.test(x)) e.x = "Use your handle (@riya_dev) or profile link (x.com/riya_dev): letters, numbers and _ only, up to 15 characters.";
 
   const gh = githubFromInput(v.github ?? "");
   if (gh && !GITHUB.test(gh)) e.github = "Use your GitHub username (riya-dev) or profile link (github.com/riya-dev): letters, numbers and dashes, no spaces or commas.";

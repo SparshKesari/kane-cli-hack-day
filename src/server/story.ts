@@ -411,11 +411,8 @@ export async function publishShowcase(access: ProjectAccess, input: unknown): Pr
 
   const { result } = await idempotent(idempotency_key, `showcase.publish:project:${project.id}`, () =>
     withAudit(actor, "showcase.publish", "published_asset", async (tx) => {
-      const { rows: now } = await tx.query<{ now: Date; locked: boolean }>(
-        "select now() as now, coalesce((select now() >= submission_locks_at from hack_events where id = current_event_id()), false) as locked",
-      );
-      // After the deadline the public page must keep matching the signed submission.
-      if (now[0].locked) throw new AppError("SUBMISSION_LOCKED", { userMessage: "Submissions are locked, so the public Ship Page can't change now. Ask an organizer if something is wrong." });
+      // The submission deadline time no longer locks the Ship Page (event day, 2026-10-24).
+      const { rows: now } = await tx.query<{ now: Date }>("select now() as now");
       const { rows: cur } = await tx.query<{ showcase_state: ProjectRow["showcase_state"] }>("select showcase_state from projects where id = $1 for update", [project.id]);
       if (cur[0]?.showcase_state === "hidden_by_moderation") throw new AppError("FORBIDDEN", { userMessage: "This Ship Page is hidden by an organizer. Ask at the help desk." });
       const { rows: sub } = await tx.query<{ id: number }>(

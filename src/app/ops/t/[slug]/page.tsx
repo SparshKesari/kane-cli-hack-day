@@ -7,6 +7,7 @@ import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { getEventPhotos, getMemberProfiles, getTeamPhotoInfo, photoSrc } from "@/lib/photos";
 import { isAdmin } from "@/lib/session";
 import { getActivity, getMembers, getProgress, getTeamBySlug } from "@/lib/teams";
+import { getIdea } from "@/server/ideas";
 import { AdminLogin } from "../../parts";
 
 export const metadata: Metadata = { title: "Admin · Team", robots: { index: false } };
@@ -35,13 +36,14 @@ async function Detail({ params }: Pick<PageProps<"/ops/t/[slug]">, "params">) {
   const team = await getTeamBySlug(slug);
   if (!team) notFound();
 
-  const [members, progress, activity, photoInfo, profiles, gallery] = await Promise.all([
+  const [members, progress, activity, photoInfo, profiles, gallery, idea] = await Promise.all([
     getMembers(team.id),
     getProgress(team.id),
     getActivity(team.id, 200),
     getTeamPhotoInfo(team.id),
     getMemberProfiles(team.id),
     getEventPhotos(team.id),
+    getIdea(team.id),
   ]);
   const profileOf = new Map(profiles.map((p) => [p.id, p]));
   const teamPhoto = photoSrc(photoInfo.photo_url);
@@ -61,7 +63,21 @@ async function Detail({ params }: Pick<PageProps<"/ops/t/[slug]">, "params">) {
             /t/{team.slug}
           </Link>
         </p>
-        <p className="mt-4 max-w-2xl border-l-2 border-lime pl-4 font-plex text-bright">{team.idea}</p>
+        {/* The saved idea (idea_save / the Idea tab); teams.idea is only the old free-text field from team creation. */}
+        {idea && (idea.private_description || idea.kane_plan) ? (
+          <div className="mt-4 max-w-2xl space-y-2 border-l-2 border-lime pl-4 font-plex">
+            <p className="text-bright">
+              <span className="font-display text-lg">{idea.title}</span>
+              {idea.app_type && <span className="text-sm text-lightgray"> · {idea.app_type}</span>}
+            </p>
+            {idea.private_description && <p className="whitespace-pre-line text-sm text-bright">{idea.private_description}</p>}
+            {idea.kane_plan && <p className="whitespace-pre-line text-sm text-lightgray">Kane plan: {idea.kane_plan}</p>}
+          </div>
+        ) : team.idea ? (
+          <p className="mt-4 max-w-2xl border-l-2 border-lime pl-4 font-plex text-bright">{team.idea}</p>
+        ) : (
+          <p className="mt-4 font-plex text-sm text-lightgray">No idea saved yet.</p>
+        )}
       </div>
 
       <div className="grid gap-12 lg:grid-cols-2">

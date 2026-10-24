@@ -77,7 +77,7 @@ Check "yes: kanehack $Version installed (sha256 verified)" ((KhVersion) -eq $Ver
 Check "yes: the hack-os skill in .agents\skills (where Codex reads it), marked with this version" ((@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 2) -and (Test-Path (Join-Path $H ".agents\skills\hack-os\SKILL.md")) -and ((Get-Content (Join-Path $H ".agents\skills\hack-os\.bundle-version") -Raw).Trim() -eq $Version)) $Log
 Check "yes: the hack-gtm skill next to it" ((Get-Content (Join-Path $H ".agents\skills\hack-gtm\SKILL.md") -Raw) -match "(?m)^name: hack-gtm") $Log
 Check "yes: kanehack.cmd + sh shim in npm's prefix" ((Test-Path (Join-Path $Npm "kanehack.cmd")) -and (Test-Path (Join-Path $Npm "kanehack"))) $Log
-Check "yes: next steps say plain kanehack" ((LogHas "  1. kanehack pair") -and -not (LogHas '& "')) $Log
+Check "yes: the next step is `$hack-os in a Codex session" ((LogHas 'Next: start a Codex session and enter $hack-os') -and -not (LogHas 'Next, in this terminal')) $Log
 Check "yes: -Site saved as kanehack's server" ((Get-Content (Join-Path $H ".kanehack\config.json") -Raw) -match [regex]::Escape($Site)) $Log
 Check "yes: user PATH not touched" (-not (LogHas "added (this window and new ones)")) $Log
 $v = & cmd /c "set USERPROFILE=$H&& kanehack version"

@@ -101,10 +101,10 @@ export function SubmitIdeaForm({ slug }: { slug: string }) {
     <form action={action} className="space-y-4">
       <label className="flex min-h-11 cursor-pointer items-start gap-3 font-plex text-sm text-bright">
         <input type="checkbox" name="confirm" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--lime)]" />
-        <span>This is the idea we&apos;re building. Lock it for the whole team; it can&apos;t be edited after this.</span>
+        <span>This is the idea we&apos;re building. Submit it for the whole team; the form here becomes read-only.</span>
       </label>
-      <ActionNote state={state} ok="Locked." />
-      <SubmitButton pending="Locking…" className={`min-h-11 ${confirmed ? "" : "pointer-events-none opacity-50"}`}>
+      <ActionNote state={state} ok="Submitted." />
+      <SubmitButton pending="Submitting…" className={`min-h-11 ${confirmed ? "" : "pointer-events-none opacity-50"}`}>
         Lock and submit idea
       </SubmitButton>
     </form>
