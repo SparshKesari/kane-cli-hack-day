@@ -1,17 +1,15 @@
 #!/usr/bin/env node
 // Checks the idea validator's JSON (references/idea-validator.md), recomputes the verdict from
 // the scores (the model's own verdict is never trusted), and keeps the full result private in
-// ~/.kanehack/os/idea-check.json. Prints only what the team may see, plus the verdict for routing.
+// ~/.kanehack/os/idea-check.json (or the temp folder when Codex's sandbox blocks that). Prints only
+// what the team may see, plus the verdict for routing, even when nothing could be saved.
 //
 //   node idea-check.mjs --file <validator-output.json>
 //
 // JSON on stdout; exit 0, or 2 when the file isn't valid validator output (nothing is saved).
-import { mkdirSync, readFileSync, renameSync, writeFileSync, chmodSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { writeNote } from "./os-dir.mjs";
 
-const STATE = process.env.KANEHACK_OS_STATE || join(homedir(), ".kanehack", "os", "state.json");
-const SAVED = join(dirname(STATE), "idea-check.json");
 const IDS = ["clear_idea", "eligible", "shippable_today", "openai_in_build", "kane_flows_named", "kane_feasible", "agent_kane_loop", "unique_kane_usage", "unique_in_market"];
 const CORE = ["clear_idea", "eligible", "openai_in_build", "kane_flows_named", "kane_feasible"];
 const SECTIONS = ["idea", "uniqueness", "kane", "final"];
@@ -63,12 +61,5 @@ try {
 const r = parse(text);
 const saved = { ...r, verdict: verdict(r.criteria), checked_at: new Date().toISOString() };
 
-const dir = dirname(SAVED);
-mkdirSync(dir, { recursive: true, mode: 0o700 });
-chmodSync(dir, 0o700);
-const tmp = `${SAVED}.tmp-${process.pid}`;
-writeFileSync(tmp, JSON.stringify(saved, null, 2) + "\n", { mode: 0o600 });
-renameSync(tmp, SAVED);
-chmodSync(SAVED, 0o600);
-
+writeNote("idea-check.json", saved);
 process.stdout.write(JSON.stringify({ verdict: saved.verdict, comment: Object.fromEntries(SECTIONS.map((s) => [s, r.comment[s]])) }) + "\n");

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { cpSync, mkdtempSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, mkdtempSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -18,15 +18,16 @@ function sandbox(bundleVersion?: string) {
   const skill = join(dir, "hack-os");
   mkdirSync(join(skill, "scripts"), { recursive: true });
   cpSync(SCRIPT, join(skill, "scripts/state.mjs"));
+  cpSync(join(SCRIPT, "..", "os-dir.mjs"), join(skill, "scripts/os-dir.mjs"));
   if (bundleVersion) writeFileSync(join(skill, ".bundle-version"), bundleVersion + "\n");
   return { script: join(skill, "scripts/state.mjs"), state: join(dir, "os", "state.json") };
 }
 
-type Out = { version?: number; build?: string | null; help_issues?: string[]; updated_at?: string | null; current?: string; latest?: string | null; update?: boolean | null; error?: string; key_required?: boolean | null };
+type Out = { idea_check?: { verdict: string; checked_at: string } | null; version?: number; build?: string | null; help_issues?: string[]; updated_at?: string | null; current?: string; latest?: string | null; update?: boolean | null; error?: string; key_required?: boolean | null };
 
 function run(sb: { script: string; state: string }, ...args: string[]): Promise<{ code: number | null; json: Out; stderr: string }> {
   return new Promise((done) => {
-    const p = spawn(process.execPath, [sb.script, ...args], { env: { ...process.env, KANEHACK_OS_STATE: sb.state, KANEHACK_OS_ALLOW_LOCAL: "1" } });
+    const p = spawn(process.execPath, [sb.script, ...args], { env: { ...process.env, KANEHACK_OS_STATE: sb.state, KANEHACK_OS_FALLBACK: join(sb.state, "..", "..", "fallback"), KANEHACK_OS_ALLOW_LOCAL: "1" } });
     let out = "", err = "";
     p.stdout.on("data", (b) => (out += b));
     p.stderr.on("data", (b) => (err += b));
@@ -50,7 +51,7 @@ const serve = (body: string) =>
 test("get on a missing file returns an empty state", async () => {
   const r = await run(sandbox(), "get");
   assert.equal(r.code, 0);
-  assert.deepEqual(r.json, { version: 1, build: null, help_issues: [], updated_at: null });
+  assert.deepEqual(r.json, { version: 1, build: null, help_issues: [], updated_at: null, idea_check: null });
 });
 
 test("set-build then get round-trips", async () => {
@@ -105,7 +106,7 @@ test("check-version with the site unreachable is not an error", async () => {
 test("check-version refuses a non-official site unless local testing is allowed", async () => {
   const sb = sandbox("0.1.9");
   const r = await new Promise<number | null>((done) =>
-    spawn(process.execPath, [sb.script, "check-version", "--site", "https://evil.example"], { env: { ...process.env, KANEHACK_OS_STATE: sb.state } }).on("close", done),
+    spawn(process.execPath, [sb.script, "check-version", "--site", "https://evil.example"], { env: { ...process.env, KANEHACK_OS_STATE: sb.state, KANEHACK_OS_FALLBACK: join(sb.state, "..", "..", "fallback") } }).on("close", done),
   );
   assert.equal(r, 2);
 });
@@ -137,3 +138,43 @@ test("key-required with the site unreachable says unknown", async () => {
   assert.equal(r.code, 0);
   assert.deepEqual(r.json, { key_required: null, error: "unreachable" });
 });
+
+// Codex's default sandbox can't write ~/.kanehack/os (EPERM): set-build crashed there.
+test("a home folder it can't write to: set-build lands in the temp fallback and get reads it back", async () => {
+  const sb = sandbox();
+  const locked = join(sb.state, "..", "..", "locked");
+  mkdirSync(locked);
+  chmodSync(locked, 0o500);
+  const fallback = join(sb.state, "..", "..", "tmp-fallback");
+  const env = { KANEHACK_OS_STATE: join(locked, "os", "state.json"), KANEHACK_OS_FALLBACK: fallback };
+  const set = await runEnv(sb.script, env, "set-build", "building");
+  const got = await runEnv(sb.script, env, "get");
+  chmodSync(locked, 0o700);
+  assert.equal(set.code, 0, set.stderr);
+  assert.equal(got.json.build, "building");
+});
+
+test("get reports the idea check, wherever it was saved", async () => {
+  const sb = sandbox();
+  const fallback = join(sb.state, "..", "..", "tmp-fallback");
+  mkdirSync(fallback, { recursive: true });
+  writeFileSync(join(fallback, "idea-check.json"), JSON.stringify({ verdict: "needs_work", checked_at: "2026-10-24T15:00:00.000Z", criteria: [] }));
+  const got = await runEnv(sb.script, { KANEHACK_OS_STATE: sb.state, KANEHACK_OS_FALLBACK: fallback }, "get");
+  assert.deepEqual(got.json.idea_check, { verdict: "needs_work", checked_at: "2026-10-24T15:00:00.000Z" });
+});
+
+function runEnv(script: string, env: Record<string, string>, ...args: string[]): Promise<{ code: number | null; json: Out; stderr: string }> {
+  return new Promise((done) => {
+    const p = spawn(process.execPath, [script, ...args], { env: { ...process.env, ...env } });
+    let out = "", err = "";
+    p.stdout.on("data", (b) => (out += b));
+    p.stderr.on("data", (b) => (err += b));
+    p.on("close", (code) => {
+      let json: Out = {};
+      try {
+        json = JSON.parse(out);
+      } catch {}
+      done({ code, json, stderr: err });
+    });
+  });
+}

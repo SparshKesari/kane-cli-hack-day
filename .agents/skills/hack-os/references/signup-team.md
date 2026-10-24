@@ -25,6 +25,6 @@ After a write, call `participant_get_status` and confirm `team.name` and `team.s
 
 ## Lock the team
 
-When everyone has joined, the captain locks it. Say what it does (nobody can join, leave or be invited after this; an organizer can reopen it), ask "Lock <team name> as your final team?", then `team_lock` with `explicit_confirmation: true`. Only the captain can; teammates wait until `participant_get_status` shows `team.state` = `roster_locked`. A solo team locks the same way. Once locked, the TestMu side moves everyone into the captain's organization; that happens on its own.
+When everyone has joined, the captain locks it. Say what it does (nobody can join, leave or be invited after this; an organizer can reopen it), ask "Lock <team name> as your final team?", then `team_lock` with `explicit_confirmation: true`. Only the captain can. Teammates: "Ask your captain to lock the team. Type **done** here when it's finished." Then `participant_get_status` must show `team.state` = `roster_locked`; not yet → say so and wait for done again. A solo team locks the same way. Once locked, the TestMu side moves everyone into the captain's organization; that happens on its own.
 
 Then → `references/activate.md`.
