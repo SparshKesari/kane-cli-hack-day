@@ -124,7 +124,8 @@ export function parseKaneStream(ndjson: string): ParsedStream {
 
     if (type.startsWith("testrun_")) out.family = "testrun";
     else if (type.startsWith("test_md_") && out.family !== "testrun") out.family = "testmd";
-    else if (type === "run_end" && out.family === "unknown") out.family = "run";
+    else if ((type === "run_start" || type === "run_end") && out.family === "unknown") out.family = "run";
+    // A run's own coverage event (Kane CLI 0.10.0-rc.3+, before run_end) doesn't make it a cover stream: run_start came first.
     else if ((type === "coverage" || type === "gaps") && out.family === "unknown") out.family = "assurance";
 
     switch (type) {
