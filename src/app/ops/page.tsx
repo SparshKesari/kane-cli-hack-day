@@ -20,7 +20,6 @@ export const metadata: Metadata = { title: "Overview", robots: { index: false } 
 // numbers (a table not migrated yet) show "—", never 0.
 
 const SHORTCUTS = [
-  ["/ops/checkin", "Check-in desk", "Search, QR, walk-ins"],
   ["/ops/roster/import", "Import Luma CSV", "Diff before commit"],
   ["/ops/announcements", "Announce", "TV + hub"],
   ["/ops/recovery", "Recovery", "Incidents, paper intake"],
@@ -97,7 +96,6 @@ export default function OpsOverviewPage() {
                   items={[
                     { label: "Registered", value: ov.members, hint: `${ov.teams} teams · ${ov.solo} solo` },
                     { label: "On roster", value: ov.rosterGuests || null, hint: ov.rosterGuests ? `${ov.admitted} admitted` : "import Luma CSV", href: "/ops/roster" },
-                    { label: "Checked in", value: ov.rosterGuests || ov.checkedIn ? ov.checkedIn : null, hint: `${ov.walkIns} walk-ins`, href: "/ops/checkin" },
                     { label: "Reconcile", value: ov.needsReconciliation, hint: "no roster match", href: "/ops/roster?filter=needs_reconciliation" },
                     { label: "Help open", value: ov.helpOpen, hint: ov.helpOldestMin != null ? `oldest ${ov.helpOldestMin}m` : undefined, href: "/ops/help" },
                     { label: "Receipts", value: ov.receipts, hint: ov.manualReceipts ? `${ov.manualReceipts} manual` : undefined, href: "/ops/submissions" },

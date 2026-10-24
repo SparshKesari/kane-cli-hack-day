@@ -89,7 +89,7 @@ export default function Dashboard({ initial }: { initial: DashboardData }) {
   const teamsActive = raw("teams_active");
   const teamsVerified = raw("teams_verified");
   const moment = arriving
-    ? { chip: "Doors open", title: `${fmt(people.checked_in)} people are in the room.`, body: "Check in at the desk, then find a team. Walk-ins welcome.", a: people.checked_in, b: people.registered, unit: "registered" }
+    ? { chip: "Doors open", title: `${fmt(people.signed_up)} people have saved their profile.`, body: "Save your profile at kaneclihack.sh/register, then find a team.", a: people.signed_up, b: people.registered, unit: "on the guest list" }
     : { chip: "First proof unlocked", title: `${fmt(teamsVerified)} teams have their first green Kane run.`, body: "The first trusted passed run tied to a real project unlocks a team milestone.", a: teamsVerified, b: teamsActive, unit: "active teams" };
 
   return (
@@ -150,21 +150,21 @@ export default function Dashboard({ initial }: { initial: DashboardData }) {
             </h1>
             <p className="mt-4 max-w-md text-base text-[#c3bfe6] lg:text-lg">{spec.sub}</p>
             <div className="mt-5 flex flex-wrap items-end gap-x-4 gap-y-2">
-              <p className="text-8xl font-extrabold leading-none tracking-tighter tabular-nums lg:text-[7.5rem]">{arriving ? fmt(people.checked_in) : val(spec.primary)}</p>
+              <p className="text-8xl font-extrabold leading-none tracking-tighter tabular-nums lg:text-[7.5rem]">{arriving ? fmt(people.signed_up) : val(spec.primary)}</p>
               <div className="pb-3">
-                <p className={`${mono} text-xs font-semibold`}>{arriving ? "People checked in" : primaryLabel(spec.primary)}</p>
+                <p className={`${mono} text-xs font-semibold`}>{arriving ? "People signed up" : primaryLabel(spec.primary)}</p>
                 <p className="mt-1 max-w-[14rem] text-xs text-[#8f8bbd]">
-                  {arriving ? `of ${fmt(people.registered)} registered · ${fmt(people.signed_up)} signed up on the site` : "Verifiable run outcomes, not build count"}
+                  {arriving ? `profiles saved · ${fmt(people.registered)} on the guest list` : "Verifiable run outcomes, not build count"}
                 </p>
               </div>
             </div>
           </div>
-          <Velocity series={chart} title={arriving ? "Arrivals" : "Verification velocity"} unit={arriving ? "Check-ins / last 15 min" : "Runs / last 15 min"} footer={arriving ? "Check-ins at the desk · not sign-ups" : "Actual run endings · not builds"} demo={snap.demo_shown} />
+          <Velocity series={chart} title={arriving ? "Arrivals" : "Verification velocity"} unit={arriving ? "Sign-ups / last 15 min" : "Runs / last 15 min"} footer={arriving ? "Profiles saved on the site" : "Actual run endings · not builds"} demo={snap.demo_shown} />
         </section>
 
         {/* Metric strip */}
         <section aria-label="Live numbers" className="grid gap-px overflow-hidden rounded-2xl border border-[#262b4d] bg-[#262b4d] sm:grid-cols-2 lg:grid-cols-4">
-          <Tile icon="●" tone="green" label="Coming in" value={fmt(people.checked_in)} note={`of ${fmt(people.registered)} registered${pct(people.checked_in, people.registered) ? ` · ${pct(people.checked_in, people.registered)}` : ""}`} />
+          <Tile icon="●" tone="green" label="Signed up" value={fmt(people.signed_up)} note={`of ${fmt(people.registered)} on the guest list${pct(people.signed_up, people.registered) ? ` · ${pct(people.signed_up, people.registered)}` : ""}`} />
           <Tile icon="○" tone="green" label="First proof unlocked" value={val("teams_verified")} note={`of ${fmt(teamsActive)} active teams${pct(teamsVerified, teamsActive) ? ` · ${pct(teamsVerified, teamsActive)}` : ""}`} />
           <Tile icon="↗" tone="purple" label="Builds validated" value={val("builds_validated")} note="distinct commit SHAs" />
           <Tile icon="⌁" tone="amber" label="Potential detections" value={val("bugs_detected")} note="not confirmed bugs" />

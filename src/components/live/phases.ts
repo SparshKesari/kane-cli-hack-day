@@ -38,13 +38,13 @@ export type PhaseSpec = {
 export const PHASE_SPECS: Record<LivePhase, PhaseSpec> = {
   arrival: {
     index: "01",
-    kicker: "Check-in and matching",
+    kicker: "Arrival and matching",
     headline: ["Find your", "people."],
-    sub: "Every builder starts with a personal passport. Check in, find a team, then choose what you want to make.",
-    next: { title: "Check in, then find a team.", body: "Walk-ins welcome at the desk. Solo is fine. Teams lock at 11:00.", href: "/match", cta: "Scan: find a team" },
-    primary: "participants_checked_in",
+    sub: "Every builder starts with a personal passport. Save your profile, find a team, then choose what you want to make.",
+    next: { title: "Save your profile, then find a team.", body: "Start at kaneclihack.sh/register. Solo is fine. Teams lock at 11:00.", href: "/match", cta: "Scan: find a team" },
+    primary: "participants_registered",
     primaryTone: "neutral",
-    strip: ["participants_checked_in", "participants_activated", "teams_active", "help_open"],
+    strip: ["participants_registered", "participants_activated", "teams_active", "help_open"],
     panels: ["welcome", "teams", "activation", "activity"],
   },
   build: {

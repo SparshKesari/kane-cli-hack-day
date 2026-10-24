@@ -284,7 +284,7 @@ export default function LiveTV({
             {held && (
               <DegradedServiceAlert state={freshness as "delayed" | "stale" | "offline"} system="Live board">
                 Showing the last values received
-                {lastOk != null ? ` at ${clockFmt.format(lastOk + (offset ?? 0))}` : snap.as_of ? ` at ${clockFmt.format(new Date(snap.as_of))}` : ""}. Numbers are held, not reset. Check-in, help and submission still work.
+                {lastOk != null ? ` at ${clockFmt.format(lastOk + (offset ?? 0))}` : snap.as_of ? ` at ${clockFmt.format(new Date(snap.as_of))}` : ""}. Numbers are held, not reset. Help and submission still work.
               </DegradedServiceAlert>
             )}
             {snap.banners.slice(0, ops ? 6 : 2).map((b) => (
@@ -421,7 +421,7 @@ function Panel({ panel, snap, page, qrBig, held }: { panel: PanelKey; snap: Live
         <div className="grid h-full gap-6 sm:grid-cols-[1fr_auto]">
           <ol className="space-y-4 font-plex text-[clamp(1rem,1.3vw,1.6rem)]">
             {[
-              ["Check in at the desk.", "Luma guests and walk-ins both welcome; staff admit you."],
+              ["Save your profile.", "Start at kaneclihack.sh/register; it takes two minutes."],
               ["Activate your passport.", "A personal account, independent of any team."],
               ["Find a team, or stay solo.", "Teams lock at 11:00. Scan the code to browse open seats."],
             ].map(([t, d], i) => (
@@ -456,7 +456,7 @@ function Panel({ panel, snap, page, qrBig, held }: { panel: PanelKey; snap: Live
       return (
         <div className="grid gap-4 sm:grid-cols-2">
           <VerifiedMetric name="participants_activated" value={m.participants_activated} held={held} size="large" idSuffix="-panel" />
-          <VerifiedMetric name="participants_checked_in" value={m.participants_checked_in} held={held} size="large" idSuffix="-panel" />
+          <VerifiedMetric name="participants_registered" value={m.participants_registered} held={held} size="large" idSuffix="-panel" />
         </div>
       );
     case "activity":
@@ -656,7 +656,7 @@ function age(s: number) {
 
 function OpsBoardView({ snap }: { snap: LiveSnapshot }) {
   const board = snap.ops;
-  if (!board) return <Empty>Ops data unavailable. The help desk and check-in still work.</Empty>;
+  if (!board) return <Empty>Ops data unavailable. The help desk still works.</Empty>;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
       <section aria-label="Help queue">

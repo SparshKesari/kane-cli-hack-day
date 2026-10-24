@@ -70,10 +70,10 @@ export async function getDashboard(): Promise<DashboardData> {
     ),
     series(() =>
       query<{ b: number; n: string }>(
-        `select floor(extract(epoch from ($2::timestamptz - checked_in_at)) / ${BUCKET_MINUTES * 60})::int as b, count(*) as n
-           from roster_guests
-          where event_id = $1 and admission_status = 'admitted'
-            and checked_in_at > $2::timestamptz - interval '${BUCKETS * BUCKET_MINUTES} minutes' and checked_in_at <= $2::timestamptz
+        `select floor(extract(epoch from ($2::timestamptz - created_at)) / ${BUCKET_MINUTES * 60})::int as b, count(*) as n
+           from members
+          where event_id = $1 and deleted_at is null and role = 'participant'
+            and created_at > $2::timestamptz - interval '${BUCKETS * BUCKET_MINUTES} minutes' and created_at <= $2::timestamptz
           group by 1`,
         [e.id, e.now],
       ),

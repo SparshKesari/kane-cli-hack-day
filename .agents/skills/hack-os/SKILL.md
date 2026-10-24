@@ -42,7 +42,7 @@ Read only the file for the step you're on.
 | Building, testing with Kane, or "ready to submit"  | `references/build.md`                                          |
 | Stuck on anything                                  | `references/help.md`                                           |
 
-Route from `participant_get_status` data: `member.checked_in` false → they check in at the desk (show it as Blocked, keep going); `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
+Route from `participant_get_status` data: `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
 
 **Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, the server has locked every roster, even if `team.state` still says `recruiting`, `formed` or `active` (that field catches up later). Don't ask the captain to lock it then. Before that time, the captain locks it on `/team`.
 

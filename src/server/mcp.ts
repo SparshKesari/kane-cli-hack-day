@@ -171,7 +171,7 @@ export function buildMcpServer(auth: BearerAuth) {
       actions: [{ id: s.next_action.id, label: s.next_action.label, requires_human_confirmation: false, href: siteUrl(s.next_action.href) }],
       links: [{ label: "Open my passport", url: "/passport" }, ...(s.team ? [{ label: "Team hub", url: s.team.hub_url }] : [])],
       uiType: "builder_passport",
-      fallbackText: `${s.member.name} · ${s.member.checked_in ? "checked in" : "not checked in"} · ${s.team ? `team ${s.team.name}` : "no team"} · next: ${s.next_action.label} (${siteUrl(s.next_action.href)})`,
+      fallbackText: `${s.member.name} · ${s.team ? `team ${s.team.name}` : "no team"} · next: ${s.next_action.label} (${siteUrl(s.next_action.href)})`,
     };
   });
 

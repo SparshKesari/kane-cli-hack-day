@@ -48,13 +48,12 @@ export async function participantStatus(m: MemberRow) {
     query<{ code: string; status: string }>("select code, status from help_tickets where member_id = $1 and status not in ('resolved','closed','duplicate') order by created_at desc limit 3", [m.id]),
   ]);
   const act = activation[0] ?? null;
-  const next = !m.checked_in_at
-    ? { id: "check_in", label: "Check in at the desk (or have staff admit you as a walk-in)", href: "/passport" }
-    : !team
-      ? { id: "find_team", label: "Create or join a team", href: "/match" }
-      : act?.status !== "active" && !m.activated_at
-        ? { id: "activate", label: "Finish activation", href: "/activate" }
-        : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
+  // No desk step on event day: the first thing to do is find a team.
+  const next = !team
+    ? { id: "find_team", label: "Create or join a team", href: "/match" }
+    : act?.status !== "active" && !m.activated_at
+      ? { id: "activate", label: "Finish activation", href: "/activate" }
+      : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
   return {
     member: { public_code: m.public_code, name: m.display_name ?? m.name, role: m.role, checked_in: !!m.checked_in_at, activated: !!m.activated_at },
     team: team ? { slug: team.slug, name: team.name, state: team.state, hub_url: `/t/${team.slug}` } : null,

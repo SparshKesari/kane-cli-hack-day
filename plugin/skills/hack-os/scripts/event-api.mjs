@@ -83,7 +83,7 @@ try {
         continue;
       }
       if (res.status === 401) fail("UNAUTHENTICATED: pair again with `kanehack pair --start --json`. If the site wants the TestMu AI key, the person runs `kanehack login` in their own terminal; TESTMU_* or LT_* environment variables, when set, are sent instead and must be their event key.");
-      if (res.status === 403) fail("FORBIDDEN: check desk check-in, role and team");
+      if (res.status === 403) fail("FORBIDDEN: check the person's role and team");
       if (res.status === 429) fail("RATE_LIMITED: retry after " + (res.headers.get("retry-after") || "a minute"));
       if (!res.ok) fail(write ? `HTTP ${res.status}: outcome uncertain for this write; read back before trying again` : `SERVER_UNAVAILABLE: the event server isn't answering (HTTP ${res.status}). ${down}`);
       const body = await res.json();

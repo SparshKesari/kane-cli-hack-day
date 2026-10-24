@@ -17,8 +17,8 @@ const schema = z.object({
 });
 
 // Personal sign-in: email + the password chosen on /register, or email + a
-// one-time code from the desk (a sign-in code, or the activation code the
-// desk hands out at check-in). Both prove the person.
+// one-time code from the help desk (a sign-in code, or an activation code).
+// Both prove the person.
 export async function personalLogin(_prev: PersonalLoginState, form: FormData): Promise<PersonalLoginState> {
   const input = parse(schema, formObject(form));
   // Throttle per client and per email, so passwords and one-time codes can't be guessed here.
