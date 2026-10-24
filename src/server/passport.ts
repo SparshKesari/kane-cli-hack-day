@@ -2,7 +2,7 @@ import "server-only";
 import { del } from "@vercel/blob";
 import type { PoolClient } from "pg";
 import { query } from "@/lib/db";
-import { getEvent, isLocked } from "@/lib/event";
+import { getEvent } from "@/lib/event";
 import { normalizeX } from "@/lib/photos";
 import { getMemberById, type MemberRow } from "./auth";
 import { AppError, maskEmail, sha256, transaction, withAudit, writeAudit, z, type Actor } from "./core";
@@ -185,7 +185,6 @@ export type ParticipantState =
   | "needs_idea"
   | "needs_kane_run"
   | "submission_due"
-  | "submission_locked"
   | "shipped";
 
 export type Mission = {
@@ -358,9 +357,7 @@ export async function getPassport(memberId: number): Promise<PrivatePassport> {
     edition: EDITION,
     server_time: ev.now,
   };
-  const submissionLocked = await isLocked("submission", ev);
-  const ideaLocked = await isLocked("idea", ev);
-  const state = deriveState({ ...base, shipped, submissionLocked, ideaLocked });
+  const state = deriveState({ ...base, shipped });
   return { ...base, state, mission: missionFor(state, base) };
 }
 
@@ -377,8 +374,6 @@ export function deriveState(p: {
   team: unknown;
   idea: { qualification: string; has_text: boolean } | null;
   kane_runs: number;
-  submissionLocked: boolean;
-  ideaLocked: boolean;
 }): ParticipantState {
   if (p.shipped) return "shipped";
   const st = p.activation?.status;
@@ -386,9 +381,10 @@ export function deriveState(p: {
   if (!p.member.activated_at && st !== "active") return "needs_activation";
   if (p.help) return "help_pending";
   if (!p.team) return "needs_team";
-  if (!p.ideaLocked && (!p.idea || !p.idea.has_text || p.idea.qualification === "draft")) return "needs_idea";
-  if (p.kane_runs === 0 && !p.submissionLocked) return "needs_kane_run";
-  return p.submissionLocked ? "submission_locked" : "submission_due";
+  // The idea and submission deadline times no longer lock anything (event day, 2026-10-24).
+  if (!p.idea || !p.idea.has_text || p.idea.qualification === "draft") return "needs_idea";
+  if (p.kane_runs === 0) return "needs_kane_run";
+  return "submission_due";
 }
 
 /** The card copy and actions for a state. Schema-driven: no generated code or text. */
@@ -465,19 +461,10 @@ export function missionFor(state: ParticipantState, p: Pick<PrivatePassport, "te
         state,
         tone: "pending",
         eyebrow: "Mission 05 · Ship",
-        title: "Submit before the lock",
-        body: "Preflight your repo, commit and Kane evidence, then finalize. The server clock decides the deadline.",
+        title: "Submit your project",
+        body: "Preflight your repo, commit and Kane evidence, then finalize.",
         action: { id: "submit", label: "Open submission", href: hub("submit") },
         secondary: [{ id: "open_project", label: "Open project", href: hub("") }],
-      };
-    case "submission_locked":
-      return {
-        state,
-        tone: "pending",
-        eyebrow: "Submissions locked",
-        title: "The submission window has closed",
-        body: "If an outage blocked you, the help desk can write a manual receipt with the real time.",
-        action: { id: "ask_mentor", label: "Go to the help desk", href: hub("help") },
       };
     case "shipped":
       return {

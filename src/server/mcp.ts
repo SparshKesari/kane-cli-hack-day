@@ -235,7 +235,7 @@ export function buildMcpServer(auth: BearerAuth) {
           : p.locked
             ? "Submissions are locked."
             : p.ready
-              ? `Ready to finalize. Locks at ${p.locks_at} (server clock).`
+              ? `Ready to finalize. Due ${p.locks_at} (server clock); finalizing later still works.`
               : `Missing: ${p.missing.join(", ")}.`,
         data: p,
         evidence: p.verified_run_ids.map((id): Evidence => ({ kind: "kane_run", id: `KR-${id}`, confidence: "verified" })),
@@ -243,7 +243,7 @@ export function buildMcpServer(auth: BearerAuth) {
         links: [{ label: "Submit tab", url: `/t/${p.team_slug}/submit` }],
         warnings: p.warnings,
         uiType: "submission_receipt",
-        fallbackText: [...p.requirements.map((r) => `${r.state === "ok" ? "✓" : r.state === "uncertain" ? "?" : "✗"} ${r.label}`), `Locks at ${p.locks_at}`].join("\n"),
+        fallbackText: [...p.requirements.map((r) => `${r.state === "ok" ? "✓" : r.state === "uncertain" ? "?" : "✗"} ${r.label}`), `Due ${p.locks_at}`].join("\n"),
       };
     },
   );

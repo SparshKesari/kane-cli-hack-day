@@ -7,7 +7,7 @@ import { teamByParam } from "./plan-v25";
 import { listPublicEvidence, parsePublicEvidenceId, publicEvidenceId, type PublicEvidence } from "./public-evidence";
 import { getProjectByTeam, type ProjectRow, type ShowcaseState } from "./showcase";
 import { getLatestPublished } from "./story";
-import { getSubmissionContext, isFrozen, lockState, lockedError, patchDraftTx, type DraftPatch, type SubmissionStatus } from "./submission";
+import { getSubmissionContext, isFrozen, lockState, patchDraftTx, type DraftPatch, type SubmissionStatus } from "./submission";
 import { getRoster } from "./teams";
 
 // The team submission page (docs/api/TEAM_PAGE.md): GET/PUT /api/v1/teams/{id|slug}/page
@@ -213,7 +213,6 @@ export async function updateTeamPage(teamRef: string, caller: PageCaller, input:
     const refs = await resolveRefs(project, body);
     return withAudit(access.actor, "team_page.update", "team_page", async (tx) => {
       const clock = await lockState(tx);
-      if (clock.locked && !access.organizer) throw lockedError(clock);
       await tx.query("insert into team_pages (project_id) values ($1) on conflict (project_id) do nothing", [project.id]);
       const { rows } = await tx.query<PageRow>(`select ${PAGE_COLS} from team_pages where project_id = $1 for update`, [project.id]);
       const cur = rows[0];

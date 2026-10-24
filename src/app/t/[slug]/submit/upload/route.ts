@@ -1,5 +1,4 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { isLocked } from "@/lib/event";
 import { requireTeamMember } from "@/server/auth";
 import { AppError } from "@/server/core";
 import { getProjectByTeam, mediaPrefix } from "@/server/showcase";
@@ -20,7 +19,6 @@ export async function POST(request: Request, ctx: RouteContext<"/t/[slug]/submit
       onBeforeGenerateToken: async (pathname) => {
         const { team, member } = await requireTeamMember(slug);
         if (!member) throw new Error("Only team members can upload");
-        if (await isLocked("submission")) throw new Error("Submissions are locked");
         const project = await getProjectByTeam(team.id);
         if (!project) throw new Error("Project not found");
         if (!pathname.startsWith(mediaPrefix(project.id)) || pathname.includes("..") || !/^[\w./-]+$/.test(pathname)) throw new Error("Bad upload path");
