@@ -21,7 +21,8 @@ export const TESTMU_STATE_COOKIE = "hd_testmu_state";
 export const PRINCIPAL_HEADER = "x-testmu-principal";
 export const COOKIE_HOURS = 12;
 
-export type TestmuSession = { u: string; e: string | null; exp: number };
+/** `m` is the member id when known (keys we provisioned or linked). */
+export type TestmuSession = { u: string; e: string | null; m?: number | null; exp: number };
 export type TestmuPrincipal = TestmuSession;
 export type TestmuState = { n: string; next: string; exp: number };
 
@@ -99,11 +100,15 @@ export const keyFingerprint = (c: KeyCredentials) => createHash("sha256").update
 
 // ── Which paths the gate covers ──────────────────────────────────────────────
 
-/** Participant pages: the same list personal sign-in may return to (src/lib/next-path.ts). */
-const GATED_PAGE = /^\/(passport|activate|pair|readiness|help|match|team|t|studio|submit|me|register|setup)(\/|$)/;
+/**
+ * Participant pages: the same list personal sign-in may return to (src/lib/next-path.ts),
+ * minus /register and /passport/login: that's where the access key comes from.
+ */
+const GATED_PAGE = /^\/(passport|activate|pair|readiness|help|match|team|t|studio|submit|me|setup)(\/|$)/;
+const KEY_SOURCE_PAGE = /^\/(register|passport\/login)(\/|$)/;
 
 /** Never gated: the key handshake itself, the API docs, and server-to-server callers with their own secrets. */
-const ALWAYS_OPEN = [/^\/api\/v1\/auth\/testmu(\/|$)/, /^\/api\/v1\/openapi\.json$/, /^\/api\/docs(\/|$)/, /^\/api\/cron\//, /^\/api\/import\//, /^\/webhooks\//];
+const ALWAYS_OPEN = [/^\/api\/v1\/auth\/testmu(\/|$)/, /^\/api\/v1\/auth\/register$/, /^\/api\/v1\/openapi\.json$/, /^\/api\/docs(\/|$)/, /^\/api\/cron\//, /^\/api\/import\//, /^\/webhooks\//];
 
 /**
  * Public, aggregate-only reads the plan marks "Everyone" (TV, Mission Control,
@@ -137,6 +142,7 @@ export function classifyPath(pathname: string, env: Record<string, string | unde
   if (pathname.startsWith("/api/") || pathname === "/mcp" || pathname.startsWith("/mcp/")) {
     return publicApiPrefixes(env).some((p) => pathname === p.replace(/\/$/, "") || pathname.startsWith(p)) ? "public_api" : "api";
   }
+  if (KEY_SOURCE_PAGE.test(pathname)) return "other";
   return GATED_PAGE.test(pathname) ? "page" : "other";
 }
 

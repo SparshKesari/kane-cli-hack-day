@@ -6,6 +6,8 @@ import { getMemberById, getPersonalMember, requirePersonalMember } from "@/serve
 import { skipAvatar } from "@/server/avatar";
 import { formObject, runAction, sha256 } from "@/server/core";
 import { setTeamChoice, submitProfile } from "@/server/flow";
+import { activationEnabled } from "@/lib/testmu-provision";
+import { activateTestmu, clearRevealedKey } from "@/server/testmu";
 import { clientKey, rateLimit } from "@/server/ratelimit";
 
 // /register steps. Each re-checks who is signed in on the server; the page then
@@ -45,8 +47,18 @@ export async function profileAction(_prev: ProfileState, form: FormData): Promis
   }
   if (r.data.kind === "needs_proof") return { needsProof: true, values };
   // The matchmaking tick at the end of the form.
-  const member = await getMemberById(r.data.memberId);
-  if (member) await setTeamChoice(member, r.data.looking, { fromProfile: true });
+  const { memberId, looking } = r.data;
+  const member = await getMemberById(memberId);
+  if (member) await setTeamChoice(member, looking, { fromProfile: true });
+  // Activate on TestMu AI with this profile: its username + access key are the sign-in
+  // for everything after. A failure keeps the profile; /register offers a retry.
+  if (!activationEnabled()) redirect("/register");
+  const activated = await runAction(() => activateTestmu(memberId, { reveal: true }));
+  redirect(activated.ok ? "/register" : "/register?testmu=failed");
+}
+
+export async function forgetRevealedKeyAction() {
+  await clearRevealedKey();
   redirect("/register");
 }
 

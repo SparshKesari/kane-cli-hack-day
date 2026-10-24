@@ -49,7 +49,10 @@ test("the /{team}/status hook alias is an API path; real pages of that shape are
 });
 
 test("participant pages are gated; the landing page, Ship Pages, TV and ops are not", () => {
-  for (const p of ["/register", "/team", "/t/orbit/idea", "/studio/orbit", "/passport", "/activate", "/setup"]) assert.equal(classifyPath(p, {}), "page", p);
+  for (const p of ["/team", "/t/orbit/idea", "/studio/orbit", "/passport", "/activate", "/setup"]) assert.equal(classifyPath(p, {}), "page", p);
+  // Where the key comes from stays open.
+  for (const p of ["/register", "/passport/login"]) assert.equal(classifyPath(p, {}), "other", p);
+  assert.equal(classifyPath("/api/v1/auth/register", {}), "open");
   for (const p of ["/", "/ship/orbit", "/live", "/dashboard", "/ops/checkin", "/judge", "/privacy", "/teams-list"]) assert.equal(classifyPath(p, {}), "other", p);
 });
 

@@ -13,12 +13,15 @@ import {
   unsignValue,
   type TestmuSession,
 } from "@/lib/testmu-gate";
+import { findKnownKey } from "@/lib/testmu-keystore";
 import { checkAccessKey, type VerifyResult } from "@/lib/testmu-verify";
 
 // The TestMu AI access-key gate (docs/api/TESTMU_ACCESS.md). Runs before every
 // route; cheap when TESTMU_KEY_REQUIRED is off and no key headers are sent.
 //
-//   key headers sent  → checked with TestMu (cached per instance); valid → a
+//   key headers sent  → matched against keys TestMu gave us at activation
+//                       (testmu_links fingerprint), else checked with TestMu when
+//                       TESTMU_VERIFY_URL is set; cached per instance. Valid → a
 //                       60-second signed principal is forwarded for getMember();
 //                       invalid → 401, whatever the switch says.
 //   switch on, API    → needs the hd_testmu cookie, valid key headers, or a staff cookie.
@@ -28,13 +31,24 @@ import { checkAccessKey, type VerifyResult } from "@/lib/testmu-verify";
 
 const OK_TTL_MS = 5 * 60_000;
 const BAD_TTL_MS = 30_000;
-const cache = new Map<string, { at: number; result: VerifyResult }>();
+type Checked = VerifyResult & { memberId?: number | null };
+const cache = new Map<string, { at: number; result: Checked }>();
+
+async function checkKey(c: { username: string; accessKey: string }): Promise<Checked> {
+  try {
+    const known = await findKnownKey(c);
+    if (known) return { ok: true, username: c.username, email: null, memberId: known.memberId };
+  } catch {
+    return { ok: false, reason: "unavailable", detail: "key store unreachable" };
+  }
+  return checkAccessKey(c);
+}
 
 async function checkCached(c: { username: string; accessKey: string }) {
   const fp = keyFingerprint(c);
   const hit = cache.get(fp);
   if (hit && Date.now() - hit.at < (hit.result.ok ? OK_TTL_MS : BAD_TTL_MS)) return hit.result;
-  const result = await checkAccessKey(c);
+  const result = await checkKey(c);
   if (result.ok || result.reason === "invalid") {
     if (cache.size > 5000) cache.clear();
     cache.set(fp, { at: Date.now(), result });
@@ -85,7 +99,7 @@ export async function proxy(req: NextRequest) {
         ? deny("TESTMU_KEY_REQUIRED", "That TestMu AI username and access key were not accepted.", pathname)
         : deny("TESTMU_UNAVAILABLE", "We couldn't check your TestMu AI access key right now.", pathname);
     }
-    forwarded.set(PRINCIPAL_HEADER, signValue({ u: r.username, e: r.email, exp: Date.now() + 60_000 } satisfies TestmuSession));
+    forwarded.set(PRINCIPAL_HEADER, signValue({ u: r.username, e: r.email, m: r.memberId ?? null, exp: Date.now() + 60_000 } satisfies TestmuSession));
     // A Basic header carried the key; don't let it reach handlers that read Authorization as a bearer.
     if (/^Basic\s/i.test(req.headers.get("authorization") ?? "")) forwarded.delete("authorization");
     return NextResponse.next({ request: { headers: forwarded } });

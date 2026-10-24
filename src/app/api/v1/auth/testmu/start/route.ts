@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { envelopeResponse } from "@/server/core";
+import { toAppError } from "@/server/core";
 import { startConnect } from "@/server/testmu";
 
 // GET /api/v1/auth/testmu/start?next=/team
-// Sends the browser to TestMu AI to register / log in / connect. TestMu comes
-// back to /api/v1/auth/testmu/callback with the access key. `next` must be a
-// participant page (src/lib/next-path.ts); anything else returns to /passport.
+// Where the gate sends a browser without a TestMu AI key. Signed in as yourself:
+// activates your TestMu AI account from your profile, then on to `next`. Not
+// signed in: the profile at /register (or TestMu's own login page, when
+// TESTMU_AUTH_URL is set). `next` must be a participant page (src/lib/next-path.ts).
+// If activation fails, back to /register, which explains and offers a retry.
 
 export async function GET(req: Request) {
+  const next = new URL(req.url).searchParams.get("next");
   try {
-    return NextResponse.redirect(new URL(await startConnect(new URL(req.url).searchParams.get("next")), req.url));
+    return NextResponse.redirect(new URL(await startConnect(next), req.url));
   } catch (e) {
-    return envelopeResponse(async () => {
-      throw e;
-    });
+    const err = toAppError(e);
+    console.warn("[testmu] start failed", err.code, err.message);
+    return NextResponse.redirect(new URL("/register?testmu=failed", req.url));
   }
 }

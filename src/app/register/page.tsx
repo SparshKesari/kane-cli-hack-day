@@ -9,7 +9,11 @@ import { isRegistrationOpen } from "@/lib/teams";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc, avatarVersion } from "@/server/avatar";
 import { flowState, type FlowStage } from "@/server/flow";
+import { keyRequired } from "@/lib/testmu-gate";
+import { activationEnabled } from "@/lib/testmu-provision";
+import { getTestmuIdentity, takeRevealedKey } from "@/server/testmu";
 import { ChoiceStep, PhotoStep, ProfileStep, type ProfileDefaults } from "./parts";
+import TestmuPanel from "./testmu";
 
 export const metadata: Metadata = { title: "Start here" };
 
@@ -73,7 +77,12 @@ async function Steps({ searchParams }: Pick<PageProps<"/register">, "searchParam
 
   const state = await flowState(member.id);
   const stage: FlowStage = edit === "profile" ? "profile" : edit === "photo" ? "photo" : state.stage;
-  if (stage !== "profile" && stage !== "photo" && stage !== "choice") redirect(state.next);
+  const testmu = <TestmuPanel failed={sp.testmu === "failed"} />;
+  if (stage !== "profile" && stage !== "photo" && stage !== "choice") {
+    // Hold here while the TestMu AI key is on screen or activation needs a retry.
+    if (!(await needsTestmuStep(sp.testmu === "failed"))) redirect(state.next);
+    return testmu;
+  }
 
   if (stage === "profile") {
     const [m] = await query<{ skills: string[] | null; interests: string[] | null; github_handle: string | null; x_handle: string | null; linkedin: string | null; looking_for_team: boolean | null; has_password: boolean }>(
@@ -90,6 +99,7 @@ async function Steps({ searchParams }: Pick<PageProps<"/register">, "searchParam
     };
     return (
       <>
+        {testmu}
         <StepTitle stage="profile" />
         <ProfileStep defaults={defaults} signedIn hasPassword={m.has_password} />
       </>
@@ -99,6 +109,7 @@ async function Steps({ searchParams }: Pick<PageProps<"/register">, "searchParam
     const v = await avatarVersion(member.id);
     return (
       <>
+        {testmu}
         <StepTitle stage="photo" />
         <PhotoStep hasPhoto={!!v} avatar={v ? avatarSrc(member.id, v) : null} />
       </>
@@ -106,10 +117,18 @@ async function Steps({ searchParams }: Pick<PageProps<"/register">, "searchParam
   }
   return (
     <>
+      {testmu}
       <StepTitle stage="choice" />
       <ChoiceStep />
     </>
   );
+}
+
+/** Hold on /register while the key is on screen, or while the key is mandatory and missing. */
+async function needsTestmuStep(failed: boolean) {
+  if (!activationEnabled()) return false;
+  const [key, identity] = await Promise.all([takeRevealedKey(), getTestmuIdentity()]);
+  return !!key || (keyRequired() && (failed || !identity));
 }
 
 function StepTitle({ stage }: { stage: FlowStage }) {

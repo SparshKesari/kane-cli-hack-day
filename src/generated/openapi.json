@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**138 operations**: 92 live in production, 22 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**139 operations**: 92 live in production, 23 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -1461,6 +1461,94 @@
     ]
    }
   },
+  "/api/v1/auth/register": {
+   "post": {
+    "tags": [
+     "auth"
+    ],
+    "operationId": "post_api_v1_auth_register",
+    "summary": "[new] save the profile and activate TestMu AI; returns the access key once.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/register/route.ts`\n\n```text\nPOST /api/v1/auth/register: save the profile and activate TestMu AI; returns the access key once.\nNo TestMu key needed: this is where it comes from.\n  { name, email (the Luma one), linkedin, x, github?, password (8+), looking?: \"yes\",\n    proof_password? | proof_code? (only when the email already has an account) }\nThe same profile as /register. Saves it, then activates the person on TestMu AI\nwith it: TestMu answers with their username + access key, returned here ONCE as\ndata.testmu. Send them as X-TestMu-Username / X-TestMu-Access-Key on every call\nafter. The key isn't stored (only a fingerprint), so it can't be fetched again.\n409 needs_proof: the email has an account; resend with proof_password or proof_code.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "open",
+    "security": [],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
   "/api/v1/auth/start": {
    "post": {
     "tags": [
@@ -1810,7 +1898,7 @@
     ],
     "operationId": "get_api_v1_auth_testmu_start",
     "summary": "[new] GET /api/v1/auth/testmu/start",
-    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/testmu/start/route.ts`\n\n```text\nGET /api/v1/auth/testmu/start?next=/team\nSends the browser to TestMu AI to register / log in / connect. TestMu comes\nback to /api/v1/auth/testmu/callback with the access key. `next` must be a\nparticipant page (src/lib/next-path.ts); anything else returns to /passport.\n```",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/auth/testmu/start/route.ts`\n\n```text\nGET /api/v1/auth/testmu/start?next=/team\nWhere the gate sends a browser without a TestMu AI key. Signed in as yourself:\nactivates your TestMu AI account from your profile, then on to `next`. Not\nsigned in: the profile at /register (or TestMu's own login page, when\nTESTMU_AUTH_URL is set). `next` must be a participant page (src/lib/next-path.ts).\nIf activation fails, back to /register, which explains and offers a retry.\n```",
     "parameters": [],
     "responses": {
      "200": {
