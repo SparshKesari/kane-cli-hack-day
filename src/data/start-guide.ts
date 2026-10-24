@@ -29,8 +29,8 @@ export const startGuide: GuideSection[] = [
       {
         timeline: [
           { time: "09:30", text: "Check-in at the desk." },
-          { time: "11:00", text: "Team registration closes: teams are locked." },
-          { time: "12:00", text: "Your team's idea locks." },
+          { time: "11:00", text: "Teams set. Rosters stay open after this: invite codes still work." },
+          { time: "12:00", text: "Idea saved. You can keep refining it after this." },
           { time: "16:00–17:00", text: "Final evaluation at your team's table." },
           { time: "18:00", text: "Submissions lock." },
         ],
