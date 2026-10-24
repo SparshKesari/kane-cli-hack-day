@@ -294,6 +294,16 @@ test("activation ticks persist and the plan claim uses the member's own email, o
   for (const r of kept) for (const secret of [PW, "tok-secret-live"]) assert.ok(!r.t.includes(secret), `${secret} stored: ${r.t.slice(0, 120)}`);
 });
 
+test("busy-API answers don't lock a person out after six tries, and the limit says how long to wait", { skip }, async () => {
+  await register("busy");
+  let me = (await viewer())!;
+  await m.teams.createTeam(acting(me), { name: `${tag} Busy`, track: "Web App" });
+  me = (await m.auth.getMemberById(me.id))!;
+  claimStatus = 429;
+  for (let i = 0; i < 12; i++) assert.equal((await m.act.claimPlan(me, "correct-horse-9")).outcome, "error", `try ${i + 1}`);
+  await assert.rejects(m.act.claimPlan(me, "correct-horse-9"), /Wait about \d+s/);
+});
+
 test("the real claim API is never called outside production", { skip }, async () => {
   const saved = process.env.TESTMU_TRIAL_CLAIM_URL;
   delete process.env.TESTMU_TRIAL_CLAIM_URL;

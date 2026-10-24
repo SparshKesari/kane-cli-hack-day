@@ -6,7 +6,7 @@ import { mapClaimResponse, redactClaimBody, type ClaimOutcome, type ClaimResult 
 import { PLAN_MESSAGES, type ActivationStepId } from "@/data/activation-steps";
 import { memberActor, staffActor, type MemberRow, type Staff } from "./auth";
 import { AppError, maskEmail, transaction, withAudit, writeAudit, type Actor } from "./core";
-import { rateLimit } from "./ratelimit";
+import { enforceRateLimit } from "./ratelimit";
 
 // The event-day activation checklist (/activate), replacing the Kane-driven
 // ceremony for participants:
@@ -135,6 +135,8 @@ async function callClaim(input: ClaimInput): Promise<RawAnswer> {
       // Optional profile fields go only when set; the password is never stored or logged.
       body: JSON.stringify({ ...Object.fromEntries(Object.entries(input).filter(([, v]) => v)), source: "website", page_url: CLAIM_PAGE_URL }),
       signal: AbortSignal.timeout(CLAIM_TIMEOUT_MS),
+      // A redirect means a wrong URL or a proxy page, never the API's answer.
+      redirect: "error",
       cache: "no-store",
     });
     const text = await res.text();
@@ -166,6 +168,8 @@ function claimErrorMessage(r: ClaimResult) {
       return PLAN_MESSAGES.region;
     case "ended":
       return PLAN_MESSAGES.ended;
+    case "rate_limited":
+      return PLAN_MESSAGES.rateLimited;
     case "retry":
       return PLAN_MESSAGES.retry;
     default:
@@ -175,6 +179,11 @@ function claimErrorMessage(r: ClaimResult) {
 
 /** The message for a stored failed claim, worked out again from what TestMu AI answered. */
 export const planErrorMessage = (plan: PlanClaim) => claimErrorMessage(mapClaimResponse(plan.http_status, plan.response ?? undefined));
+
+const claimedMessage = (r: ClaimResult) => (r.note === "already_active" ? PLAN_MESSAGES.alreadyActive : PLAN_MESSAGES.claimed);
+
+/** The message for a stored claim ("Plan activated.", or that the account already had a plan). */
+export const planClaimedMessage = (plan: PlanClaim) => claimedMessage(mapClaimResponse(plan.http_status, plan.response ?? undefined));
 
 /**
  * Claim the hack-day plan for the signed-in member's own email (read from the
@@ -188,8 +197,10 @@ export async function claimPlan(member: MemberRow, password: string): Promise<Cl
   const [row] = await query<{ status: string }>("select status from testmu_plan_claims where member_id = $1", [member.id]);
   if (row?.status === "claimed") return { outcome: "claimed", message: PLAN_MESSAGES.claimed };
   if (typeof password !== "string" || password.length < 8 || password.length > 255) throw new AppError("VALIDATION_FAILED", { userMessage: PLAN_MESSAGES.passwordLength });
-  const rl = await rateLimit(`testmu-claim:${member.id}`, { limit: 6, windowSec: 600 });
-  if (!rl.ok) throw new AppError("RATE_LIMITED", { userMessage: "Too many tries. Wait a few minutes, or ask at the help desk." });
+  // Twelve tries per 10 minutes: enough for a few busy answers from TestMu AI (it allows 30 a
+  // minute per IP, and every claim comes from our servers) plus a mistyped password. TestMu AI
+  // also caps password tries at 5 a minute per email. The message says how long to wait.
+  await enforceRateLimit(`testmu-claim:${member.id}`, { limit: 12, windowSec: 600 });
 
   // Take the claim slot: one attempt at a time per member, never after success.
   const slot = await query<{ member_id: number }>(
@@ -238,7 +249,7 @@ export async function claimPlan(member: MemberRow, password: string): Promise<Cl
       tx,
     );
   });
-  if (status === "claimed") return { outcome: "claimed", message: PLAN_MESSAGES.claimed };
+  if (status === "claimed") return { outcome: "claimed", message: claimedMessage(mapped) };
   if (status === "not_registered") return { outcome: "not_registered", message: PLAN_MESSAGES.notRegistered(email) };
   return { outcome: "error", message: claimErrorMessage(mapped) };
 }

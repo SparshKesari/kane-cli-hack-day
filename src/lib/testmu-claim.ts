@@ -5,7 +5,7 @@
 export type ClaimOutcome = "claimed" | "not_registered" | "error";
 
 /** Why an "error" happened, so the person sees what to do (the stored status stays "error"). */
-export type ClaimReason = "wrong_password" | "invalid" | "ineligible" | "region" | "ended" | "retry";
+export type ClaimReason = "wrong_password" | "invalid" | "ineligible" | "region" | "ended" | "rate_limited" | "retry";
 
 export type ClaimResult = {
   outcome: ClaimOutcome;
@@ -14,6 +14,8 @@ export type ClaimResult = {
   reason?: ClaimReason;
   /** The API's own field messages ("The password must be at least 8 characters."), safe to show. */
   fields?: string[];
+  /** A claim where TestMu AI opened no new trial: the account already has a plan or trial. */
+  note?: "already_active";
 };
 
 // The Hack Day 2026 API (POST {email, password, …}): these four answer HTTP 200 with the
@@ -21,11 +23,19 @@ export type ClaimResult = {
 const SUCCESS_CODES = new Set(["SIGNEDUP", "JOINED_TEAM", "ALREADY_CLAIMED", "ALREADY_ACTIVE"]);
 const SECRET_KEY = /token|password|passwd|secret|access[_-]?key|api[_-]?key|credential/i;
 
-/** The answer without its credentials (access_token and the like), for storing and for staff. */
+/**
+ * The answer without its credentials (access_token and the like), for storing and for staff.
+ * `errors` is kept as is: it holds validation messages (errors.password: "must be at least 8
+ * characters"), which the page shows again after a reload.
+ */
 export function redactClaimBody(body: unknown): unknown {
   if (Array.isArray(body)) return body.map(redactClaimBody);
   if (!body || typeof body !== "object") return body;
-  return Object.fromEntries(Object.entries(body).filter(([k]) => !SECRET_KEY.test(k)).map(([k, v]) => [k, redactClaimBody(v)]));
+  return Object.fromEntries(
+    Object.entries(body)
+      .filter(([k]) => k === "errors" || !SECRET_KEY.test(k))
+      .map(([k, v]) => [k, k === "errors" ? v : redactClaimBody(v)]),
+  );
 }
 
 function fieldMessages(body: unknown): string[] {
@@ -62,12 +72,13 @@ export function claimErrorText(body: unknown): string {
 /**
  * The one mapping from the claim API's answer to what the participant sees.
  *   code NON_SIGNEDUP (any status, older API)                → not_registered
- *   2xx with SIGNEDUP / JOINED_TEAM / ALREADY_* (or no code)  → claimed
+ *   2xx with SIGNEDUP / JOINED_TEAM / ALREADY_*               → claimed (ALREADY_ACTIVE noted)
  *   2xx INELIGIBLE                                            → error, ineligible
- *   other 2xx codes                                           → error (staff sort it out)
+ *   other 2xx, or no code (empty, HTML, a proxy)               → error (staff sort it out)
  *   401 INVALID_CREDENTIALS                                   → error, wrong_password
  *   403 REGION_NOT_SUPPORTED / 410 CAMPAIGN_ENDED             → error, region / ended
- *   429, 5xx (502 FAILED), timeout, network                   → error, retry
+ *   429                                                       → error, rate_limited
+ *   5xx (502 FAILED), timeout, network, a redirect            → error, retry
  *   404, or 400/422 saying the user/account isn't there       → not_registered (older API)
  *   other 400/422 (INVALID_REQUEST)                           → error, invalid, with the field messages
  * `status` null means the request never got an answer (network, timeout).
@@ -80,13 +91,14 @@ export function mapClaimResponse(status: number | null, body: unknown, failure?:
   if (code && NON_SIGNEDUP.test(code)) return { outcome: "not_registered", detail: `HTTP ${status} · ${text}` };
   const detail = `HTTP ${status}${text ? ` · ${text}` : body === undefined ? " · malformed response" : ""}`;
   if (status >= 200 && status < 300) {
-    if (!code || SUCCESS_CODES.has(code)) return { outcome: "claimed", detail: null };
+    if (code && SUCCESS_CODES.has(code)) return code === "ALREADY_ACTIVE" ? { outcome: "claimed", detail, note: "already_active" } : { outcome: "claimed", detail: null };
     return code === "INELIGIBLE" ? { outcome: "error", detail, reason: "ineligible" } : { outcome: "error", detail };
   }
   if (status === 401 || code === "INVALID_CREDENTIALS") return { outcome: "error", detail, reason: "wrong_password" };
   if (code === "REGION_NOT_SUPPORTED") return { outcome: "error", detail, reason: "region" };
   if (status === 410 || code === "CAMPAIGN_ENDED") return { outcome: "error", detail, reason: "ended" };
-  if (status === 429 || status >= 500) return { outcome: "error", detail, reason: "retry" };
+  if (status === 429) return { outcome: "error", detail, reason: "rate_limited" };
+  if (status >= 500) return { outcome: "error", detail, reason: "retry" };
   if (status === 404) return { outcome: "not_registered", detail };
   if ((status === 400 || status === 422) && text) {
     // "The email field is required." is a request problem, not an unknown user.

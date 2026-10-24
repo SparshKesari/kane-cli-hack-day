@@ -6,9 +6,10 @@ import assert from "node:assert/strict";
 import { claimErrorText, mapClaimResponse, redactClaimBody } from "../../src/lib/testmu-claim.ts";
 import { maskCode, parseCodexCodes, splitCsvLine } from "../../src/lib/codex-codes.ts";
 
-test("any 2xx is a claim", () => {
-  for (const s of [200, 201, 204]) assert.equal(mapClaimResponse(s, { ok: true }).outcome, "claimed");
-  assert.equal(mapClaimResponse(200, undefined).outcome, "claimed");
+test("a 2xx without a success code is not a claim (an empty body, an HTML page, a proxy)", () => {
+  for (const s of [200, 201, 204]) assert.equal(mapClaimResponse(s, { ok: true }).outcome, "error");
+  assert.equal(mapClaimResponse(200, undefined).outcome, "error");
+  assert.equal(mapClaimResponse(200, { status: "success" }).outcome, "error");
 });
 
 test("404 and 'user/account not found' 4xx answers mean: register with TestMu AI first", () => {
@@ -24,7 +25,6 @@ test("NON_SIGNEDUP means not signed up, even with a 2xx", () => {
   const body = { code: "NON_SIGNEDUP", message: "Claim recorded. Trial will be activated after signup." };
   for (const s of [200, 201, 202, 400, 404, 422]) assert.equal(mapClaimResponse(s, body).outcome, "not_registered");
   assert.match(mapClaimResponse(200, body).detail ?? "", /HTTP 200 · NON_SIGNEDUP · Claim recorded/);
-  assert.equal(mapClaimResponse(200, { status: "success" }).outcome, "claimed");
 });
 
 test("everything else is a plain error with a detail for staff", () => {
@@ -74,9 +74,23 @@ test("field errors come back to the person", () => {
 test("region, campaign end, rate limit and FAILED each say what happened", () => {
   assert.equal(mapClaimResponse(403, { code: "REGION_NOT_SUPPORTED", message: "US only" }).reason, "region");
   assert.equal(mapClaimResponse(410, { code: "CAMPAIGN_ENDED" }).reason, "ended");
-  assert.equal(mapClaimResponse(429, { message: "Too Many Attempts." }).reason, "retry");
+  assert.equal(mapClaimResponse(429, { message: "Too Many Attempts." }).reason, "rate_limited");
   assert.equal(mapClaimResponse(502, { code: "FAILED" }).reason, "retry");
   assert.equal(mapClaimResponse(null, undefined, "network error").reason, "retry");
+});
+
+test("ALREADY_ACTIVE is a claim that says no new trial was opened, for the person and for staff", () => {
+  const r = mapClaimResponse(200, live("ALREADY_ACTIVE"));
+  assert.equal(r.outcome, "claimed");
+  assert.equal(r.note, "already_active");
+  assert.match(r.detail ?? "", /ALREADY_ACTIVE/);
+  assert.equal(mapClaimResponse(200, live("SIGNEDUP")).note, undefined);
+});
+
+test("field messages survive redaction, so the page can show them after a reload", () => {
+  const stored = redactClaimBody({ code: "INVALID_REQUEST", errors: { password: ["The password must be at least 8 characters."] }, access_token: "tok-secret" });
+  assert.deepEqual(mapClaimResponse(422, stored).fields, ["The password must be at least 8 characters."]);
+  assert.ok(!JSON.stringify(stored).includes("tok-secret"));
 });
 
 test("credentials in the API's answer are never stored or shown to staff", () => {
