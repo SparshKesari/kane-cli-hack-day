@@ -3,8 +3,8 @@
 ## Sign-up (here, with `kanehack register`)
 
 1. Their password must be saved first: `kanehack password --check --json`. Exit 2 → `references/setup.md`, step 2.
-2. Collect, in their words: full name, the email they used on Luma, LinkedIn (URL or handle), X handle, GitHub handle (optional), and whether they're looking for teammates. Show it back and ask "Save this profile?"
-3. `kanehack register --name "<name>" --email <email> --linkedin <linkedin> --x <x handle> [--github <handle>] [--looking] --json`
+2. Collect, in their words: full name, the email they used on Luma, LinkedIn (URL or handle), X handle (optional), GitHub handle (optional), and whether they're looking for teammates. Show it back and ask "Save this profile?"
+3. `kanehack register --name "<name>" --email <email> --linkedin <linkedin> [--x <x handle>] [--github <handle>] [--looking] --json` (leave out `--x` if they have no X account)
    - 0 → the profile is saved and this machine is signed in. Codex not connected to the event tools yet → `references/setup.md`, step 3.
    - 2 and "already registered" → `kanehack signin --email <email> --json`.
    - 2 naming a field → fix it with them and run it again.

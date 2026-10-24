@@ -30,7 +30,7 @@ export const PAIR: Cmd[] = [
   {
     label: "Then (you or Codex)",
     value: "kanehack signin --email you@example.com",
-    note: 'New here? kanehack register --name "Your Name" --email you@example.com --linkedin <handle> --x <handle> saves your profile and signs in.',
+    note: 'New here? kanehack register --name "Your Name" --email you@example.com --linkedin <handle> [--x <handle>] saves your profile and signs in.',
   },
   { label: "Or approve in the browser", value: "kanehack pair", note: "Approve the code it shows at /pair, signed in as yourself." },
 ];

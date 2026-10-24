@@ -181,8 +181,10 @@ export async function submitProfile(input: unknown, viewer: MemberRow | null): P
     throw new AppError("VALIDATION_FAILED", { userMessage: issues.length === 1 ? issues[0].message : "A few fields need fixing.", details: { issues } });
   }
   const parsed = parse(profileInputSchema, input);
-  const x = normalizeX(parsed.x);
-  if (!x) throw fieldError("x", x === "" ? "Add your X (Twitter) handle." : "Your X (Twitter) handle should look like @handle.");
+  // X is optional: empty saves none; a malformed handle is still refused.
+  const xHandle = normalizeX(parsed.x);
+  if (xHandle === null) throw fieldError("x", "Your X (Twitter) handle should look like @handle.");
+  const x = xHandle || null;
   const linkedin = normalizeLinkedin(parsed.linkedin);
   if (!linkedin) throw fieldError("linkedin", linkedin === "" ? "Add your LinkedIn profile." : "Paste your LinkedIn profile link, like linkedin.com/in/your-name.");
   const data: ProfileData = { ...parsed, linkedin };

@@ -1,5 +1,5 @@
 # Kane CLI Hack Day installer for Windows: https://www.kaneclihack.sh/install.ps1
-# Version: 0.1.23
+# Version: 0.1.24
 #
 # Read me before you run me. This script checks Node, Git, Chrome, the OpenAI
 # Codex CLI, Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
@@ -29,9 +29,9 @@ param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [swit
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-$KanehackVersion = "0.1.23"
-$KanehackSha256 = "0b4b594a2adc4e98d0cdcaa51eef0afda3aca00075242fd2bb4ca6435bc93b46"
-$SkillsSha256 = "ccc39397133fdbc53be307b837f9bd6a783f4884c27fe33b6ad75d8440038689"
+$KanehackVersion = "0.1.24"
+$KanehackSha256 = "663d2d497c7f56e99b956491851bc85f0985ab198ea6dad480854a8244cf687e"
+$SkillsSha256 = "c136db3a92a549b95ab3c9d8f9b818db7c3d837b7072aea240ec27b53302bd51"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")

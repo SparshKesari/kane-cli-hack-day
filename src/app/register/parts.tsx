@@ -92,8 +92,8 @@ export function ProfileStep({ defaults, signedIn, hasPassword }: { defaults: Pro
         <Field id="r-linkedin" label="LinkedIn" hint="Link or name" error={fe.linkedin}>
           <SocialInput kind="linkedin" id="r-linkedin" name="linkedin" required defaultValue={v.linkedin} placeholder="your-name or linkedin.com/in/your-name" className={field} invalid={err("linkedin")} />
         </Field>
-        <Field id="r-x" label="X (Twitter)" hint="Link or @handle" error={fe.x}>
-          <SocialInput kind="x" id="r-x" name="x" required defaultValue={v.x} placeholder="@handle or x.com/handle" className={field} invalid={err("x")} />
+        <Field id="r-x" label="X (Twitter)" hint="Optional · link or @handle" error={fe.x}>
+          <SocialInput kind="x" id="r-x" name="x" defaultValue={v.x} placeholder="@handle or x.com/handle" className={field} invalid={err("x")} />
         </Field>
       </div>
       <Field id="r-gh" label="GitHub" hint="Optional · link or username" error={fe.github}>
