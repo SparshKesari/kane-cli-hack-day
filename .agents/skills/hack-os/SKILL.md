@@ -33,14 +33,14 @@ You are the participant's guide for Kane CLI Hack Day (SF, Sat 2026-10-24, Pacif
 
 Read only the file for the step you're on.
 
-| Situation                                          | Read                        |
-| -------------------------------------------------- | --------------------------- |
-| Not signed in, setup problems, Codex not connected | `references/setup.md`       |
-| No profile yet, no team, or team not locked        | `references/signup-team.md` |
-| On a locked team, activation not confirmed         | `references/activate.md`    |
-| Activated, no saved idea                           | `references/idea.md`        |
-| Building, testing with Kane, or "ready to submit"  | `references/build.md`       |
-| Stuck on anything                                  | `references/help.md`        |
+| Situation                                          | Read                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------- |
+| Not signed in, setup problems, Codex not connected | `references/setup.md`                                          |
+| No profile yet, no team, or team not locked        | `references/signup-team.md`                                    |
+| On a locked team, activation not confirmed         | `references/activate.md`                                       |
+| Activated, no saved idea                           | `references/idea.md` (it loads `references/idea-validator.md`) |
+| Building, testing with Kane, or "ready to submit"  | `references/build.md`                                          |
+| Stuck on anything                                  | `references/help.md`                                           |
 
 Route from `participant_get_status` data: `member.checked_in` false → they check in at the desk (show it as Blocked, keep going); `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
 
