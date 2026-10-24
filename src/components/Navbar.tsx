@@ -8,6 +8,7 @@ import { event } from "@/data/hackday";
 // Public sections of the home page; everything else lives in the team hub.
 const links = [
   { href: "/start", label: "Start" },
+  { href: "/teams", label: "Teams" },
   { href: "/#schedule", label: "Schedule" },
   { href: "/#challenge", label: "Challenge" },
   { href: "/#prizes", label: "Prizes" },

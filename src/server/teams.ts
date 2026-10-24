@@ -181,6 +181,23 @@ export async function listRecruitingTeams(opts: { excludeTeamId?: number | null;
   return skill ? rows.filter((t) => t.seeking_skills.some((s) => s.toLowerCase().includes(skill))) : rows;
 }
 
+/** Every team that hasn't withdrawn, oldest first: the public /teams page. Callers show no member names. */
+export async function listTeamDirectory() {
+  return query<TeamInfo>(`${TEAM_SELECT} where coalesce(t.state, '') <> 'withdrawn' order by t.created_at`);
+}
+
+/** Participants (not staff) with no team; `matching` is those who said yes to teammate matching. */
+export async function teamlessCounts() {
+  const [r] = await query<{ total: number; matching: number }>(
+    `select count(*)::int as total,
+            count(*) filter (where m.looking_for_team and exists (select 1 from member_consent_current c
+              where c.member_id = m.id and c.category = 'teammate_discovery' and c.granted))::int as matching
+       from members m
+      where m.team_id is null and m.deleted_at is null and m.role = 'participant'`,
+  );
+  return r;
+}
+
 // ── Create (T-TEAM-02) ───────────────────────────────────────────────────────
 
 export const createTeamSchema = z.object({
