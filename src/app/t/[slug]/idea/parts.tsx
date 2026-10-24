@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Label, SubmitButton, Toggle, inputCls } from "@/components/forms/fields";
 import { ActionNote } from "@/app/team/ui";
-import { saveIdeaAction, validateIdeaAction, type IdeaFormState, type ValidateState } from "./actions";
+import { saveIdeaAction, submitIdeaAction, validateIdeaAction, type IdeaFormState, type SubmitIdeaState, type ValidateState } from "./actions";
 
 export function IdeaForm({
   slug,
@@ -43,7 +43,6 @@ export function IdeaForm({
         </div>
         <div>
           <Label htmlFor="i-kane">How are you planning to use Kane CLI?</Label>
-          <p className="mb-2 font-plex text-sm text-lightgray">Which flows Kane CLI will test, and how it helps your app.</p>
           <textarea
             id="i-kane"
             name="kane_plan"
@@ -51,7 +50,7 @@ export function IdeaForm({
             rows={4}
             defaultValue={defaults.kane_plan}
             className={inputCls}
-            placeholder="e.g. Kane checks sign-up and checkout after every change Codex makes, and we fix whatever it finds before moving on."
+            placeholder="e.g. Codex runs Kane CLI after every change, reads the report and fixes what it finds. We save the tests in the repo and replay them before we submit."
           />
         </div>
         <div>
@@ -87,8 +86,26 @@ export function ValidateForm({ slug, disabled }: { slug: string; disabled: boole
         description="Sends your title and description to the AI model through the Vercel AI Gateway for this check only. Off = rule-based check, nothing leaves our server."
       />
       <ActionNote state={state} ok="Checked." />
-      <SubmitButton pending="Checking…" className={`min-h-11 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+      <SubmitButton pending="Checking… (up to a minute)" className={`min-h-11 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
         Validate idea
+      </SubmitButton>
+    </form>
+  );
+}
+
+/** Lock and submit: shown once the saved idea has been validated. */
+export function SubmitIdeaForm({ slug }: { slug: string }) {
+  const [state, action] = useActionState<SubmitIdeaState, FormData>(submitIdeaAction.bind(null, slug), null);
+  const [confirmed, setConfirmed] = useState(false);
+  return (
+    <form action={action} className="space-y-4">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 font-plex text-sm text-bright">
+        <input type="checkbox" name="confirm" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--lime)]" />
+        <span>This is the idea we&apos;re building. Lock it for the whole team; it can&apos;t be edited after this.</span>
+      </label>
+      <ActionNote state={state} ok="Locked." />
+      <SubmitButton pending="Locking…" className={`min-h-11 ${confirmed ? "" : "pointer-events-none opacity-50"}`}>
+        Lock and submit idea
       </SubmitButton>
     </form>
   );

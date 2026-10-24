@@ -10,7 +10,8 @@ import { formatEventTime, getEvent } from "@/lib/event";
 import { query } from "@/lib/db";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc } from "@/server/avatar";
-import { flowState, listPool } from "@/server/flow";
+import { listPool } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import { currentTeamOf, getRoster, getTeamInfo, listOpenInvites, previewInvite } from "@/server/teams";
 import { listIntros } from "@/server/match";
 import { joinPoolAction } from "../match/actions";
@@ -42,7 +43,7 @@ export default function TeamHome({ searchParams }: PageProps<"/team">) {
 
 async function Progress() {
   const m = await getPersonalMember();
-  return <FlowProgress stage={m ? (await flowState(m.id)).stage : null} viewing="team" />;
+  return <FlowProgress stage={m ? (await uiFlowState(m.id)).stage : null} viewing="team" />;
 }
 
 async function Personal({ searchParams }: Pick<PageProps<"/team">, "searchParams">) {

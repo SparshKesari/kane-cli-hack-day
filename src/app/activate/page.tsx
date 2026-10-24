@@ -9,7 +9,7 @@ import StatusPill from "@/components/ui/StatusPill";
 import { ACTIVATION_STEPS, CODEX_BY_EMAIL, TESTMU_SIGNUP_URL, type ActivationStepId } from "@/data/activation-steps";
 import { getPersonalMember } from "@/server/auth";
 import { getActivationView, planClaimedMessage, planErrorMessage, type ActivationView } from "@/server/event-activation";
-import { flowState } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import { teamSyncMessage } from "@/lib/testmu-team";
 import { getTeamInfo } from "@/server/teams";
 import { teamSyncStatus } from "@/server/testmu-team";
@@ -18,7 +18,7 @@ import { ClaimPlanButton, RetryTeamInvitesForm, TickButton } from "./parts";
 export const metadata: Metadata = { title: "Activate", robots: { index: false } };
 
 // Step 3 of the event-day flow, once you're on a team: three things to switch
-// on, each with a Done tick that stays done. All three → "Next: set up Codex".
+// on, each with a Done tick that stays done. All three → straight on to the team's Idea tab.
 // A desk activation code (/activate?code=…) still works: it goes to sign-in.
 
 export default function ActivatePage({ searchParams }: PageProps<"/activate">) {
@@ -41,7 +41,7 @@ export default function ActivatePage({ searchParams }: PageProps<"/activate">) {
 
 async function Progress() {
   const m = await getPersonalMember();
-  return <FlowProgress stage={m ? (await flowState(m.id)).stage : null} viewing="activate" />;
+  return <FlowProgress stage={m ? (await uiFlowState(m.id)).stage : null} viewing="activate" />;
 }
 
 async function Checklist({ searchParams }: Pick<PageProps<"/activate">, "searchParams">) {
@@ -52,7 +52,7 @@ async function Checklist({ searchParams }: Pick<PageProps<"/activate">, "searchP
     redirect(code ? `/passport/login?mode=code&code=${encodeURIComponent(code)}&next=/me` : "/passport/login?next=/activate");
   }
   // Not on a team yet, or the team isn't confirmed (locked) yet: back to that step.
-  const flow = await flowState(member.id);
+  const flow = await uiFlowState(member.id);
   if (!member.team_id || flow.stage === "team") redirect(flow.next);
   const view = await getActivationView(member.id);
   const step1 = view.ticks.has("testmu_signup");
@@ -75,8 +75,8 @@ async function Checklist({ searchParams }: Pick<PageProps<"/activate">, "searchP
           <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">All three done</p>
           <p className="mt-2 font-display text-2xl text-bright">You&apos;re activated.</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <Button href="/setup" className="min-h-11">
-              Next: set up Codex →
+            <Button href={flow.teamSlug ? `/t/${flow.teamSlug}/idea` : flow.next} className="min-h-11">
+              Next: your idea →
             </Button>
           </div>
         </div>

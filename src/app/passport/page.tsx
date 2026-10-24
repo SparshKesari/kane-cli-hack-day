@@ -7,7 +7,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import StatusPill from "@/components/ui/StatusPill";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc, avatarVersion } from "@/server/avatar";
-import { flowState } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import { listBearerTokens } from "@/server/pairing";
 import { getPassport } from "@/server/passport";
 import { revokeToken, signOut } from "./actions";
@@ -53,7 +53,7 @@ async function Body() {
       </div>
     );
   }
-  const [p, tokens, v, state] = await Promise.all([getPassport(member.id), listBearerTokens(member.id), avatarVersion(member.id), flowState(member.id)]);
+  const [p, tokens, v, state] = await Promise.all([getPassport(member.id), listBearerTokens(member.id), avatarVersion(member.id), uiFlowState(member.id)]);
   const name = p.member.display_name ?? p.member.name;
   const hasPhoto = !!v && p.consents.selfie_storage !== false;
 

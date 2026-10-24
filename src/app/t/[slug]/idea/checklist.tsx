@@ -1,10 +1,12 @@
 import StatusPill from "@/components/ui/StatusPill";
-import { CRITERIA, type Assessment, type Verdict } from "@/server/ideas";
+import { COMMENT_SECTIONS, CRITERIA, type AssessmentV1, type AssessmentV2, type StoredAssessment, type Verdict } from "@/server/ideas";
 
-// IdeaChecklist (T-IDEA-03): ✓ / ! / ✗ per criterion with the quoted
-// evidence, the verdict, exactly three changes and the Kane path. Advisory
-// only: it never uses the teal VERIFIED treatment, which means evidence.
-// Renders on the server and in print; no hooks.
+// IdeaChecklist (T-IDEA-03). The skill's check (idea-validator@2) shows only
+// its four-part comment: scores, criteria and the verdict are for mentors and
+// agents, never the team. The rule-based check (@1, also older revisions)
+// shows ✓ / ! / ✗ per criterion with the quoted evidence, three changes and
+// the Kane path. Advisory only: it never uses the teal VERIFIED treatment,
+// which means evidence. Renders on the server and in print; no hooks.
 
 const MARK = {
   met: { glyph: "✓", word: "Covered", cls: "border-bright text-bright" },
@@ -32,7 +34,38 @@ export function AdvisoryBanner() {
   );
 }
 
-export default function IdeaChecklist({ assessment, stale = false, print = false }: { assessment: Assessment; stale?: boolean; print?: boolean }) {
+/** The pill beside the panel title. The skill's verdict stays internal, so its checks just read "Feedback ready". */
+export function AssessmentPill({ verdict, assessment }: { verdict: Verdict | "draft"; assessment: StoredAssessment | null }) {
+  if (assessment?.version === "idea-validator@2") return <StatusPill tone="neutral">Feedback ready</StatusPill>;
+  return <VerdictPill verdict={verdict} />;
+}
+
+export default function IdeaChecklist({ assessment, stale = false, print = false }: { assessment: StoredAssessment; stale?: boolean; print?: boolean }) {
+  return assessment.version === "idea-validator@2" ? <SkillFeedback assessment={assessment} stale={stale} /> : <RuleChecklist assessment={assessment} stale={stale} print={print} />;
+}
+
+function SkillFeedback({ assessment, stale }: { assessment: AssessmentV2; stale: boolean }) {
+  return (
+    <div className="space-y-5">
+      <AdvisoryBanner />
+      <p className="font-plex text-xs text-lightgray">
+        Feedback from the Idea Validator · {assessment.model ?? "AI"}
+        {stale && " · your idea changed since this check"}
+      </p>
+      {assessment.warning && <p className="font-plex text-xs text-warning">{assessment.warning}</p>}
+      <div className="divide-y divide-dashed divide-hairline border-y border-dashed border-hairline">
+        {COMMENT_SECTIONS.map((s) => (
+          <section key={s.id} className="print-avoid-break py-4">
+            <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">{s.label}</p>
+            <p className={`mt-2 font-plex text-sm leading-relaxed whitespace-pre-line ${s.id === "final" ? "text-lime" : "text-bright"}`}>{assessment.comment[s.id]}</p>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RuleChecklist({ assessment, stale, print }: { assessment: AssessmentV1; stale: boolean; print: boolean }) {
   return (
     <div className="space-y-5">
       <AdvisoryBanner />

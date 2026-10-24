@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getMemberSession } from "@/lib/session";
 import { getMemberById } from "@/server/auth";
 import { avatarSrc, avatarVersion } from "@/server/avatar";
-import { flowState } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import NotificationBell from "./NotificationBell";
 import { Avatar } from "./ui/Avatar";
 
@@ -23,12 +23,12 @@ export default async function Account() {
   }
   const member = session?.personal ? await getMemberById(session.memberId) : null;
   if (!member) return <SignedOut />;
-  const [v, state] = await Promise.all([avatarVersion(member.id), flowState(member.id)]);
+  const [v, state] = await Promise.all([avatarVersion(member.id), uiFlowState(member.id)]);
   const name = member.display_name ?? member.name;
   return (
     <span className="flex items-center gap-4">
       <NotificationBell />
-      <Link href={state.stage === "hub" && state.teamSlug ? `/t/${state.teamSlug}` : state.next} className="bg-bright px-3 py-1.5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+      <Link href={state.stage === "hub" && state.teamSlug ? `/t/${state.teamSlug}/idea` : state.next} className="bg-bright px-3 py-1.5 font-plex text-sm text-ink transition-colors hover:bg-lime">
         {state.stage === "hub" ? "My team" : "Continue →"}
       </Link>
       <Link href="/passport" aria-label={`Your profile (${name})`} title={name} className="block shrink-0" data-avatar={v ? "photo" : "monogram"}>

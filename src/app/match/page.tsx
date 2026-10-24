@@ -12,7 +12,8 @@ import { isEnabled } from "@/lib/flags";
 import { query } from "@/lib/db";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc } from "@/server/avatar";
-import { flowState, listOpenTeams, listPool, type PoolPerson, type PoolTeam } from "@/server/flow";
+import { listOpenTeams, listPool, type PoolPerson, type PoolTeam } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import { listIntros } from "@/server/match";
 import { Panel, Stat, Tag } from "../team/blocks";
 import { leavePoolAction } from "./actions";
@@ -44,7 +45,7 @@ export default function MatchPage({ searchParams }: PageProps<"/match">) {
 
 async function Progress() {
   const m = await getPersonalMember();
-  return <FlowProgress stage={m ? (await flowState(m.id)).stage : null} viewing="team" />;
+  return <FlowProgress stage={m ? (await uiFlowState(m.id)).stage : null} viewing="team" />;
 }
 
 async function Pool({ searchParams }: Pick<PageProps<"/match">, "searchParams">) {
@@ -66,7 +67,7 @@ async function Pool({ searchParams }: Pick<PageProps<"/match">, "searchParams">)
       </section>
     );
   }
-  const state = await flowState(member.id);
+  const state = await uiFlowState(member.id);
   if (state.teamSlug) redirect(state.next);
   if (state.stage !== "pool") redirect(state.stage === "team" ? "/team" : "/register");
 

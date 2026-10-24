@@ -8,7 +8,8 @@ import { query } from "@/lib/db";
 import { isRegistrationOpen } from "@/lib/teams";
 import { getPersonalMember } from "@/server/auth";
 import { avatarSrc, avatarVersion } from "@/server/avatar";
-import { flowState, type FlowStage } from "@/server/flow";
+import type { FlowStage } from "@/server/flow";
+import { uiFlowState } from "@/server/flow-ui";
 import { keyRequired } from "@/lib/testmu-gate";
 import { activationEnabled } from "@/lib/testmu-provision";
 import { getTestmuIdentity, takeRevealedKey } from "@/server/testmu";
@@ -43,7 +44,7 @@ export default function RegisterPage({ searchParams }: PageProps<"/register">) {
 
 async function Progress() {
   const m = await getPersonalMember();
-  return <FlowProgress stage={m ? (await flowState(m.id)).stage : null} viewing="profile" />;
+  return <FlowProgress stage={m ? (await uiFlowState(m.id)).stage : null} viewing="profile" />;
 }
 
 const STEP_TITLE: Partial<Record<FlowStage, [string, string]>> = {
@@ -75,7 +76,7 @@ async function Steps({ searchParams }: Pick<PageProps<"/register">, "searchParam
     );
   }
 
-  const state = await flowState(member.id);
+  const state = await uiFlowState(member.id);
   const stage: FlowStage = edit === "profile" ? "profile" : edit === "photo" ? "photo" : state.stage;
   const testmu = <TestmuPanel failed={sp.testmu === "failed"} />;
   if (stage !== "profile" && stage !== "photo" && stage !== "choice") {

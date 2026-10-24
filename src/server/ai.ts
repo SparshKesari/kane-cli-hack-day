@@ -37,6 +37,8 @@ export async function draftObject<S extends z.ZodType>(opts: {
   system: string;
   prompt: string;
   fallback: () => z.infer<S> | Promise<z.infer<S>>;
+  /** Longer answers (the Idea Validator) need more than the default 20 s. */
+  timeoutMs?: number;
 }): Promise<Drafted<z.infer<S>>> {
   if (!configured()) return { value: await opts.fallback(), generator: "rules", model: null, warning: "AI not configured; rule-based draft." };
   try {
@@ -45,7 +47,7 @@ export async function draftObject<S extends z.ZodType>(opts: {
       schema: opts.schema,
       system: opts.system,
       prompt: opts.prompt,
-      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+      abortSignal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
     });
     void markGateway(true);
     return { value: object as z.infer<S>, generator: "llm", model: MODEL };
