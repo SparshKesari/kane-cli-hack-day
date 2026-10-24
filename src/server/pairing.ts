@@ -213,8 +213,17 @@ let dummyHash: Promise<string> | null = null;
  * registered through the team form can now sign in on their own.
  */
 export async function memberLoginWithPassword(email: string, password: string) {
-  // Event-day flow: only the member's own password (set on /register) works
-  // here. There is no shared team password any more, so this is always personal.
+  const row = await verifyMemberPassword(email, password);
+  await setMemberSession({ memberId: row.id, personal: true });
+  await writeAudit(memberActor(row), { action: "member.login_password", resourceType: "member", resourceId: row.id });
+  return row.id;
+}
+
+/**
+ * The member whose own password (set on /register) this is, or UNAUTHENTICATED.
+ * Event-day flow: there is no shared team password any more, so this is always personal.
+ */
+export async function verifyMemberPassword(email: string, password: string) {
   const [row] = await query<{ id: number; name: string; team_id: number | null; password_hash: string | null }>(
     "select m.id, m.name, m.team_id, m.password_hash from members m where lower(m.email) = lower($1) and m.deleted_at is null",
     [email.trim()],
@@ -224,9 +233,24 @@ export async function memberLoginWithPassword(email: string, password: string) {
   if (row?.password_hash) ok = await verifyPassword(password, row.password_hash);
   else await verifyPassword(password, await dummyHash);
   if (!row || !ok) throw new AppError("UNAUTHENTICATED", { userMessage: SIGN_IN_FAILED });
-  await setMemberSession({ memberId: row.id, personal: true });
-  await writeAudit(memberActor(row), { action: "member.login_password", resourceType: "member", resourceId: row.id });
-  return row.id;
+  return row;
+}
+
+/**
+ * A bearer token for a member who just proved who they are from the CLI (kanehack register /
+ * signin with their password), the same token pairing hands out, without the browser step.
+ */
+export async function issueBearerToken(memberId: number, label: string | null, how: "register" | "password") {
+  const token = newToken("bearer");
+  return transaction(async (tx) => {
+    const { rows } = await tx.query<{ id: number; expires_at: Date }>(
+      `insert into member_tokens (member_id, kind, token_hash, label, scopes, expires_at)
+       values ($1, 'bearer', $2, $3, $4, now() + make_interval(days => $5)) returning id, expires_at`,
+      [memberId, tokenHash(token), (label ?? "kanehack").slice(0, 80), ["participant"], BEARER_DAYS],
+    );
+    await writeAudit({ type: "member", id: memberId }, { action: `token.issue_${how}`, resourceType: "member_token", resourceId: rows[0].id }, tx);
+    return { token, token_id: rows[0].id, expires_at: rows[0].expires_at.toISOString() };
+  });
 }
 
 /** Email + a one-time code from the desk (or from your own signed-in device). */

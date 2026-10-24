@@ -114,12 +114,12 @@ test("sends the TestMu key alongside the pairing token, and never prints either"
   } finally { s.close(); }
 });
 
-test("a TestMu key alone isn't enough for /mcp: asks for kanehack pair and sends nothing", async () => {
+test("a TestMu key alone isn't enough for /mcp: asks for kanehack signin and sends nothing", async () => {
   const { s, url, seen } = await server();
   try {
     const r = await run(home({ api: url, testmu: { username: "ana", access_key: "LTkey_abc999" } }), ["list"]);
     assert.equal(r.code, 2);
-    assert.ok(pairFirst(r.err), r.err);
+    assert.ok(signinFirst(r.err), r.err);
     assert.equal(seen.headers.length, 0);
   } finally { s.close(); }
 });
@@ -135,25 +135,25 @@ test("TestMu env wins over the saved key: TESTMU_* first, then Kane CLI's LT_*",
   } finally { s.close(); }
 });
 
-/** `kanehack pair` is the fix that unlocks /mcp, so it must come before any mention of login. */
-const pairFirst = (err: string) => {
-  const i = err.indexOf("kanehack pair"), j = err.indexOf("kanehack login");
-  return i >= 0 && (j < 0 || i < j);
+/** `kanehack signin` (no browser) is the fix that unlocks /mcp, so it comes before pairing or login. */
+const signinFirst = (err: string) => {
+  const i = err.indexOf("kanehack signin"), others = ["kanehack pair", "kanehack login"].map((w) => err.indexOf(w)).filter((j) => j >= 0);
+  return i >= 0 && others.every((j) => i < j);
 };
 
-test("not signed in at all says to pair", async () => {
+test("not signed in at all says to sign in (no browser)", async () => {
   const r = await run(home({}), ["list"]);
   assert.equal(r.code, 2);
-  assert.ok(pairFirst(r.err), r.err);
+  assert.ok(signinFirst(r.err), r.err);
 });
 
-test("401 says to pair again first", async () => {
+test("401 says to sign in again first", async () => {
   const { s, url } = await server(401);
   try {
     const r = await run(home({ token: "khk_x", api: url }), ["list"]);
     assert.equal(r.code, 2);
     assert.match(r.err, /UNAUTHENTICATED/);
-    assert.ok(pairFirst(r.err), r.err);
+    assert.ok(signinFirst(r.err), r.err);
   } finally { s.close(); }
 });
 

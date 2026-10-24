@@ -368,6 +368,29 @@ export function buildMcpServer(auth: BearerAuth) {
   });
 
   tool(
+    "activation_tick",
+    {
+      title: "Tick an activation step",
+      description:
+        "Tick /activate step 1 (testmu_signup: they signed up on TestMu AI) or step 3 (codex_credits: they redeemed the Codex coupon from their email). Step 2 is ticked by `kanehack claim`. Needs explicit confirmation.",
+      input: { step: z.enum(["testmu_signup", "codex_credits"]), done: z.boolean().optional(), explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      const done = args.done ?? true;
+      const what = args.step === "codex_credits" ? "redeemed the Codex coupon from your email" : "signed up on TestMu AI";
+      if (args.explicit_confirmation !== true) return confirmFirst("activation_tick", done ? "Tick this step" : "Untick this step", `${done ? "Mark" : "Unmark"} “${what}” as done.`, "builder_passport", { step: args.step, done });
+      const r = await A.tickActivation(ctx, args.step, done);
+      return {
+        message: r.activated ? "All three activation steps are done." : `${done ? "Ticked" : "Unticked"} ${args.step}.`,
+        data: r,
+        links: [{ label: "Activation", url: "/activate" }],
+        uiType: "builder_passport",
+        fallbackText: r.activated ? "Activated: all three steps are done." : `${args.step}: ${done ? "done" : "not done"}`,
+      };
+    },
+  );
+
+  tool(
     "readiness_report",
     {
       title: "Report readiness",
@@ -409,6 +432,44 @@ export function buildMcpServer(auth: BearerAuth) {
     const r = await A.joinTeam(ctx, args.invite_code);
     return { message: "You joined the team.", data: r, links: [{ label: "Team hub", url: r.hub_url }], uiType: "team_match", fallbackText: `Joined: ${siteUrl(r.hub_url)}` };
   });
+
+  tool(
+    "team_lock",
+    {
+      title: "Lock the final team",
+      description: "Captain only: this is our final team. Locks the roster (no joins, leaves or invites; an organizer can reopen it), stops recruiting and revokes open invites. Needs explicit confirmation.",
+      input: { explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("team_lock", "Lock the final team", "Lock your team as final: nobody can join, leave or be invited after this (an organizer can reopen it).", "team_match");
+      const r = await A.lockTeam(ctx);
+      return { message: `${r.team?.name ?? "Your team"} is locked in.`, data: r, links: r.team ? [{ label: "Team hub", url: r.team.hub_url }] : [], uiType: "team_match", fallbackText: `Team locked: ${r.team ? siteUrl(r.team.hub_url) : ""}` };
+    },
+  );
+
+  tool(
+    "idea_save",
+    {
+      title: "Save the team idea",
+      description:
+        "Save your team's idea (what the Idea tab saves; private to your team). Run idea_validate on it first and show the person the result. Refused after the idea lock. Needs explicit confirmation.",
+      input: {
+        title: z.string().trim().min(1).max(120),
+        private_description: z.string().trim().min(1).max(4000),
+        app_type: z.string().trim().max(120).optional().describe("Web App, Mobile App, or what else it is"),
+        kane_plan: z.string().trim().max(4000).optional().describe("How Kane CLI will test it"),
+        extra_info: z.string().trim().max(4000).optional(),
+        explicit_confirmation: confirmField,
+      },
+    },
+    async (args, ctx) => {
+      const { explicit_confirmation: _c, ...input } = args;
+      if (args.explicit_confirmation !== true) return confirmFirst("idea_save", `Save “${input.title}”`, `Save “${input.title}” as your team's idea (private to your team).`, "idea_radar", input);
+      const r = await A.saveTeamIdea(ctx, input);
+      const url = member.team_id ? (await A.participantStatus(member)).idea?.url ?? "/t" : "/t";
+      return { message: `Saved “${r.title}” (revision ${r.revision}).`, data: r, links: [{ label: "Idea tab", url }], uiType: "idea_radar", fallbackText: `Idea saved: ${r.title} · ${siteUrl(url)}` };
+    },
+  );
 
   tool(
     "idea_validate",
@@ -761,9 +822,12 @@ export const MCP_TOOL_NAMES = [
   "help_diagnose",
   "participant_update_profile",
   "activation_begin",
+  "activation_tick",
   "readiness_report",
   "team_create",
   "team_join",
+  "team_lock",
+  "idea_save",
   "idea_validate",
   "kane_record_run",
   "milestone_propose",

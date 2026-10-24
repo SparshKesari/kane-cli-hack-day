@@ -123,6 +123,51 @@ try {
   r = kh(["pair", "--token", "khk_" + "x".repeat(32), "--json"]);
   check("pair --token with an unknown token → exit 2 UNAUTHENTICATED", r.code === 2 && r.json?.error?.code === "UNAUTHENTICATED", r.show);
 
+  // ── no-browser sign-in: password, register, signin, claim (mock server only) ──
+  if (APPROVE === "mock") {
+    const creds = join(HOME, ".kanehack/credentials.json");
+    const PW = "suite-pass-1234";
+    r = kh(["password", "--json"]);
+    check("password without a terminal → exit 2 NEEDS_TERMINAL (never asked for in an agent)", r.code === 2 && r.json?.error?.code === "NEEDS_TERMINAL" && /own terminal/.test(r.err), r.show);
+    r = kh(["password", "--check", "--json"]);
+    check("password --check with none saved → exit 2", r.code === 2 && r.json?.stored?.password === false, r.show);
+    r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
+    check("register with no saved password → exit 2 NO_PASSWORD, pointing at kanehack password", r.code === 2 && r.json?.error?.code === "NO_PASSWORD" && /kanehack password/.test(r.err), r.show);
+    r = kh(["claim", "--json"]);
+    check("claim before signing in → exit 2 NOT_SIGNED_IN", r.code === 2 && r.json?.error?.code === "NOT_SIGNED_IN", r.show);
+    // What `kanehack password` writes after the hidden prompt (the prompt itself needs a TTY: interactive.py).
+    mkdirSync(join(HOME, ".kanehack"), { recursive: true });
+    writeFileSync(creds, JSON.stringify({ password: PW }), { mode: 0o600 });
+    r = kh(["password", "--check", "--json"]);
+    check("password --check with one saved → exit 0", r.code === 0 && r.json?.stored?.password === true, r.show);
+    r = kh(["register", "--name", "Suite Person", "--json"]);
+    check("register with missing fields → exit 2 USAGE naming them", r.code === 2 && r.json?.error?.code === "USAGE" && /--email/.test(r.err), r.show);
+    r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
+    check("register → exit 0, signed in, no browser", r.code === 0 && r.json?.status === "registered" && r.json?.signed_in === true, r.show);
+    check("register never prints the token or the password", !/khk_/.test(r.out + r.err) && !r.out.includes(PW) && !r.err.includes(PW), r.show);
+    const cfgPath = join(HOME, ".kanehack/config.json");
+    const cfgAfter = existsSync(cfgPath) ? JSON.parse(readFileSync(cfgPath, "utf8")) : {};
+    check("register saved the token and email in config.json", /^khk_/.test(cfgAfter.token ?? "") && cfgAfter.email === "suite@demo.test");
+    r = kh(["claim", "--json"]);
+    check("claim → exit 0 outcome claimed", r.code === 0 && r.json?.outcome === "claimed", r.show);
+    check("claim never prints the password", !r.out.includes(PW) && !r.err.includes(PW), r.show);
+    writeFileSync(creds, JSON.stringify({ password: "not-the-password-1" }), { mode: 0o600 });
+    r = kh(["signin", "--json"]);
+    check("signin with the wrong saved password → exit 2 WRONG_PASSWORD", r.code === 2 && r.json?.error?.code === "WRONG_PASSWORD", r.show);
+    r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
+    check("register an existing email with another password → exit 2, suggests signin", r.code === 2 && /kanehack signin --email suite@demo\.test/.test(r.err), r.show);
+    writeFileSync(creds, JSON.stringify({ password: PW, testmu_password: "testmu-other-pass" }), { mode: 0o600 });
+    r = kh(["signin", "--json"]);
+    check("signin (email from config) → exit 0 signed_in", r.code === 0 && r.json?.status === "signed_in" && !/khk_/.test(r.out + r.err), r.show);
+    r = kh(["claim", "--json"]);
+    check("claim uses the separate TestMu AI password when one is saved", r.code === 2 && r.json?.outcome === "error", r.show);
+    r = kh(["password", "--forget", "--testmu", "--json"]);
+    const left = existsSync(creds) ? JSON.parse(readFileSync(creds, "utf8")) : {};
+    check("password --forget --testmu keeps the main password", r.code === 0 && left.password === PW && !("testmu_password" in left), r.show);
+    r = kh(["password", "--forget", "--json"]);
+    check("password --forget removes the file", r.code === 0 && !existsSync(creds), r.show);
+  }
+
   // ── pairing, agent style ──
   r = kh(["pair", "--start", "--json"]);
   const start = r.json;

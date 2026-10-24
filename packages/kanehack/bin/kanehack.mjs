@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // kanehack: the Kane CLI Hack Day helper. No dependencies, Node >= 18.17.
 //
+//   kanehack password [--testmu|--check|--forget]  type your password once, in your own terminal (hidden; ~/.kanehack/credentials.json, mode 600)
+//   kanehack register --name --email --linkedin --x [--github] [--looking]  save your profile and sign this machine in (no browser)
+//   kanehack signin [--email E]            sign this machine in with your email + the saved password (no browser)
+//   kanehack claim                         claim your TestMu AI hack-day plan (/activate step 2) with the saved password
 //   kanehack login [--username U --access-key K]  save your TestMu AI username + access key (mandatory sign-in)
 //   kanehack pair [--token khk_…]          pair this machine with your account (token in ~/.kanehack/config.json, mode 600)
 //   kanehack pair --start | --wait         the same, in two steps, for Codex and scripts (no terminal needed)
@@ -29,15 +33,17 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, chmodSync, rmSync, copyFileSync, renameSync, realpathSync } from "node:fs";
 import { homedir, platform, arch, hostname } from "node:os";
 import { basename, delimiter, extname, join } from "node:path";
+import { Writable } from "node:stream";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.6";
+const VERSION = "0.1.8";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
+const CREDS = join(DIR, "credentials.json");
 const MAX_NDJSON = 1_900_000;
 const MAX_DIRECT_EVIDENCE = 4 * 1024 * 1024;
 const WIN = platform() === "win32";
@@ -120,7 +126,7 @@ function fail(msg, code = EXIT.FAIL, errCode = "ERROR", extra = {}) {
 }
 
 // Flags that never take a value, so `--json yes` keeps "yes" as an argument.
-const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check"]);
+const BOOLEAN_FLAGS = new Set(["json", "start", "wait", "report", "preflight", "no-upload", "help", "version", "check", "forget", "testmu", "looking"]);
 
 function args(argv) {
   const out = { _: [], flags: {} };
@@ -179,7 +185,7 @@ function ensure(r, what = "That request") {
   if (r.redirect) fail(`${r.error} If that's the right server, run: kanehack pair --api ${new URL(r.redirect).origin}`, EXIT.UNREACHABLE, "REDIRECT");
   if (r.status === 401 && r.env?.error?.code === "TESTMU_KEY_REQUIRED")
     fail(testmuHint(), EXIT.ACTION, "TESTMU_KEY_REQUIRED");
-  if (r.status === 401) fail("Not signed in (or the token was revoked or expired). Run: kanehack login (TestMu AI key) or kanehack pair", EXIT.ACTION, "UNAUTHENTICATED");
+  if (r.status === 401) fail("Not signed in (or the token was revoked or expired). Run: kanehack signin (or kanehack pair)", EXIT.ACTION, "UNAUTHENTICATED");
   if (r.status === 503 && r.env?.error?.code === "TESTMU_UNAVAILABLE") fail("The server couldn't check your TestMu AI key right now. Try again in a minute.", EXIT.UNREACHABLE, "TESTMU_UNAVAILABLE");
   if (!r.env) fail(`${what} failed: ${r.error}`, EXIT.FAIL, "BAD_RESPONSE");
   return r;
@@ -226,7 +232,158 @@ function testmuHint() {
 
 /** Signed in: a pairing token or a TestMu AI key (the key alone identifies you). */
 function needToken(cfg) {
-  if (!cfg.token && !cfg.testmu) fail("This machine isn't signed in yet. Run: kanehack login (TestMu AI key), or kanehack pair", EXIT.ACTION, "NOT_PAIRED");
+  if (!cfg.token && !cfg.testmu) fail("This machine isn't signed in yet. Run: kanehack signin --email you@example.com (or kanehack register, or kanehack pair)", EXIT.ACTION, "NOT_PAIRED");
+}
+
+// ── no-browser sign-in: password, register, signin, claim ───────────────────
+//
+// The person types their kaneclihack.sh password ONCE, in their own terminal (`kanehack password`,
+// hidden input). It is kept in ~/.kanehack/credentials.json (mode 600) and only ever sent to the
+// event server: never printed, never put in --json output, never asked for in a Codex chat.
+// Codex then runs register / signin / claim, which read it from that file.
+
+function loadCreds() {
+  try {
+    const c = JSON.parse(readFileSync(CREDS, "utf8"));
+    return c && typeof c === "object" ? c : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Ask without echoing what is typed (a terminal only). */
+async function askHidden(prompt) {
+  let muted = false;
+  const out = new Writable({
+    write(chunk, enc, cb) {
+      if (!muted) process.stderr.write(chunk, enc);
+      cb();
+    },
+  });
+  const rl = createInterface({ input: process.stdin, output: out, terminal: true });
+  try {
+    process.stderr.write(prompt);
+    muted = true;
+    return await rl.question("");
+  } finally {
+    muted = false;
+    rl.close();
+    process.stderr.write("\n");
+  }
+}
+
+async function password(a) {
+  const field = a.flags.testmu ? "testmu_password" : "password";
+  const what = a.flags.testmu ? "TestMu AI password" : "kaneclihack.sh password";
+  const creds = loadCreds();
+  if (a.flags.check) {
+    const stored = { password: !!creds.password, testmu_password: !!creds.testmu_password };
+    say(stored.password ? ok("A kaneclihack.sh password is saved on this machine.") : warn("No password saved yet. In your own terminal, run: kanehack password"));
+    if (stored.testmu_password) say(dim("A separate TestMu AI password is saved too (used by kanehack claim)."));
+    emit({ ok: stored.password, exit_code: stored.password ? EXIT.OK : EXIT.ACTION, stored, file: CREDS });
+    if (!stored.password) exit(EXIT.ACTION);
+    return;
+  }
+  if (a.flags.forget) {
+    const { [field]: _gone, ...rest } = creds;
+    if (Object.keys(rest).some((k) => k.endsWith("password"))) writePrivate(CREDS, rest);
+    else rmSync(CREDS, { force: true });
+    say(`Forgot the saved ${what}.`);
+    emit({ ok: true, exit_code: 0, status: "forgotten", field });
+    return;
+  }
+  if (!interactive())
+    fail(`Type the password in your own terminal, not here: open a terminal and run  kanehack password${a.flags.testmu ? " --testmu" : ""}`, EXIT.ACTION, "NEEDS_TERMINAL");
+  say(
+    dim(
+      a.flags.testmu
+        ? "Only if your TestMu AI account already existed with a different password. kanehack claim uses it instead."
+        : "Your kaneclihack.sh password (8+ characters): new here, choose one; registered on the site, use that one. It is also your TestMu AI password.",
+    ),
+  );
+  const first = await askHidden(`${what}: `);
+  if (first.length < 8 || first.length > 255) fail("The password needs at least 8 characters (and at most 255).", EXIT.ACTION, "USAGE");
+  const again = await askHidden("Again, to confirm: ");
+  if (again !== first) fail("Those two didn't match. Run kanehack password again.", EXIT.ACTION, "USAGE");
+  writePrivate(CREDS, { ...creds, [field]: first, saved_at: new Date().toISOString() });
+  say(ok(`Saved in ${CREDS} (mode 600).`), dim("Only kanehack reads it. Remove it with: kanehack password --forget"));
+  say(dim("Back in Codex, say that the password is set."));
+  emit({ ok: true, exit_code: 0, status: "saved", field, file: CREDS });
+}
+
+/** The saved password, or a pointer to `kanehack password` (never a prompt: Codex can't type one safely). */
+function needPassword(field = "password") {
+  const p = loadCreds()[field];
+  if (!p) fail("No password saved on this machine yet. The person runs this in their own terminal (not in Codex): kanehack password", EXIT.ACTION, "NO_PASSWORD");
+  return p;
+}
+
+const deviceLabel = () => `kanehack on ${hostname().slice(0, 40)} (${platform()})`;
+
+/** Keep the token (and email) from register / signin. The token itself is never printed. */
+function keepToken(cfg, d, email) {
+  saveConfig({ token: d.token, email, api: cfg.api, ...(d.testmu?.username && d.testmu?.access_key ? { testmu: { username: d.testmu.username, access_key: d.testmu.access_key } } : {}) });
+}
+
+async function register(a) {
+  const cfg = loadConfig();
+  if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
+  const f = (k) => (a.flags[k] === undefined || a.flags[k] === true ? "" : String(a.flags[k]).trim());
+  const body = { name: f("name"), email: f("email"), linkedin: f("linkedin"), x: f("x"), ...(f("github") ? { github: f("github") } : {}), ...(a.flags.looking ? { looking: "yes" } : {}) };
+  const missing = ["name", "email", "linkedin", "x"].filter((k) => !body[k]);
+  if (missing.length)
+    fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> --x <handle> [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
+  const pw = needPassword();
+  const r = ensure(await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/register", json({ ...body, password: pw, proof_password: pw, client: "kanehack", label: deviceLabel() })), "Registering");
+  const env = r.env;
+  if (env.status === "error") {
+    printEnvelope(env);
+    if (env.error?.code === "CONFLICT") say(warn(`Already registered with ${body.email}? Run: kanehack signin --email ${body.email}`));
+    emit({ ok: false, exit_code: EXIT.ACTION, ...envJson(env) });
+    exit(EXIT.ACTION);
+  }
+  const d = env.data ?? {};
+  if (d.token) keepToken(cfg, d, body.email);
+  say(ok(env.message || "Profile saved."), d.token ? dim(`Signed in on this machine (token in ${CONFIG}, mode 600).`) : "");
+  for (const w of env.warnings ?? []) say(warn(`! ${w}`));
+  emit({ ok: true, exit_code: 0, status: d.created ? "registered" : "updated", member_id: d.member_id ?? null, signed_in: !!d.token, next: d.next ?? null, api: cfg.api });
+}
+
+async function signin(a) {
+  const cfg = loadConfig();
+  if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
+  const email = a.flags.email && a.flags.email !== true ? String(a.flags.email).trim() : cfg.raw.email;
+  if (!email) fail("Usage: kanehack signin --email you@example.com", EXIT.ACTION, "USAGE");
+  const pw = needPassword();
+  const r = await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/token", json({ email, password: pw, label: deviceLabel() }));
+  if (r.status === 401)
+    fail(`That email and the saved password don't match an account. Check the email, or save the right password in your own terminal (kanehack password). New here? kanehack register.`, EXIT.ACTION, "WRONG_PASSWORD");
+  ensure(r, "Signing in");
+  if (r.env.status === "error") {
+    printEnvelope(r.env);
+    emit({ ok: false, exit_code: EXIT.FAIL, ...envJson(r.env) });
+    exit(EXIT.FAIL);
+  }
+  const d = r.env.data ?? {};
+  keepToken(cfg, d, email);
+  say(ok(r.env.message || "Signed in."), dim(`Token saved in ${CONFIG} (mode 600).`));
+  emit({ ok: true, exit_code: 0, status: "signed_in", member: d.member ?? null, token_expires_at: d.expires_at ?? null, api: cfg.api });
+}
+
+async function claim() {
+  const cfg = loadConfig();
+  if (!cfg.token) fail("Sign in on this machine first: kanehack signin --email you@example.com (or kanehack register).", EXIT.ACTION, "NOT_SIGNED_IN");
+  const creds = loadCreds();
+  const pw = creds.testmu_password || needPassword();
+  const r = ensure(await api(cfg, "/api/v1/activation/claim", { ...json({ password: pw }), timeout: 30_000 }), "Claiming the TestMu AI plan");
+  const env = r.env;
+  const outcome = env.data?.outcome ?? null;
+  const code = outcome === "claimed" ? EXIT.OK : outcome === "in_progress" ? EXIT.PENDING : env.status === "error" && !outcome ? EXIT.FAIL : EXIT.ACTION;
+  printEnvelope(env);
+  if (outcome === "not_registered") say(dim("Then run kanehack claim again."));
+  if (outcome === "error" && !creds.testmu_password) say(dim("TestMu AI account with a different password? In your own terminal: kanehack password --testmu, then kanehack claim."));
+  emit({ ok: code === EXIT.OK, exit_code: code, outcome, ...envJson(env) });
+  if (code !== EXIT.OK) exit(code);
 }
 
 // ── login (TestMu AI access key) ────────────────────────────────────────────
@@ -988,6 +1145,12 @@ async function hook(a) {
 function usage() {
   console.log(`kanehack ${VERSION}: Kane CLI Hack Day helper
 
+  kanehack password [--testmu]                type your password once, in YOUR OWN terminal (hidden; never in Codex)
+  kanehack password --check | --forget         is one saved? / remove it
+  kanehack register --name N --email E --linkedin L --x X [--github G] [--looking]
+                                              save your profile and sign this machine in (uses the saved password)
+  kanehack signin [--email E]                 sign this machine in (email + the saved password)
+  kanehack claim                              claim your TestMu AI hack-day plan (/activate step 2)
   kanehack login [--username U --access-key K]  save your TestMu AI key (required sign-in; shown on /register)
   kanehack logout                             forget the saved TestMu AI key
   kanehack pair [--token khk_…] [--api URL]   pair this machine (device code, or a token)
@@ -1010,8 +1173,8 @@ function usage() {
   kanehack version
 
   Every command takes --json: one JSON document on stdout (report: one extra NDJSON line).
-  Exit codes: 0 ok · 1 failed / not ready · 2 needs you (not paired, usage, consent) ·
-              3 server unreachable · 4 pairing still pending · report: Kane's own exit code
+  Exit codes: 0 ok · 1 failed / not ready · 2 needs you (not paired, no password, usage, consent) ·
+              3 server unreachable · 4 pairing (or a claim) still pending · report: Kane's own exit code
 
 Server: ${loadConfig().api}   Config: ${CONFIG}
 Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
@@ -1020,7 +1183,7 @@ Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
 const a = args(process.argv.slice(2));
 JSON_MODE = Boolean(a.flags.json);
 const cmd = a._[0];
-const commands = { login, logout, pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
+const commands = { password, register, signin, claim, login, logout, pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
 const run = Object.hasOwn(commands, cmd) ? commands[cmd] : null;
 
 Promise.resolve()
