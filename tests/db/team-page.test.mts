@@ -4,7 +4,7 @@
 //   - a stale expected_version is 409 with the current version
 //   - a non-member is FORBIDDEN, staff read, only organizers write
 //   - another team's or non-public evidence, and a bad video URL, are refused
-//   - after the lock a participant gets SUBMISSION_LOCKED and an organizer may write (audited)
+//   - after the deadline time participants and organizers can still write (audited as after the lock)
 //   - a finalized submission's snapshot and draft never change
 //   - /ship/{slug}/one-pager visibility and headers, the REST route and the MCP tool,
 //     fetched from a running dev server on the same database (QA_SITE_URL)
@@ -238,12 +238,13 @@ test("another team's or non-public evidence, other runs and bad links are refuse
   assert.deepEqual(page.evidence_ids, [`PE-${pe.shot}`]);
 });
 
-test("after the lock a participant is refused and an organizer may write, audited", { skip }, async () => {
+// The deadline time no longer locks the page (event day, 2026-10-24); the audit still says it passed.
+test("after the deadline time a participant and an organizer can still write, audited", { skip }, async () => {
   const t = teams[1];
   const me = await asMember(t.members[0]);
   await m.db.query("update hack_events set submission_locks_at = now() - interval '1 minute' where id = $1", [eventId]);
   try {
-    await assert.rejects(m.page.updateTeamPage(t.slug, me, { commit_sha: SHA }), (e: { code?: string; status?: number }) => e.code === "SUBMISSION_LOCKED" && e.status === 423);
+    assert.equal((await m.page.updateTeamPage(t.slug, me, { commit_sha: SHA })).commit_sha, SHA);
     const w = await m.page.updateTeamPage(t.slug, asStaff("organizer"), { commit_sha: SHA });
     assert.equal(w.commit_sha, SHA);
   } finally {

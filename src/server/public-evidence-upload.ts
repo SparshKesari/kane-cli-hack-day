@@ -68,7 +68,6 @@ export async function requestPublicEvidenceUpload(c: KaneCaller, raw: unknown, o
   const member = callerMember(c)!;
   const file = checkPublicFile({ kind: input.kind, filename: input.filename, contentType: input.content_type, sizeBytes: input.size_bytes });
   if (!file.ok) throw new AppError("VALIDATION_FAILED", { userMessage: file.reason, details: { reason: "file_refused" } });
-  await assertNotLocked();
   await enforceRateLimitFor(member);
   const s3 = requireS3();
   const runId = await resolveRun(project.id, input);
@@ -89,7 +88,6 @@ export async function completePublicEvidenceUpload(c: KaneCaller, ref: string, o
   if (row.status === "public") return receiptOf(row, "public");
   if (row.status === "rejected") throw rejectedError(row);
   if (row.status === "removed") throw new AppError("CONFLICT", { userMessage: `${publicEvidenceId(row.id)} was removed. Request a new upload to publish it again.`, details: { object_id: publicEvidenceId(row.id), status: row.status } });
-  await assertNotLocked();
   await enforceRateLimitFor(member);
   const incoming = incomingKey(row.project_id, row.sha256, extOf(row.object_key));
   const bytes = await fetchIncoming(s3, row, incoming);
@@ -125,7 +123,6 @@ export async function removePublicEvidence(c: KaneCaller, ref: string, raw: unkn
   if (!organizer) {
     const project = await projectFor(c);
     if (project.id !== row.project_id) throw new AppError("NOT_FOUND");
-    await assertNotLocked("An organizer can still remove it.");
   }
   const s3 = requireS3();
   const removed = await withAudit<Row>(
@@ -367,17 +364,6 @@ async function invalidateEdge(s3: S3, objectKey: string): Promise<PublicEvidence
     log.warn("public_evidence.invalidation_failed", { key: objectKey, err });
     return "failed";
   }
-}
-
-async function assertNotLocked(hint?: string) {
-  const [row] = await query<{ now: Date; locks_at: Date | null; locked: boolean }>(
-    "select now() as now, submission_locks_at as locks_at, coalesce(now() >= submission_locks_at, false) as locked from hack_events where id = current_event_id()",
-  );
-  if (!row?.locked) return;
-  throw new AppError("SUBMISSION_LOCKED", {
-    userMessage: `Submissions locked at ${row.locks_at!.toISOString()} (server time), so public evidence can't change now.${hint ? ` ${hint}` : ""}`,
-    details: { locks_at: row.locks_at!.toISOString(), server_time: row.now.toISOString() },
-  });
 }
 
 const enforceRateLimitFor = (member: MemberRow) => enforceRateLimit(`public-evidence:${member.id}`, RATE);

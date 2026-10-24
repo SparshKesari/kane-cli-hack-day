@@ -285,7 +285,8 @@ test("the team quota counts public objects", { skip }, async () => {
   await assert.rejects(m.up.requestPublicEvidenceUpload(callers[4], ask(png("quota"))), (e: { code?: string; details?: { reason?: string } }) => e.code === "VALIDATION_FAILED" && e.details?.reason === "team_quota");
 });
 
-test("after the submission lock members can't upload or remove but organizers can still remove", { skip }, async () => {
+// The deadline time no longer locks evidence (event day, 2026-10-24).
+test("after the submission deadline time members can still upload and remove, and organizers can remove", { skip }, async () => {
   const body = png("lock");
   const r = await upload(callers[0], body);
   const done = await m.up.completePublicEvidenceUpload(callers[0], r.object_id);
@@ -293,9 +294,9 @@ test("after the submission lock members can't upload or remove but organizers ca
   const [ev] = await m.db.query<{ locks: Date }>("select submission_locks_at as locks from hack_events where id = current_event_id()");
   await m.db.query("update hack_events set submission_locks_at = now() - interval '1 minute' where id = current_event_id()");
   try {
-    await assert.rejects(m.up.requestPublicEvidenceUpload(callers[0], ask(png("late"))), code("SUBMISSION_LOCKED"));
-    await assert.rejects(m.up.completePublicEvidenceUpload(callers[0], pending.object_id), code("SUBMISSION_LOCKED"));
-    await assert.rejects(m.up.removePublicEvidence(callers[0], r.object_id, {}), code("SUBMISSION_LOCKED"));
+    await upload(callers[0], png("late"));
+    assert.equal((await m.up.completePublicEvidenceUpload(callers[0], pending.object_id)).status, "public");
+    assert.equal((await m.up.removePublicEvidence(callers[0], pending.object_id, {})).status, "removed");
     assert.equal((await m.up.completePublicEvidenceUpload(callers[0], r.object_id)).status, "public");
     assert.equal((await m.up.removePublicEvidence(organizer, r.object_id, { reason: "organizer takedown" })).status, "removed");
     assert.notEqual((await fetch(done.public_url)).status, 200);
