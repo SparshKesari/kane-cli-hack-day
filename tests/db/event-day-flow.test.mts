@@ -313,6 +313,30 @@ test("the real claim API is never called outside production", { skip }, async ()
   process.env.TESTMU_TRIAL_CLAIM_URL = saved;
 });
 
+// Previews and `vercel dev` use the live database, where a stub "claimed" would mark a real
+// participant claimed with no TestMu AI plan behind it. So they never claim at all.
+test("previews and vercel dev never claim: no call, nothing saved, nothing ticked", { skip }, async () => {
+  await register("preview");
+  let me = (await viewer())!;
+  await m.teams.createTeam(acting(me), { name: `${tag} Preview`, track: "Web App" });
+  me = (await m.auth.getMemberById(me.id))!;
+  const before = claimBodies.length;
+  claimStatus = 200;
+  for (const env of ["preview", "development"]) {
+    process.env.VERCEL_ENV = env;
+    try {
+      assert.equal(m.act.claimsOffHere(), true, env);
+      await assert.rejects(m.act.claimPlan(me, "correct-horse-9"), /Previews don’t activate TestMu AI plans/, env);
+    } finally {
+      delete process.env.VERCEL_ENV;
+    }
+  }
+  assert.equal(m.act.claimsOffHere(), false, "local runs and tests still claim against the stub or a mock");
+  assert.equal(claimBodies.length, before, "no call to TestMu AI");
+  assert.equal((await m.db.query("select 1 from testmu_plan_claims where member_id = $1", [me.id])).length, 0, "no claim row");
+  assert.equal((await m.db.query("select 1 from activation_ticks where member_id = $1", [me.id])).length, 0, "no ticks");
+});
+
 // The skill used to go from activation straight to building on next_action "build".
 test("after activation the next step is the idea, until the team saves one", { skip }, async () => {
   await register("nextidea");

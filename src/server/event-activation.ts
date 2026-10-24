@@ -84,6 +84,14 @@ const CLAIM_TIMEOUT_MS = 10_000;
 const isProduction = () => process.env.VERCEL_ENV === "production" || process.env.HACKOS_ENV === "production";
 
 /**
+ * Previews and `vercel dev` use the live database (one DATABASE_URL for every Vercel
+ * environment), and the stub answers "claimed" there: that would mark a real participant
+ * claimed with no TestMu AI plan behind it, and production would never claim them. So no
+ * claims there at all; local runs and tests (no VERCEL_ENV) keep the stub.
+ */
+export const claimsOffHere = () => !isProduction() && (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "development");
+
+/**
  * Where the claim goes. Production: TESTMU_TRIAL_CLAIM_URL or the real API.
  * Anywhere else the real API is never called: a stub answers, shaped by
  * TESTMU_CLAIM_STUB (success | not_registered | invalid | error | timeout;
@@ -191,6 +199,7 @@ export const planClaimedMessage = (plan: PlanClaim) => claimedMessage(mapClaimRe
  * runs at a time. Every attempt is audited (status and code, no email).
  */
 export async function claimPlan(member: MemberRow, password: string): Promise<ClaimView> {
+  if (claimsOffHere()) throw new AppError("CONFLICT", { userMessage: PLAN_MESSAGES.previewOff });
   await requireTeam(member);
   const [row] = await query<{ status: string }>("select status from testmu_plan_claims where member_id = $1", [member.id]);
   if (row?.status === "claimed") return { outcome: "claimed", message: PLAN_MESSAGES.claimed };
