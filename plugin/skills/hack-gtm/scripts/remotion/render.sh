@@ -65,6 +65,18 @@ print(dest.as_posix())
 PY
 )"
 
+# A drafted placeholder must never reach the video. Check before installing anything.
+python3 -B - "$HERE/.." "$SRC_DIR/storyboard.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from evidence_to_storyboard import refuse_placeholders
+
+refuse_placeholders(json.loads(Path(sys.argv[2]).read_text(encoding="utf-8")))
+PY
+
 mkdir -p "$DEST_DIR"
 cd "$DEST_DIR"
 # Replace only generated files inside this project's working copy. Unlink files

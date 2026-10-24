@@ -34,6 +34,30 @@ except Exception:  # pragma: no cover
 SECRET_KEYS = r"password|passwd|pwd|token|secret|api[_-]?key|access[_-]?key|session|auth|cookie"
 KANE_TOKEN = r"\bkhk_[A-Za-z0-9_-]+"
 LONG_TOKEN = r"(?<![A-Za-z0-9_+/-])[A-Za-z0-9_+/-]{32,}={0,2}(?![A-Za-z0-9_+/-])"
+# Credentials as people write them in a run objective or step title: "log in with password
+# hunter2", "enter 'Abc123!' in the password field", "OTP 918273".
+CREDENTIAL = (r"(?:pass(?:word|wd|code|phrase)|pwd|pin|t?otp|one[- ]time\s+(?:pass)?code"
+              r"|(?:verification|security|2fa|mfa|auth(?:entication)?)\s+code)(?![\w-])")
+QUOTES = "\"'`\u201c\u2018"
+QUOTED = r"\"[^\"\n]*\"|'[^'\n]*'|`[^`\n]*`|\u201c[^\u201d\n]*\u201d|\u2018[^\u2019\n]*\u2019"
+QUOTED_WORD = r"\"[^\"\s]+\"|'[^'\s]+'|`[^`\s]+`|\u201c[^\u201d\s]+\u201d|\u2018[^\u2019\s]+\u2019"
+SPOKEN_AFTER = re.compile(
+    r"(?P<prefix>(?<![\w-])" + CREDENTIAL + r"(?:\s+(?:field|input|box))?"
+    r"(?:\s*[:=]|\s+(?:is|as|to|of|with|set\s+to))?\s+)(?P<value>" + QUOTED + r"|[^\s\"'`]\S*)", re.I)
+SPOKEN_BEFORE = re.compile(
+    r"(?P<value>" + QUOTED_WORD + r"|(?<!\S)[^\s\"'`]+)"
+    r"(?P<suffix>\s+(?:in|into|as|for)(?:\s+(?:the|your|a))?\s+(?<![\w-])" + CREDENTIAL + ")", re.I)
+
+
+def hide_spoken(value: str) -> str:
+    """A quoted value next to a credential word is the credential. A bare one is when it
+    looks like one (a digit or a symbol), so "password field" and "pin it" stay readable."""
+    if value[0] in QUOTES:
+        return value[0] + "[redacted]" + value[-1]
+    core = value.rstrip(".,;:)]}")
+    if len(core) >= 4 and re.search(r"[\d_!@#$%^&*+=?~]", core):
+        return "[redacted]" + value[len(core):]
+    return value
 
 
 def redact(text: str) -> str:
@@ -79,6 +103,8 @@ def redact(text: str) -> str:
         return match.group("prefix") + quote + "[redacted]" + quote
 
     text = assignment.sub(hide_value, text)
+    text = SPOKEN_AFTER.sub(lambda m: m.group("prefix") + hide_spoken(m.group("value")), text)
+    text = SPOKEN_BEFORE.sub(lambda m: hide_spoken(m.group("value")) + m.group("suffix"), text)
     text = re.sub(LONG_TOKEN, "[redacted]", text)
     for i, url in enumerate(urls):
         text = text.replace(f"\u27e6url-{i}\u27e7", url)
@@ -156,7 +182,7 @@ def read_pack(root: Path, tag: str, steps_out: Path, include_screenshots=False):
             objective = ""
             tmd = tdir / "test.md"
             if tmd.exists():
-                objective = words(redact(tmd.read_text(encoding="utf-8", errors="replace").strip()), 40)
+                objective = clip(redact(tmd.read_text(encoding="utf-8", errors="replace").strip()), 40)
             steps = []
             sdir = tdir / "steps"
             if sdir.exists():
@@ -210,8 +236,42 @@ def read_pack(root: Path, tag: str, steps_out: Path, include_screenshots=False):
     return redact_data({"run": run, "tests": tests})
 
 
-def words(s: str, n: int) -> str:
-    return " ".join(str(s).split()[:n])
+FILLER = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "is", "of", "on", "or", "the", "to", "with"}
+# Text the script drafts for a person to replace. The renderers refuse to put it in a video.
+PLACEHOLDER = re.compile(r"\bTODO(?: narration)?:")
+
+
+def clip(s: str, n: int) -> str:
+    """At most n words. A cut ends on a content word and says it was cut."""
+    ws = str(s).split()
+    if len(ws) <= n:
+        return " ".join(ws)
+    ws = ws[:n]
+    while len(ws) > 1 and ws[-1].lower().strip(",;:") in FILLER:
+        ws.pop()
+    return " ".join(ws).rstrip(",;:.") + "..."
+
+
+def sentence(s: str) -> str:
+    s = str(s).rstrip()
+    return s if s.endswith((".", "!", "?")) else s + "."
+
+
+def placeholder_scenes(sb: dict) -> list:
+    """Ids of the scenes whose on-screen text or narration is still a drafted placeholder."""
+    left = [str(s.get("id") or f"scene {i + 1}") for i, s in enumerate(sb.get("scenes") or [])
+            if PLACEHOLDER.search(json.dumps(s))]
+    if PLACEHOLDER.search(str(sb.get("project", ""))):
+        left.append("project")
+    return left
+
+
+def refuse_placeholders(sb: dict) -> None:
+    """Renderers call this first, so a draft never ends up in a published video."""
+    left = placeholder_scenes(sb)
+    if left:
+        sys.exit(f"storyboard still has placeholder text in: {', '.join(left)}. "
+                 "Write those scenes in storyboard.json, or delete them, then render again.")
 
 
 def pick_steps(steps, head=1, tail=1, keep_failed=True):
@@ -235,7 +295,7 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
     brief = redact_data(brief)
     passed = redact_data(passed)
     failed = redact_data(failed) if failed else None
-    project = brief.get("project", "Our project")
+    project = brief.get("project") or "TODO: project name"
     pitch = brief.get("pitch", "")
     demo_images = [Path(p.strip()).as_posix().replace("\\", "/")
                    for p in brief.get("demo", "").split(",") if p.strip()]
@@ -256,13 +316,16 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
         {"id": "solution", "kind": "card", "act": "pitch", "seconds": 7, "title": f"What {project} does",
          "body": brief.get("solution", "TODO: what it does in three short lines"),
          "narration": brief.get("solution", "TODO narration: what the product does, in plain words.")},
-        {"id": "demo", "kind": "demo", "act": "pitch", "seconds": 10, "title": "See it work",
-         "images": demo_images or ([brief["hero"]] if brief.get("hero") else []),
-         "narration": brief.get("demo_narration", "TODO narration: walk through the demo screens, what the user sees.")},
         {"id": "ask", "kind": "card", "act": "pitch", "seconds": 5, "title": "Why it matters",
          "body": brief.get("why", "TODO: the before/after in one line"),
          "narration": brief.get("why", "TODO narration: the before and after, the thing that changes for the user.")},
     ]
+    # No screenshots means no demo scene, rather than an empty frame.
+    demo_images = demo_images or ([brief["hero"]] if brief.get("hero") else [])
+    if demo_images:
+        scenes.insert(4, {"id": "demo", "kind": "demo", "act": "pitch", "seconds": 10, "title": "See it work",
+                          "images": demo_images,
+                          "narration": brief.get("demo_narration", "TODO narration: walk through the demo screens, what the user sees.")})
 
     # ACT 2: how it was built. OpenAI layer, in plain words.
     scenes.append({"id": "build", "kind": "card", "act": "build", "seconds": 8, "title": "How we built it",
@@ -274,7 +337,7 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
     if passed["tests"]:
         objective = passed["tests"][0].get("objective", "")
     scenes.append({"id": "objective", "kind": "card", "act": "proof", "seconds": 7, "title": "Then we told Kane CLI what to prove",
-                   "body": words(objective, 40) or "TODO: paste the kane-cli run objective",
+                   "body": objective or "TODO: paste the kane-cli run objective",
                    "mono": True,
                    "narration": "We described the flow in plain English and Kane CLI drove a real Chrome."})
 
@@ -289,8 +352,8 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
                 "seconds": 6 if is_fail else 3.5, "step": s["ordinal"], "label": s["label"],
                 "status": s["status"], "image": s["image"], "url": s["url"], "rect": s["rect"],
                 "error": s["error"],
-                "narration": (f"Step {s['ordinal']} failed: {words(s['error'] or 'the element was not found', 14)}."
-                              if is_fail else f"Step {s['ordinal']}, {words(s['label'], 6)}."),
+                "narration": sentence(f"Step {s['ordinal']} failed: {clip(s['error'] or 'the element was not found', 14)}"
+                                       if is_fail else f"Step {s['ordinal']}, {clip(s['label'], 12)}"),
             })
         if hidden:
             scenes[-1]["hidden_steps"] = hidden
@@ -312,7 +375,7 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
             "id": f"pass-step-{s['ordinal']}", "kind": "step", "act": "proof", "run": status,
             "seconds": 3.5, "step": s["ordinal"], "label": s["label"], "status": s["status"],
             "image": s["image"], "url": s["url"], "rect": s["rect"], "error": s["error"],
-            "narration": f"Step {s['ordinal']}, {words(s['label'], 6)}.",
+            "narration": sentence(f"Step {s['ordinal']}, {clip(s['label'], 12)}"),
         })
     if hidden and scenes:
         scenes[-1]["hidden_steps"] = hidden
@@ -327,17 +390,17 @@ def build_storyboard(brief: dict, passed: dict, failed: dict | None):
     if status == "passed":
         narration = f"The run passed. {totals['steps']} steps, sealed into one evidence pack for the judges."
     elif bad_step:
-        reason = words(redact(str(bad_step.get("error") or bad_step["label"] or "the step did not complete")), 14)
-        narration = f"The run failed on step {bad_step['ordinal']}: {reason.rstrip('.')}. That is the bug Kane caught."
+        reason = clip(redact(str(bad_step.get("error") or bad_step["label"] or "the step did not complete")), 14)
+        narration = f"The run failed on step {bad_step['ordinal']}: {sentence(reason)} That is the bug Kane caught."
     else:
-        reason = words(redact(str(run.get("error") or (bad_test or {}).get("error")
-                                  or f"the evidence reports {status or 'no passing status'}")), 14)
-        narration = f"The run failed: {reason.rstrip('.')}. Kane did not confirm a passing run."
+        reason = clip(redact(str(run.get("error") or (bad_test or {}).get("error")
+                                 or f"the evidence reports {status or 'no passing status'}")), 14)
+        narration = f"The run failed: {sentence(reason)} Kane did not confirm a passing run."
     scenes.append({"id": "verdict", "kind": "verdict", "act": "proof", "seconds": 6, "status": status,
                    "totals": totals, "title": run.get("title", ""),
                    "narration": narration})
     scenes.append({"id": "outro", "kind": "outro", "act": "close", "seconds": 7,
-                   "links": [brief.get("ship_url", "TODO ship page"), brief.get("deck_url", "TODO deck url")],
+                   "links": [brief[k] for k in ("ship_url", "deck_url") if brief.get(k)],
                    "credits": brief.get("credits", "Built with OpenAI. Tested with Kane CLI."),
                    "narration": f"{project}. Built with OpenAI, tested with Kane CLI. Links in the post."})
     return redact_data({
@@ -354,7 +417,8 @@ def read_brief(path: Path | None) -> dict:
     out = {}
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         m = re.match(r"^\s*[-*]?\s*(project|pitch|hook|problem|who|solution|demo|demo_narration|why|openai|openai_narration|fix|hero|ship_url|deck_url|credits)\s*:\s*(.+)$", line, re.I)
-        if m:
+        # "(one sentence a stranger would stop for)" is the template's hint, not an answer.
+        if m and not re.fullmatch(r"\(.*\)", m.group(2).strip()):
             out[m.group(1).lower()] = m.group(2).strip()
     return out
 
@@ -371,6 +435,8 @@ def main():
     a = ap.parse_args()
     if bool(a.passed) == bool(a.passing_pack):
         ap.error("provide one final pack, either positionally or with --pass")
+    if a.brief and not Path(a.brief).is_file():
+        ap.error(f"brief not found: {a.brief}. Write it from assets/brief-template.md, or leave out --brief to draft placeholders")
 
     out = Path(a.out)
     steps_out = out / "steps"
@@ -390,8 +456,19 @@ def main():
     (out / "storyboard.json").write_text(json.dumps(sb, indent=2), encoding="utf-8")
     (out / "pack-summary.json").write_text(json.dumps(redact_data({"passed": passed, "failed": failed}), indent=2), encoding="utf-8")
 
-    n_todo = sum(1 for s in sb["scenes"] if "TODO" in json.dumps(s))
-    print(f"storyboard: {out/'storyboard.json'}  scenes={len(sb['scenes'])}  TODO narration lines={n_todo}")
+    needed = ["project", "hook", "problem", "who", "solution", "why", "openai", "openai_narration"]
+    needed += (["demo_narration"] if any(s["id"] == "demo" for s in sb["scenes"]) else []) + (["fix"] if failed else [])
+    missing = [k for k in needed if not brief.get(k)]
+    source = a.brief or "no --brief given"
+    if missing:
+        print(f"brief ({source}) has no {', '.join(missing)}: those scenes are TODO placeholders. Fill the key: value "
+              "lines from assets/brief-template.md and rerun, or write the scenes in storyboard.json.", file=sys.stderr)
+    if not any(s["id"] == "demo" for s in sb["scenes"]):
+        print(f"brief ({source}) has no demo or hero screenshots, so the video has no demo scene.", file=sys.stderr)
+    left = placeholder_scenes(sb)
+    print(f"storyboard: {out/'storyboard.json'}  scenes={len(sb['scenes'])}")
+    print("placeholders left: none" if not left else
+          f"placeholders left in {len(left)} scenes: {', '.join(left)}. The renderers refuse them; write them first.")
     print(f"screenshots copied: {len(list(steps_out.glob('*.png')))}")
     print("next: edit narration, then scripts/tts.py")
 

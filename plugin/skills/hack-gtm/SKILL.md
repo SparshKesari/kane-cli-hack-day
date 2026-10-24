@@ -44,7 +44,7 @@ Run in this order. Later steps reuse earlier ones.
 
 ### 1. Read and reduce the brief
 
-Produce `launch/brief.md`: a 10-line digest with the pitch, the problem, the OpenAI usage, the three most concrete Kane CLI moments (command, what it checked, what happened), the URLs, and the author's voice notes. Every other asset is written from this digest, which keeps them consistent.
+Produce `launch/brief.md`: a 10-line digest with the pitch, the problem, the OpenAI usage, the three most concrete Kane CLI moments (command, what it checked, what happened), the URLs, and the author's voice notes. Every other asset is written from this digest, which keeps them consistent. Put the `key: value` lines from `assets/brief-template.md` at the top: the video script reads only those, and names any it can't find.
 
 If an evidence pack is provided, run step 1 of 5a first (storyboard extraction) so you have real step names and screenshots to quote in the blog and posts. `<skill>` below is the folder this file is in (usually `~/.agents/skills/hack-gtm`); run the scripts from the project folder so `launch/` lands there.
 
@@ -87,7 +87,8 @@ python3 <skill>/scripts/evidence_to_storyboard.py <pack.evidence> --brief launch
 #    rerun with --include-screenshots (before editing narration: a rerun rewrites the drafts)
 
 # 2. write narration into launch/video/storyboard.json (one line per scene; the script seeds drafts),
-#    then show the person every scene's narration and on-screen text and get a yes
+#    then show the person every scene's narration and on-screen text and get a yes.
+#    Both renderers refuse a storyboard that still has a TODO: placeholder in it.
 # 3. voice-over: macOS say by default; --provider edge or openai only if they chose it
 python3 <skill>/scripts/tts.py launch/video/storyboard.json --out launch/video/audio/
 
