@@ -1,25 +1,12 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kane-hack-os",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Participant skills for Kane CLI Hack Day: setup, teams, ideas, harness design, Kane run proof, help, demo, showcase and submission. Uses the event MCP server at https://www.kaneclihack.sh/mcp with a token from `kanehack pair`.",
   "author": { "name": "TestMu AI" },
   "homepage": "https://kaneclihack.sh",
   "license": "UNLICENSED",
-  "skills": [
-    "skills/hack-onboard",
-    "skills/hack-doctor",
-    "skills/hack-team",
-    "skills/hack-idea",
-    "skills/hack-harness",
-    "skills/hack-verify",
-    "skills/hack-progress",
-    "skills/hack-help",
-    "skills/hack-demo",
-    "skills/hack-showcase",
-    "skills/hack-gtm",
-    "skills/hack-submit"
-  ],
+  "skills": ["skills/hack-os"],
   "mcp": "mcp.json",
   "requires": {
     "skills": ["@testmuai/kane-cli-skill"],
@@ -33,7 +20,7 @@
         "longDescription": "Get set up, find a team, design a Kane CLI validation harness, record verified runs, ask a mentor, build a demo kit and submit your Kane CLI Hack Day project.",
         "developerName": "TestMu AI",
         "capabilities": [],
-        "defaultPrompt": "Show my Kane Hack OS status and my next step."
+        "defaultPrompt": "Use $hack-os to check my Hack Day status and do my next step."
       }
     }
   }
