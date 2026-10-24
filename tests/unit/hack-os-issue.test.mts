@@ -20,7 +20,9 @@ function pathWithGh(authExit: number | null) {
   return dir;
 }
 
-function draft(title: string, body: string, PATH = pathWithGh(null)): Promise<{ code: number | null; json: any; err: string }> {
+type Draft = { title: string; body_file: string; url: string; gh_ready: boolean; gh_argv: string[] | null };
+
+function draft(title: string, body: string, PATH = pathWithGh(null)): Promise<{ code: number | null; json: Draft; err: string }> {
   const f = join(mkdtempSync(join(tmpdir(), "hackos-issue-")), "body.md");
   writeFileSync(f, body);
   return new Promise((done) => {
@@ -29,7 +31,7 @@ function draft(title: string, body: string, PATH = pathWithGh(null)): Promise<{ 
     p.stdout.on("data", (b) => (out += b));
     p.stderr.on("data", (b) => (err += b));
     p.on("close", (code) => {
-      let json = null;
+      let json = {} as Draft;
       try { json = JSON.parse(out); } catch {}
       done({ code, json, err });
     });

@@ -45,7 +45,7 @@ function home(config: object) {
 }
 
 function run(h: string, args: string[], env: Record<string, string> = {}): Promise<{ code: number | null; out: string; err: string }> {
-  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(TESTMU_|LT_|KANEHACK_)/.test(k)));
+  const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(TESTMU_|LT_|KANEHACK_)/.test(k))) as NodeJS.ProcessEnv;
   return new Promise((done) => {
     const p = spawn(process.execPath, [SCRIPT, ...args], { env: { ...clean, HOME: h, USERPROFILE: h, KANEHACK_OS_ALLOW_LOCAL: "1", ...env } });
     let out = "", err = "";

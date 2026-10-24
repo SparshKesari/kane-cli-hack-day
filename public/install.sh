@@ -1,14 +1,14 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.4
+# Version: 0.1.5
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
 #     the official Kane CLI skill, the hack skills and whether the event API answers
 #   - asks before it installs anything, and only installs the OpenAI Codex CLI
 #     (npm i -g @openai/codex, if it's missing), the `kanehack` helper into
-#     ~/.kanehack and the hack-* skills into ~/.agents/skills (where Codex reads
-#     them), the last two from tarballs whose sha256 is pinned below
+#     ~/.kanehack and the hack-os skill into ~/.agents/skills (where Codex reads
+#     it), the last two from tarballs whose sha256 is pinned below
 #   - if you have Codex, offers to add the event MCP server to it. ~/.codex/config.toml
 #     gets the server URL and `kanehack mcp-headers` (which prints the auth header when
 #     Codex connects), never the token itself; config.toml is backed up first
@@ -23,7 +23,7 @@
 # No terminal (Codex runs it for you, CI)? Every question is a quiet "no" unless you pass --yes:
 #   curl -fsSL https://kaneclihack.sh/install.sh | sh -s -- --yes
 # Options: --yes (-y) answer yes to every install question · --no-path don't link kanehack or
-# touch your profile · --no-skills don't install the hack-* skills · --no-agents don't connect
+# touch your profile · --no-skills don't install the hack-os skill · --no-agents don't connect
 # Codex to the event server · --site URL another server.
 # The same as environment variables: KANEHACK_YES=1 KANEHACK_NO_PATH=1 KANEHACK_NO_SKILLS=1
 # KANEHACK_NO_AGENTS=1 KANEHACK_SITE=URL.
@@ -32,9 +32,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.4"
-KANEHACK_SHA256="e6d8a434f3a5b286a536d7dcf4c06639e4da481daec1186314d29c8ab46c16a3"
-SKILLS_SHA256="27978e87d1ddfe650a0d519cdcdb9abc7d8e89172fa5fd8c5f193a01c854e1d0"
+KANEHACK_VERSION="0.1.5"
+KANEHACK_SHA256="4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
+SKILLS_SHA256="1b84cdd2ad53a6135feb151dfaf3800c76399f238cb38eda712be414604be865"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -154,10 +154,12 @@ SKILL_DIRS="$(skill_dirs | sed 's/$/,/' | tr '\n' ' ' | sed 's/, *$//')"
 # ~/.agents/skills, so it listed every hack-* skill twice: those copies (marked .bundle-version) go.
 CODEX_DIR="${CODEX_HOME:-${HOME}/.codex}"
 LEGACY_SKILLS="${CODEX_DIR}/skills"
-# Missing, or installed by an older bundle: re-offer (the marker file names the bundle version).
+# Bundles up to 0.1.4 installed these 12 skills (marked by hack-onboard/.bundle-version); hack-os replaces them.
+OLD_SKILLS="hack-onboard hack-doctor hack-team hack-idea hack-harness hack-verify hack-progress hack-help hack-demo hack-showcase hack-gtm hack-submit"
+# Missing, installed by an older bundle, or the old 12 still there: re-offer (the marker file names the bundle version).
 NEED_SKILLS="$({ skill_dirs | while IFS= read -r d; do
-  if [ ! -f "${d}/hack-onboard/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-onboard/.bundle-version" 2>/dev/null; then echo yes; fi
-done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then echo yes; fi; } | head -n1)"
+  if [ ! -f "${d}/hack-os/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-os/.bundle-version" 2>/dev/null || [ -f "${d}/hack-onboard/.bundle-version" ]; then echo yes; fi
+done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ] || [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then echo yes; fi; } | head -n1)"
 if [ -z "$NEED_SKILLS" ]; then pass hack_skills "${KANEHACK_VERSION}"; else warn hack_skills "not found or older" "Offered below"; fi
 
 # One unauthenticated request: 401 means the API is up and wants a token.
@@ -185,7 +187,7 @@ fi
 if [ -n "$NEED_SKILLS" ]; then
   if [ -n "$NO_SKILLS" ]; then warn hack_skills "skipped (--no-skills)" "Re-run without --no-skills to add them"
   elif ! have curl; then warn hack_skills "skipped" "Install curl, then re-run"
-  elif ask "Install the 12 hack-* skills into ${SKILL_DIRS}?"; then WANT_SKILLS=1
+  elif ask "Install the Kane Hack OS skill (hack-os) into ${SKILL_DIRS}?"; then WANT_SKILLS=1
   else warn hack_skills "skipped" "Re-run this script when you're ready"; fi
 fi
 
@@ -226,18 +228,20 @@ if [ -n "$WANT_KH" ] || [ -n "$WANT_SKILLS" ]; then
     pass kanehack "${KANEHACK_VERSION} → ${PREFIX}/bin/kanehack (sha256 verified)"
   fi
   if [ -n "$WANT_SKILLS" ]; then
-    # Only the hack-* folders are written; your other skills are left alone.
+    # Only hack-os is written; your other skills are left alone. The old bundle's 12 folders go
+    # only when its marker says we installed them.
     if ! skill_dirs | while IFS= read -r d; do
-      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$KANEHACK_VERSION" > "${d}/hack-onboard/.bundle-version" || exit 1
+      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$KANEHACK_VERSION" > "${d}/hack-os/.bundle-version" || exit 1
+      if [ -f "${d}/hack-onboard/.bundle-version" ]; then
+        for s in $OLD_SKILLS; do rm -rf "${d:?}/${s}"; done
+      fi
     done; then
       fail hack_skills "couldn't unpack" "Check that your skill folders are writable"
       exit 1
     fi
-    pass hack_skills "12 skills → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load them."
-    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then
-      for s in $(tar -tzf "$STGZ" | cut -d/ -f1 | sort -u); do
-        case "$s" in hack-*) rm -rf "${LEGACY_SKILLS:?}/${s}" ;; esac
-      done
+    pass hack_skills "hack-os → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load it."
+    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ] || [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then
+      for s in $OLD_SKILLS hack-os; do rm -rf "${LEGACY_SKILLS:?}/${s}"; done
       pass codex_skills "removed the old copies in ${LEGACY_SKILLS} (Codex reads ~/.agents/skills; two copies listed each skill twice)"
     fi
   fi
@@ -353,7 +357,7 @@ echo "     (from Codex, no terminal: ${KH} pair --start, approve the code in you
 echo "  2. ${KH} doctor      re-check your setup"
 echo "  3. ${KH} report -- kane-cli run \"Open ${SITE} and find the schedule\" --agent"
 echo "     (your first Kane run, sent to your team's Proof tab)"
-if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-onboard'; fi
+if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-os'; fi
 echo "Web: ${SITE}/passport"
 if [ "$NO_TTY_SKIPS" -gt 0 ]; then
   SITE_ARG=""; [ "$SITE" != "$DEFAULT_SITE" ] && SITE_ARG=" --site ${SITE}"

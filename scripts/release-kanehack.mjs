@@ -44,7 +44,7 @@ const files = list(a);
 const mirror = list(b);
 if (JSON.stringify(files) !== JSON.stringify(mirror) || files.some((f) => !readFileSync(join(a, f)).equals(readFileSync(join(b, f))))) throw new Error("plugin/skills and .agents/skills differ: sync them first.");
 const skills = [...new Set(files.map((f) => f.split("/")[0]))];
-if (skills.length !== 12) throw new Error(`expected 12 hack-* skills, found ${skills.length}`);
+if (skills.join() !== "hack-os") throw new Error(`expected only the hack-os skill, found ${skills.join(", ")}`);
 
 // A minimal ustar writer: fixed mtime/owner/mode, so the same files give the same bytes everywhere.
 const MTIME = 499162500; // 1985-10-26, like npm pack

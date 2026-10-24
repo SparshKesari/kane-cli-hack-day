@@ -1,12 +1,12 @@
 # Kane CLI Hack Day installer for Windows: https://www.kaneclihack.sh/install.ps1
-# Version: 0.1.4
+# Version: 0.1.5
 #
 # Read me before you run me. This script checks Node, Git, Chrome, the OpenAI
 # Codex CLI, Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
 # and whether the event API answers. It asks before installing anything, and
 # only installs the OpenAI Codex CLI (npm i -g @openai/codex, if missing), the
-# `kanehack` helper into %USERPROFILE%\.kanehack and the hack-* skills into
-# .agents\skills (where Codex reads them), the last two from tarballs whose
+# `kanehack` helper into %USERPROFILE%\.kanehack and the hack-os skill into
+# .agents\skills (where Codex reads it), the last two from tarballs whose
 # sha256 is pinned below. To make `kanehack` a command it puts a small
 # kanehack.cmd shim in npm's global folder (already on your PATH), or offers to add
 # .kanehack\bin to your user PATH. If you have Codex, it offers to add the event
@@ -28,9 +28,9 @@ param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [stri
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-$KanehackVersion = "0.1.4"
-$KanehackSha256 = "e6d8a434f3a5b286a536d7dcf4c06639e4da481daec1186314d29c8ab46c16a3"
-$SkillsSha256 = "27978e87d1ddfe650a0d519cdcdb9abc7d8e89172fa5fd8c5f193a01c854e1d0"
+$KanehackVersion = "0.1.5"
+$KanehackSha256 = "4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
+$SkillsSha256 = "1b84cdd2ad53a6135feb151dfaf3800c76399f238cb38eda712be414604be865"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -115,10 +115,12 @@ $skillDirs = @(Join-Path $UserHome ".agents\skills")
 # .agents\skills, so it listed every hack-* skill twice: those copies (marked .bundle-version) go.
 $CodexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $UserHome ".codex" }
 $legacySkills = Join-Path $CodexDir "skills"
-$hasLegacy = Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")
+# Bundles up to 0.1.4 installed these 12 skills (marked by hack-onboard\.bundle-version); hack-os replaces them.
+$OldSkills = @("hack-onboard", "hack-doctor", "hack-team", "hack-idea", "hack-harness", "hack-verify", "hack-progress", "hack-help", "hack-demo", "hack-showcase", "hack-gtm", "hack-submit")
+$hasLegacy = (Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")) -or (Test-Path (Join-Path $legacySkills "hack-os\.bundle-version"))
 function SkillsCurrent($d) {
-  $marker = Join-Path $d "hack-onboard\.bundle-version"
-  (Test-Path (Join-Path $d "hack-onboard\SKILL.md")) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $KanehackVersion)
+  $marker = Join-Path $d "hack-os\.bundle-version"
+  (Test-Path (Join-Path $d "hack-os\SKILL.md")) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $KanehackVersion) -and -not (Test-Path (Join-Path $d "hack-onboard\.bundle-version"))
 }
 $needSkills = $hasLegacy -or (@($skillDirs | Where-Object { -not (SkillsCurrent $_) }).Count -gt 0)
 if (-not $needSkills) { Pass "hack_skills" $KanehackVersion } else { Warn "hack_skills" "not found or older" "Offered below" }
@@ -154,7 +156,7 @@ else { Warn "kanehack" "skipped" "Re-run this script when you're ready" }
 
 if ($needSkills) {
   if ($NoSkills) { Warn "hack_skills" "skipped (-NoSkills)" "Re-run without -NoSkills to add them" }
-  elseif (Ask "Install the 12 hack-* skills into $($skillDirs -join ', ')?") { $wantSkills = $true }
+  elseif (Ask "Install the Kane Hack OS skill (hack-os) into $($skillDirs -join ', ')?") { $wantSkills = $true }
   else { Warn "hack_skills" "skipped" "Re-run this script when you're ready" }
 }
 
@@ -187,16 +189,20 @@ if ($wantKh -or $wantSkills) {
       Pass "kanehack" "$KanehackVersion → $cmdShim (sha256 verified)"
     }
     if ($wantSkills) {
-      # tar.exe ships with Windows 10 1803+. Only the hack-* folders are written.
+      # tar.exe ships with Windows 10 1803+. Only hack-os is written; the old bundle's 12 folders go
+      # only when its marker says we installed them.
       foreach ($d in $skillDirs) {
         New-Item -ItemType Directory -Force -Path $d | Out-Null
         tar -xzf $stgz -C $d
         if ($LASTEXITCODE -ne 0) { Fail "hack_skills" "tar failed in $d" "Ask at the help desk"; throw "kanehack installer: tar failed." }
-        Set-Content -Path (Join-Path $d "hack-onboard\.bundle-version") -Value $KanehackVersion -Encoding ASCII
+        Set-Content -Path (Join-Path $d "hack-os\.bundle-version") -Value $KanehackVersion -Encoding ASCII
+        if (Test-Path (Join-Path $d "hack-onboard\.bundle-version")) {
+          foreach ($s in $OldSkills) { $p = Join-Path $d $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
+        }
       }
-      Pass "hack_skills" "12 skills → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load them."
+      Pass "hack_skills" "hack-os → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load it."
       if ($hasLegacy) {
-        Get-ChildItem $legacySkills -Directory -Filter "hack-*" | Where-Object { Test-Path (Join-Path (Join-Path $skillDirs[0] $_.Name) "SKILL.md") } | Remove-Item -Recurse -Force
+        foreach ($s in $OldSkills + "hack-os") { $p = Join-Path $legacySkills $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
         Pass "codex_skills" "removed the old copies in $legacySkills (Codex reads .agents\skills; two copies listed each skill twice)"
       }
     }
@@ -288,7 +294,7 @@ Write-Host "     (from Codex, no terminal: $kh pair --start, approve the code in
 Write-Host "  2. $kh doctor      re-check your setup"
 Write-Host "  3. $kh report -- kane-cli run `"Open $Site and find the schedule`" --agent"
 Write-Host "     (your first Kane run, sent to your team's Proof tab)"
-if ($agentsShown) { Write-Host '  4. In a new Codex session type $hack-onboard' }
+if ($agentsShown) { Write-Host '  4. In a new Codex session type $hack-os' }
 Write-Host "Web: $Site/passport"
 if ($script:NoTtySkips -gt 0) {
   $siteArg = if ($Site -ne $DefaultSite) { " -Site $Site" } else { "" }

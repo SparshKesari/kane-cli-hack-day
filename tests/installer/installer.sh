@@ -61,7 +61,7 @@ if want yes-link-npm; then
   run_install --yes --site "$SITE"; RC=$?
   check "yes: exit 0" '[ "$RC" -eq 0 ]' "$LOG"
   check "yes: kanehack $VERSION installed (sha256 verified)" '[ "$(installed_version)" = "$VERSION" ] && grep -q "sha256 verified" "$LOG"' "$LOG"
-  check "yes: 12 skills in ~/.agents/skills (where Codex reads them)" '[ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 12 ]' "$LOG"
+  check "yes: the hack-os skill in ~/.agents/skills (where Codex reads it), marked with this version" '[ -f "$H/.agents/skills/hack-os/SKILL.md" ] && [ "$(cat "$H/.agents/skills/hack-os/.bundle-version")" = "$VERSION" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 1 ]' "$LOG"
   check "yes: linked into npm's global bin" '[ -L "$NPMP/bin/kanehack" ] && grep -q "kanehack → $NPMP/bin/kanehack" "$LOG"' "$LOG"
   check "yes: \`kanehack\` resolves on PATH right away" '[ "$(HOME="$H" kanehack version)" = "$VERSION" ]' "$LOG"
   check "yes: next steps say plain \`kanehack pair\`" 'grep -q "^  1. kanehack pair" "$LOG" && ! grep -q "\.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
@@ -82,7 +82,7 @@ if want space-home; then
   mkdir -p "$NPMP/bin"
   PATH="$NPMP/bin:$ORIG_PATH"
   run_install --yes --site "$SITE"; RC=$?
-  check "space in HOME: installed, skills, linked" '[ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && [ -f "$H/.agents/skills/hack-onboard/SKILL.md" ] && [ -L "$NPMP/bin/kanehack" ] && [ ! -e "$WORK/space" ]' "$LOG"
+  check "space in HOME: installed, skills, linked" '[ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ] && [ -L "$NPMP/bin/kanehack" ] && [ ! -e "$WORK/space" ]' "$LOG"
 fi
 
 # 4. ~/.local/bin on PATH (npm bin isn't): link there.
@@ -91,7 +91,7 @@ if want link-local; then
   mkdir -p "$H/.local/bin"
   PATH="$H/.local/bin:$ORIG_PATH"
   run_install --yes --no-skills --site "$SITE"; RC=$?
-  check "link-local: linked into ~/.local/bin, skills skipped" '[ "$RC" -eq 0 ] && [ -L "$H/.local/bin/kanehack" ] && [ ! -e "$H/.agents/skills/hack-onboard" ] && grep -q "skipped (--no-skills)" "$LOG"' "$LOG"
+  check "link-local: linked into ~/.local/bin, skills skipped" '[ "$RC" -eq 0 ] && [ -L "$H/.local/bin/kanehack" ] && [ ! -e "$H/.agents/skills/hack-os" ] && grep -q "skipped (--no-skills)" "$LOG"' "$LOG"
 fi
 
 # 5. npm bin on PATH but read-only (root ignores modes, so not testable as root): fall back to the profile.
@@ -153,13 +153,16 @@ fi
 # 8. Upgrade from 0.1.0 (installed the way installer 0.1.0 did).
 if want upgrade; then
   fresh upgrade
-  mkdir -p "$H/.kanehack/cli" "$H/.kanehack/bin" "$H/.agents/skills/hack-onboard"
-  echo "old" > "$H/.agents/skills/hack-onboard/SKILL.md"
+  mkdir -p "$H/.kanehack/cli" "$H/.kanehack/bin"
+  for s in onboard doctor team idea harness verify progress help demo showcase gtm submit; do mkdir -p "$H/.agents/skills/hack-$s"; echo "old" > "$H/.agents/skills/hack-$s/SKILL.md"; done
+  echo "0.1.0" > "$H/.agents/skills/hack-onboard/.bundle-version"
+  mkdir -p "$H/.agents/skills/hack-foo"; echo "mine" > "$H/.agents/skills/hack-foo/SKILL.md"
   HOME="$H" npm install --silent --no-audit --no-fund --prefix "$H/.kanehack/cli" "$REPO/public/kanehack-0.1.0.tgz" >/dev/null 2>&1
   ln -sf "$H/.kanehack/cli/node_modules/kanehack/bin/kanehack.mjs" "$H/.kanehack/bin/kanehack"
   BEFORE="$(installed_version)"
   run_install --yes --site "$SITE"; RC=$?
-  check "upgrade: 0.1.0 → $VERSION, old skills replaced" '[ "$BEFORE" = 0.1.0 ] && [ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && grep -q "Upgrade the kanehack helper" "$LOG" && [ "$(cat "$H/.agents/skills/hack-onboard/SKILL.md")" != old ]' "$LOG"
+  check "upgrade: 0.1.0 → $VERSION, old skills replaced" '[ "$BEFORE" = 0.1.0 ] && [ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && grep -q "Upgrade the kanehack helper" "$LOG" && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
+  check "upgrade: the 12 bundled hack-* folders removed, your own hack-foo kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | sed "s|.*/||" | tr "\n" " ")" = "hack-foo hack-os " ] && [ "$(cat "$H/.agents/skills/hack-foo/SKILL.md")" = mine ]' "$LOG"
 fi
 
 # 8b. Codex: an existing ~/.codex with its own config and the 0.1.2 skill copies. --yes connects it
@@ -178,14 +181,14 @@ if want codex; then
   check "codex: exit 0, asked and connected" '[ "$RC" -eq 0 ] && grep -q "Connect Codex to the event server" "$LOG" && grep -q "codex_mcp .*Codex → kane-hack-event" "$LOG"' "$LOG"
   check "codex: config.toml has kane-hack-event with the helper, the other server, no token" 'grep -q "^\[mcp_servers.kane-hack-event\]" "$CFG" && grep -qF "url = \"$SITE/mcp\"" "$CFG" && grep -q "http_headers_helper = .*mcp-headers" "$CFG" && grep -q "^\[mcp_servers.other\]" "$CFG" && ! grep -q "khk_" "$CFG"' "$LOG"
   check "codex: config.toml backed up first" '[ "$(ls "$H/.codex" | grep -c "config.toml.kanehack-.*\.bak")" = 1 ]' "$LOG"
-  check "codex: skills in ~/.agents/skills, the 0.1.2 copies in ~/.codex/skills removed, other skills kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 12 ] && [ ! -e "$H/.codex/skills/hack-onboard" ] && [ ! -e "$H/.codex/skills/hack-verify" ] && [ -f "$H/.codex/skills/my-own-skill/SKILL.md" ] && grep -q "removed the old copies" "$LOG"' "$LOG"
-  check "codex: next steps mention \$hack-onboard" 'grep -qF "type \$hack-onboard" "$LOG"' "$LOG"
+  check "codex: hack-os in ~/.agents/skills, the 0.1.2 copies in ~/.codex/skills removed, other skills kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 1 ] && [ ! -e "$H/.codex/skills/hack-onboard" ] && [ ! -e "$H/.codex/skills/hack-verify" ] && [ -f "$H/.codex/skills/my-own-skill/SKILL.md" ] && grep -q "removed the old copies" "$LOG"' "$LOG"
+  check "codex: next steps mention \$hack-os" 'grep -qF "type \$hack-os" "$LOG"' "$LOG"
   if [ -n "${CODEX_BIN_DIR:-}" ]; then
     G="$(env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" get)"
     check "codex: codex mcp get kane-hack-event reads it (url, helper)" 'printf "%s\n" "$G" | grep -qF "\"url\":\"$SITE/mcp\"" && printf "%s\n" "$G" | grep -q "\"http_headers_helper\":\"<redacted>\""' "$LOG"
     mkdir -p "$WORK/empty-cwd"
     K="$(cd "$WORK/empty-cwd" && env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" skills)"
-    check "codex: Codex lists all 12 hack-* skills once each" 'printf "%s\n" "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===12&&Object.values(h).every(n=>n===1)?0:1)})"' "$LOG"
+    check "codex: Codex lists hack-os once" 'printf "%s\n" "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===1&&h[\"hack-os\"]===1?0:1)})"' "$LOG"
   else echo "# skip codex binary checks: CODEX_BIN_DIR not set"; fi
   cp "$CFG" "$WORK/codex-before"
   run_install --yes --site "$SITE"; RC=$?
@@ -213,7 +216,7 @@ if want tamper; then
     mkdir -p "$NPMP/bin"; PATH="$NPMP/bin:$ORIG_PATH"
     curl -fsSL "http://localhost:$PORT/install.sh" | env HOME="$H" NPM_CONFIG_PREFIX="$NPMP" PATH="$PATH" "$SHX" -s -- --yes --site "http://localhost:$PORT" >"$LOG" 2>&1; RC=$?
     kill "$MPID" 2>/dev/null; wait "$MPID" 2>/dev/null
-    check "tampered $which tarball: exit 1, checksum mismatch, nothing installed" '[ "$RC" -eq 1 ] && grep -q "checksum mismatch" "$LOG" && grep -q "Nothing was installed" "$LOG" && [ ! -e "$H/.kanehack/bin" ] && [ ! -e "$H/.agents/skills/hack-onboard" ] && [ ! -e "$NPMP/bin/kanehack" ]' "$LOG"
+    check "tampered $which tarball: exit 1, checksum mismatch, nothing installed" '[ "$RC" -eq 1 ] && grep -q "checksum mismatch" "$LOG" && grep -q "Nothing was installed" "$LOG" && [ ! -e "$H/.kanehack/bin" ] && [ ! -e "$H/.agents/skills/hack-os" ] && [ ! -e "$NPMP/bin/kanehack" ]' "$LOG"
   done
 fi
 
@@ -243,7 +246,7 @@ if want interactive; then
     CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$NPMP/bin:$ORIG_PATH' SHELL=/bin/sh $SHX -s -- --site '$SITE'"
     python3 "$HERE/interactive.py" "y,y,y" "$CMD" >"$LOG" 2>&1; RC=$?
     check "interactive yes,yes,yes: exit 0 after 3 prompts" '[ "$RC" -eq 0 ] && grep -q "prompts answered: 3" "$LOG"' "$LOG"
-    check "interactive yes,yes,yes: installed, skills, linked" '[ "$(installed_version)" = "$VERSION" ] && [ -L "$NPMP/bin/kanehack" ] && [ -f "$H/.agents/skills/hack-onboard/SKILL.md" ]' "$LOG"
+    check "interactive yes,yes,yes: installed, skills, linked" '[ "$(installed_version)" = "$VERSION" ] && [ -L "$NPMP/bin/kanehack" ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
     check "interactive: colors on a terminal" 'grep -q "$ESC" "$LOG"' "$LOG"
     fresh interactive-no
     CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$ORIG_PATH' SHELL=/bin/sh $SHX -s -- --site '$SITE'"

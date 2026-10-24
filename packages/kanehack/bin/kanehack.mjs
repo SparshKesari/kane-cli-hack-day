@@ -34,7 +34,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.4";
+const VERSION = "0.1.5";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -569,7 +569,7 @@ function writeAtomic(file, text) {
 
 function nextSteps(cfg) {
   if (!cfg.token) say(warn("Not paired yet: run kanehack pair (Codex gets 401 until you do)."));
-  say(dim("Start a new Codex session, then try $hack-onboard. Check with: codex mcp list"));
+  say(dim("Start a new Codex session, then type $hack-os. Check with: codex mcp list"));
 }
 
 async function connectCodex(a, cfg) {
@@ -656,11 +656,11 @@ function agentChecks(cfg, add, reinstall) {
   else {
     add("codex", cx ? "pass" : "warn", cx, cx ? null : `${codexHome()} exists but codex isn't on PATH`, "npm i -g @openai/codex");
     // Codex reads ~/.agents/skills (documented) and also $CODEX_HOME/skills: a copy in both lists every skill twice.
-    const inAgents = existsSync(join(homedir(), ".agents/skills/hack-onboard/SKILL.md"));
+    const inAgents = existsSync(join(homedir(), ".agents/skills/hack-os/SKILL.md"));
     const dupDir = join(codexHome(), "skills");
-    const dup = existsSync(join(dupDir, "hack-onboard/SKILL.md"));
+    const dup = existsSync(join(dupDir, "hack-os/SKILL.md")) || existsSync(join(dupDir, "hack-onboard/SKILL.md"));
     const rmDup = WIN ? `Remove-Item -Recurse -Force "${join(dupDir, "hack-*")}"` : `rm -rf "${dupDir}"/hack-*`;
-    add("codex_skills", inAgents && !dup ? "pass" : "warn", null, !inAgents ? "hack-* skills not in ~/.agents/skills" : dup ? `a second copy in ${dupDir} makes Codex list each skill twice` : null, !inAgents ? `Re-run the installer: ${reinstall}` : rmDup);
+    add("codex_skills", inAgents && !dup ? "pass" : "warn", null, !inAgents ? "the hack-os skill is not in ~/.agents/skills" : dup ? `a second copy in ${dupDir} makes Codex list each skill twice` : null, !inAgents ? `Re-run the installer: ${reinstall}` : rmDup);
     const e = readCodexEntry(join(codexHome(), "config.toml"), url, helper);
     const detail = { current: null, absent: `no ${MCP_NAME} server in ${e.file}`, outdated: `${MCP_NAME} uses an older setup`, different: `another server is named ${MCP_NAME}`, unrecognized: `${MCP_NAME} is configured in a form kanehack doesn't edit` }[e.state];
     add("codex_mcp", e.state === "current" ? "pass" : "warn", null, detail, e.state === "different" || e.state === "unrecognized" ? `codex mcp remove ${MCP_NAME}, then kanehack connect codex` : "kanehack connect codex");
@@ -686,9 +686,9 @@ async function doctor(a) {
   } else add("kane_auth", "skipped", null, "kane-cli not installed", "Install Kane CLI first");
   const skillDirs = [".agents/skills/kane-cli", ".codex/skills/kane-cli"].map((d) => join(homedir(), d));
   add("kane_skill", skillDirs.some((d) => existsSync(join(d, "SKILL.md"))) ? "pass" : "warn", null, null, "npx @testmuai/kane-cli-skill");
-  const pluginDirs = [join(process.cwd(), ".agents/skills/hack-onboard"), join(homedir(), ".agents/skills/hack-onboard"), join(homedir(), ".codex/skills/hack-onboard")];
+  const pluginDirs = [join(process.cwd(), ".agents/skills/hack-os"), join(homedir(), ".agents/skills/hack-os"), join(homedir(), ".codex/skills/hack-os")];
   const reinstall = WIN ? "irm https://www.kaneclihack.sh/install.ps1 | iex" : "curl -fsSL https://kaneclihack.sh/install.sh | sh";
-  add("plugin", pluginDirs.some((d) => existsSync(join(d, "SKILL.md"))) ? "pass" : "warn", null, null, `Re-run the installer to add the hack-* skills: ${reinstall}`);
+  add("plugin", pluginDirs.some((d) => existsSync(join(d, "SKILL.md"))) ? "pass" : "warn", null, null, `Re-run the installer to add the hack-os skill: ${reinstall}`);
   agentChecks(cfg, add, reinstall);
   if (!cfg.testmu) add("testmu_key", "fail", null, "no TestMu AI key saved", "kanehack login");
   else {

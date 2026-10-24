@@ -22,14 +22,16 @@ function sandbox(bundleVersion?: string) {
   return { script: join(skill, "scripts/state.mjs"), state: join(dir, "os", "state.json") };
 }
 
-function run(sb: { script: string; state: string }, ...args: string[]): Promise<{ code: number | null; json: any; stderr: string }> {
+type Out = { version?: number; build?: string | null; help_issues?: string[]; updated_at?: string | null; current?: string; latest?: string | null; update?: boolean | null; error?: string };
+
+function run(sb: { script: string; state: string }, ...args: string[]): Promise<{ code: number | null; json: Out; stderr: string }> {
   return new Promise((done) => {
     const p = spawn(process.execPath, [sb.script, ...args], { env: { ...process.env, KANEHACK_OS_STATE: sb.state, KANEHACK_OS_ALLOW_LOCAL: "1" } });
     let out = "", err = "";
     p.stdout.on("data", (b) => (out += b));
     p.stderr.on("data", (b) => (err += b));
     p.on("close", (code) => {
-      let json = null;
+      let json: Out = {};
       try { json = JSON.parse(out); } catch {}
       done({ code, json, stderr: err });
     });
@@ -56,7 +58,7 @@ test("set-build then get round-trips", async () => {
   assert.equal((await run(sb, "set-build", "building")).json.build, "building");
   const r = await run(sb, "get");
   assert.equal(r.json.build, "building");
-  assert.match(r.json.updated_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.match(String(r.json.updated_at), /^\d{4}-\d{2}-\d{2}T/);
   assert.equal((await run(sb, "set-build", "nope")).code, 2);
 });
 
