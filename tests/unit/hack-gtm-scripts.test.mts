@@ -15,7 +15,7 @@ const python = spawnSync("python3", ["--version"]).status === 0;
 const opts = { skip: python ? false : "python3 is not installed" };
 
 function py(args: string[], input?: string) {
-  const r = spawnSync("python3", ["-B", ...args], { input, encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
+  const r = spawnSync("python3", ["-B", ...args], { input, encoding: "utf8", env: { PATH: process.env.PATH ?? "", NODE_ENV: "test" } });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
 
@@ -172,7 +172,7 @@ test("the ffmpeg renderer refuses a storyboard that still has placeholders", opt
   const mp4 = join(sb.out, "showcase.mp4");
   const r = py([join(SCRIPTS, "render_ffmpeg.py"), join(sb.out, "storyboard.json"), "--out", mp4]);
   assert.notEqual(r.code, 0);
-  assert.match(r.err, /placeholder.*problem/s);
+  assert.match(r.err, /placeholder[\s\S]*problem/);
   assert.equal(existsSync(mp4), false);
   // Positive control: the same storyboard, filled in, gets past the check. It then renders,
   // or, without Pillow, stops at the Pillow import, which comes after the check.
@@ -201,10 +201,10 @@ test("the Remotion renderer refuses placeholders before it sets anything up", op
   const bin = join(sb.dir, "bin");
   mkdirSync(bin);
   writeFileSync(join(bin, "npm"), "#!/bin/sh\necho 'npm must not run' >&2\nexit 97\n", { mode: 0o755 });
-  const env = { PATH: `${bin}:${process.env.PATH ?? ""}` };
+  const env = { PATH: `${bin}:${process.env.PATH ?? ""}`, NODE_ENV: "test" as const };
   const r = spawnSync("sh", [join(SCRIPTS, "remotion", "render.sh"), sb.out, "--dest", dest], { encoding: "utf8", env });
   assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /placeholder.*problem/s);
+  assert.match(r.stderr, /placeholder[\s\S]*problem/);
   assert.equal(existsSync(dest), false);
 });
 
