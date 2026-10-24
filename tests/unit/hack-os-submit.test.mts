@@ -98,3 +98,13 @@ test("after the team lock time rosters stay open: hack-os never tells people the
     assert.match(md, /`roster_locked`, `submitted` or `withdrawn`/, b);
   }
 });
+
+test("hack-os and /start don't say the clock locks teams or ideas (#42): only a frozen idea or a locked roster is locked", () => {
+  for (const b of skills) {
+    const md = readFileSync(`${b}/hack-os/SKILL.md`, "utf8") + readFileSync(`${b}/hack-os/references/idea.md`, "utf8");
+    assert.doesNotMatch(md, /Idea locks 12:00|idea locks at 12:00|Team registration closes 11:00/i, b);
+    assert.match(readFileSync(`${b}/hack-os/references/idea.md`, "utf8"), /frozen/, b);
+  }
+  const start = startGuideMarkdown();
+  assert.doesNotMatch(start, /teams are locked|idea locks/i);
+});

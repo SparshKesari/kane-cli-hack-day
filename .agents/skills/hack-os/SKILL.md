@@ -57,7 +57,7 @@ Route from `participant_get_status` data: `team` null → team; team not locked 
 
 ## Event times (confirm with `event_get_brief`)
 
-Team registration closes 11:00. Idea locks 12:00. Final evaluation 16:00–17:00 at the team's table. Submissions lock 18:00. All Pacific time; the server clock decides.
+Teams should be set by 11:00 and the idea saved by 12:00, but the clock locks neither: rosters stay open and ideas can still be edited. Final evaluation 16:00–17:00 at the team's table. Submissions lock 18:00. All Pacific time; the server clock decides.
 
 ## Submission and launch assets
 
