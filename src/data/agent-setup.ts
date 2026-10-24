@@ -1,6 +1,6 @@
 // The participant path through Hack OS with an AI agent: install the helper,
 // pair this machine, connect Codex to the event MCP server, then work
-// through the day with the hack-* skills. /setup, the team hub's Setup tab,
+// through the day with the hack-os skill. /setup, the team hub's Setup tab,
 // /readiness and the passport all read from here, so a command changes in one
 // place. Commands must match public/install.*, packages/kanehack and
 // plugin/README.md.
@@ -38,7 +38,7 @@ export const CONNECT: Cmd[] = [
   {
     label: "Codex",
     value: `export KANEHACK_TOKEN="$(kanehack token)"\ncodex mcp add kane-hack-event --url ${MCP_URL} --bearer-token-env-var KANEHACK_TOKEN`,
-    note: "Skills load from ~/.agents/skills (the installer puts them there). Start a new Codex session, then type $hack-onboard.",
+    note: "The skills load from ~/.agents/skills (the installer puts them there). Start a new Codex session, then type $hack-os.",
   },
 ];
 
@@ -49,38 +49,26 @@ export const PROVE: Cmd[] = [
 
 export type SkillInfo = { name: string; does: string; ask: string };
 
-/** The twelve skills (plugin/skills/hack-*), by when in the day you'd reach for them. */
+/** The two skills (plugin/skills/hack-os and hack-gtm) and what to ask them, by when in the day you'd reach for each. */
 export const SKILL_GROUPS: { phase: string; skills: SkillInfo[] }[] = [
   {
     phase: "Get set up",
-    skills: [
-      { name: "hack-onboard", does: "Links your registration, profile and consents, and runs browser activation. You take the selfie yourself.", ask: "Get me set up for Kane CLI Hack Day." },
-      { name: "hack-doctor", does: "Checks Node, Git, Chrome, Kane CLI, sign-in, skills and the event API, with the exact fix for each.", ask: "Is my machine ready for the hack day?" },
-    ],
+    skills: [{ name: "hack-os", does: "Checks your machine, pairs it with your passport and connects Codex to the event, with the exact fix for anything missing.", ask: "Show my Hack Day status and do my next step." }],
   },
   {
     phase: "Team and idea",
-    skills: [
-      { name: "hack-team", does: "Finds a team, creates one, or joins one with an invite code.", ask: "Find me a team that needs a frontend builder." },
-      { name: "hack-idea", does: "Checks your idea against the eight criteria and similar opted-in ideas. Advisory, never a score.", ask: "Check our idea against the challenge criteria." },
-      { name: "hack-harness", does: "Plans which flows Kane should test, which commands, and what evidence to keep.", ask: "Design a Kane test harness for our app." },
-    ],
+    skills: [{ name: "hack-os", does: "Creates, joins or finds a team, then checks your idea against the challenge. Advisory, never a score.", ask: "Find me a team that needs a frontend builder." }],
   },
   {
     phase: "Build and prove",
-    skills: [
-      { name: "hack-verify", does: "Runs Kane CLI on a change and records the result, with evidence, on your Proof tab.", ask: "Verify the checkout flow with Kane and record it." },
-      { name: "hack-progress", does: "Turns what you've actually proven into honest milestones.", ask: "What have we proven so far?" },
-      { name: "hack-help", does: "Tries first-line fixes, then opens a mentor ticket and tracks it.", ask: "Kane CLI won't sign in. Help." },
-    ],
+    skills: [{ name: "hack-os", does: "Tests your project with Kane CLI and records runs on your team's Proof tab, failures included.", ask: "Test our login flow with Kane and record it." }],
   },
   {
-    phase: "Ship",
-    skills: [
-      { name: "hack-submit", does: "Runs the preflight, fixes gaps, and finalizes before the server lock.", ask: "Are we ready to submit? Run the preflight." },
-      { name: "hack-demo", does: "Builds the demo kit from your story: HTML deck, PDF, video, cards.", ask: "Build our demo deck." },
-      { name: "hack-showcase", does: "Reviews your public Ship Page. A teammate publishes it in the browser.", ask: "Preview our Ship Page." },
-      { name: "hack-gtm", does: "Drafts launch copy backed by your verified evidence.", ask: "Draft our launch announcement." },
-    ],
+    phase: "Launch",
+    skills: [{ name: "hack-gtm", does: "Drafts your X and LinkedIn posts, blog, Show HN post, deck and a demo video with voice-over from your project and Kane evidence. Samples: you approve and post them yourself.", ask: "Write our launch posts." }],
+  },
+  {
+    phase: "Stuck",
+    skills: [{ name: "hack-os", does: "Tries first-line fixes, then drafts a GitHub issue on Kane CLI (you approve it) or opens a mentor ticket.", ask: "I'm stuck: kane-cli run hangs." }],
   },
 ];

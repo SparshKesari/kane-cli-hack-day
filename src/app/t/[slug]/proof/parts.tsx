@@ -198,11 +198,14 @@ const KINDS = [
   ["video", "Video"],
   ["report", "Report (pdf/json/md/html)"],
   ["testmd", "_test.md file"],
-  ["zip", "Evidence pack (.zip)"],
+  ["zip", "Evidence pack (.evidence/.zip)"],
   ["log", "Log"],
 ] as const;
 
 const DIRECT_MAX = 4 * 1024 * 1024;
+/** Browsers give a Kane `.evidence` pack no content type, and the signed upload only allows listed types. */
+const KANE_PACK = /\.evidence$/i;
+const KANE_PACK_TYPE = "application/zip";
 
 /**
  * Evidence upload. Up to 4 MB goes straight to /api/v1/kane/evidence; larger
@@ -229,7 +232,11 @@ export function EvidenceUpload({ projectId, runs }: { projectId: number; runs: {
         res = await apiFetch("/api/v1/kane/evidence", { method: "POST", body: form });
       } else {
         const safe = file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-120);
-        const blob = await upload(`evidence-incoming/${projectId}/${safe}`, file, { access: "private", handleUploadUrl: "/api/v1/kane/evidence/upload" });
+        const blob = await upload(`evidence-incoming/${projectId}/${safe}`, file, {
+          access: "private",
+          handleUploadUrl: "/api/v1/kane/evidence/upload",
+          contentType: KANE_PACK.test(file.name) ? KANE_PACK_TYPE : undefined,
+        });
         res = await apiFetch("/api/v1/kane/evidence", {
           method: "POST",
           headers: { "content-type": "application/json" },

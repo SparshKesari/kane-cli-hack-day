@@ -124,3 +124,46 @@ missing URL fails closed with 503 `TESTMU_UNAVAILABLE`.
 ## Database
 
 `db/034_testmu_access.sql` adds `testmu_links` (additive; run `npm run db:migrate`).
+
+## Team sync: one TestMu AI org per team
+
+TestMu AI builds one org per hack-day team. Every claim (`/activate` step 2) opens its own org
+with the claimer as its Admin. When the **captain** of a locked team claims and the claim
+succeeds (`SIGNEDUP`, `JOINED_TEAM`, `ALREADY_CLAIMED`, `ALREADY_ACTIVE`), the same TestMu AI
+password, in memory only, is used to call the team invite API once per other current member,
+one at a time:
+
+```
+POST TESTMU_TEAM_INVITE_URL   /api/trials/hack-day/team/invite
+  {email: <captain's email>, password: <the password typed in step 2>, member_email}
+```
+
+| `code` | Meaning | Next |
+|---|---|---|
+| `MEMBER_ADDED` | A teammate who already claimed moved into the captain's org | done |
+| `MEMBER_INVITED` | Not claimed yet: their claim answers `JOINED_TEAM` | done |
+| `ALREADY_IN_TEAM` | Already there | done |
+| `INVALID_CREDENTIALS` | Wrong password | stop, retry with the step-2 password |
+| `NOT_TEAM_LEAD` | The captain isn't the Admin of their own Hack Day account | stop, help desk |
+| `NOT_HACK_DAY_ORG` | The teammate has a TestMu AI account but never claimed | they do step 2, then retry |
+| `MEMBER_IN_ANOTHER_TEAM` / `ALREADY_INVITED` | The teammate is in, or invited to, another org | help desk |
+| `TEAM_FULL` | 4 people including pending invites | stop, help desk |
+| 429 | Rate limited | a `Retry-After` up to 20 s is waited out once, else stop |
+
+Each answer is kept in `testmu_team_sync` (`db/039_testmu_team_sync.sql`: one row per team and
+teammate with `code`, `message`, `organization_id`, `attempted_at`) and audited as
+`testmu.team_sync` with the codes only. The password is never stored, logged, audited or put in
+a URL. A sync failure never blocks the claim, step 3 or our roster lock: the captain stays on
+`/activate`, sees each teammate's status, and gets "Retry team invites", which asks for the
+password again and skips members already at `MEMBER_ADDED`, `MEMBER_INVITED` or
+`ALREADY_IN_TEAM`. A solo team and a non-captain's claim make no invite calls. A captain who
+claimed before the roster was locked syncs from the same retry once it is.
+
+| Variable | Needed | Meaning |
+|---|---|---|
+| `TESTMU_TEAM_INVITE_URL` | optional | Production default `https://backend.lambdatest.com/api/trials/hack-day/team/invite`. Elsewhere it is used only when it points at a host other than lambdatest.com / testmuai.com (a mock) |
+| `TESTMU_TEAM_INVITE_STUB` | dev only | The code the stub answers outside production (default `MEMBER_ADDED`). `+testmu-<code>` in a teammate's email (`bob+testmu-team-full@example.com`) picks it per teammate |
+
+For a stateful local mock of both Hack Day APIs (accounts, orgs, invites, rate limits), run
+`node tests/support/testmu-mock.mjs --port 3105` and point `TESTMU_TRIAL_CLAIM_URL` and
+`TESTMU_TEAM_INVITE_URL` at it.
