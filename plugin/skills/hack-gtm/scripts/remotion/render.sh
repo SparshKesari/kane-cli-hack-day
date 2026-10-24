@@ -80,6 +80,8 @@ export XDG_CACHE_HOME="$DEST_DIR/.cache"
 rm -f package.json tsconfig.json
 rm -rf src public out
 mkdir -p public out
+# Keep dependencies, the copied storyboard and screenshots, and renders out of the person's repo.
+printf 'node_modules/\npublic/\nout/\n.npm-cache/\n.cache/\n' > .gitignore
 cp "$HERE/package.json" "$HERE/tsconfig.json" .
 cp -R "$HERE/src" ./src
 python3 -B - "$HERE/.." "$SRC_DIR/storyboard.json" ./public/storyboard.json <<'PY'

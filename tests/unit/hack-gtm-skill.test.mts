@@ -37,6 +37,13 @@ test("every file SKILL.md points at exists", () => {
   for (const r of refs) assert.ok(existsSync(join(SKILL, r)), `${r} is missing`);
 });
 
+test("no dotfiles in either skill folder (the bundle leaves them out, so CI's bundle-equals-source check fails)", () => {
+  for (const skill of ["hack-os", "hack-gtm"]) {
+    const dir = join(root, "plugin/skills", skill);
+    for (const f of files(dir)) assert.ok(!f.split("/").some((part) => part.startsWith(".")), `${skill}/${f}`);
+  }
+});
+
 test("no build output or dependencies ship in the bundle", () => {
   for (const f of files(SKILL)) assert.doesNotMatch(f, /(^|\/)(node_modules|out|dist|__pycache__)\/|\.(mp4|mp3|wav|pyc)$/, f);
 });
