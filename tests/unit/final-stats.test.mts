@@ -53,9 +53,9 @@ test("counts each final stat per org from the usage page's rows", () => {
 });
 
 const people: Participant[] = [
-  { email: "captain@example.test", teamId: 1, orgs: ["100"] }, // claimed into the team org
-  { email: "mate@example.test", teamId: 1, orgs: ["200"] }, // synced into org 200; also uses shared org 400
-  { email: "solo@example.test", teamId: null, orgs: [] }, // no team, found only by email
+  { email: "captain@example.test", name: "Cap", teamId: 1, orgs: ["100"] }, // claimed into the team org
+  { email: "mate@example.test", name: "Mate", teamId: 1, orgs: ["200"] }, // synced into org 200; also uses shared org 400
+  { email: "solo@example.test", name: null, teamId: null, orgs: [] }, // no team, found only by email
 ];
 
 test("an org counts when a participant claimed into it, or when every user in it is a participant", () => {
@@ -92,6 +92,23 @@ test("final stats total only participant orgs, per team and overall", () => {
   assert.deepEqual(s.matched, { orgs: 3, by_org_id: 2, by_email: 1, shared_skipped: 1, team_conflicts: 0, participants: 3, participants_matched: 3 });
   // Nothing personal is kept: no emails anywhere in what gets saved.
   assert.doesNotMatch(JSON.stringify(s), /@/);
+});
+
+test("each org is listed with its team, how it was found, its participants and whether it counted", () => {
+  const files = parseUsageFiles(JSON.stringify(latest), JSON.stringify(emails));
+  const s = buildFinalStats(files, people, new Map([[1, { slug: "kestrel", name: "Kestrel" }]]));
+  const kestrel = { slug: "kestrel", name: "Kestrel" };
+  assert.deepEqual(
+    s.orgs.map(({ counts, ...o }) => ({ ...o, runs: counts.test_runs })),
+    [
+      { org: "100", team: kestrel, via: "testmu", participants: ["Cap"], users: 1, counted: true, runs: 25 },
+      { org: "200", team: kestrel, via: "testmu", participants: ["Mate"], users: null, counted: true, runs: 7 },
+      { org: "300", team: null, via: "email", participants: ["(no name)"], users: 1, counted: true, runs: 0 },
+      // Shared with someone who isn't a participant: listed so organizers can see it, never counted.
+      { org: "400", team: kestrel, via: "email", participants: ["Mate"], users: 2, counted: false, runs: 500 },
+    ],
+  );
+  assert.doesNotMatch(JSON.stringify(s.orgs), /@/);
 });
 
 test("files that aren't the usage page's are refused with what was expected", () => {

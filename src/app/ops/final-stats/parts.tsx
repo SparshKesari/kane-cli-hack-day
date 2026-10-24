@@ -99,6 +99,48 @@ export function StatsTable({ stats }: { stats: FinalStats }) {
           </table>
         </div>
       )}
+      {stats.orgs.length > 0 && <OrgsTable orgs={stats.orgs} />}
     </div>
+  );
+}
+
+const VIA = { testmu: "TestMu AI claim or team sync", email: "email" } as const;
+
+/** Every org with a participant in it: who is in it, how it was found, and whether it counted. */
+function OrgsTable({ orgs }: { orgs: FinalStats["orgs"] }) {
+  return (
+    <details className="border border-hairline" open>
+      <summary className="cursor-pointer p-2 font-plex text-xs text-lightgray">
+        {orgs.length} TestMu AI {orgs.length === 1 ? "org" : "orgs"} with participants in them · org → team → people
+      </summary>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] font-plex text-xs">
+          <thead>
+            <tr className="text-left text-lightgray">
+              <th className="p-2 font-normal">Org</th>
+              <th className="p-2 font-normal">Team</th>
+              <th className="p-2 font-normal">Participants</th>
+              <th className="p-2 text-right font-normal">Users on the page</th>
+              <th className="p-2 font-normal">Found by</th>
+              <th className="p-2 text-right font-normal">Test runs</th>
+              <th className="p-2 font-normal">Counted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orgs.map((o) => (
+              <tr key={o.org} className={`border-t border-hairline ${o.counted ? "text-bright" : "text-lightgray"}`}>
+                <td className="p-2 tabular-nums">{o.org}</td>
+                <td className="p-2">{o.team?.name ?? "No team"}</td>
+                <td className="p-2">{o.participants.join(", ")}</td>
+                <td className="p-2 text-right tabular-nums">{o.users == null ? "—" : fmt(o.users)}</td>
+                <td className="p-2">{VIA[o.via]}</td>
+                <td className="p-2 text-right tabular-nums">{fmt(o.counts.test_runs)}</td>
+                <td className="p-2">{o.counted ? "Yes" : "No, shared with non-participants"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }

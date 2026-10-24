@@ -19,6 +19,8 @@ export type FinalStats = {
   window: { from: string; to: string };
   totals: StatCounts;
   teams: { slug: string; name: string; orgs: number; counts: StatCounts }[];
+  /** Each org with a participant in it: its team, whether it was found by a TestMu AI claim/team sync or by email, the participants' names, how many users the page lists in it, and whether it counted (orgs shared with non-participants don't). */
+  orgs: { org: string; team: { slug: string; name: string } | null; via: "testmu" | "email"; participants: string[]; users: number | null; counted: boolean; counts: StatCounts }[];
   matched: { orgs: number; by_org_id: number; by_email: number; shared_skipped: number; team_conflicts: number; participants: number; participants_matched: number };
   imported_at?: string;
 };

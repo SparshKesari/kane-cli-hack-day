@@ -74,7 +74,7 @@ export function countsByOrg(latest: UsageFiles["latest"]): Map<string, StatCount
   return out;
 }
 
-export type Participant = { email: string | null; teamId: number | null; orgs: string[] };
+export type Participant = { email: string | null; name?: string | null; teamId: number | null; orgs: string[] };
 
 /**
  * Which orgs are participants' and which team each belongs to. An org counts when a participant
@@ -91,34 +91,44 @@ export function matchOrgs(participants: Participant[], emailsByOrg: UsageFiles["
   const index = new Map<string, number>();
   participants.forEach((p, i) => p.email && index.set(p.email.trim().toLowerCase(), i));
   let byEmail = 0;
-  let sharedSkipped = 0;
+  const shared = new Map<string, number[]>();
   for (const [org, users] of Object.entries(emailsByOrg)) {
     const found = users.map(([email]) => index.get(email.trim().toLowerCase()));
     const matched = found.filter((i): i is number => i !== undefined);
     if (!matched.length) continue;
     if (!byId.has(org) && matched.length < found.length) {
-      sharedSkipped++;
+      shared.set(org, matched);
       continue;
     }
     if (!byId.has(org)) byEmail++;
     matched.forEach((i) => vote(org, i));
   }
 
+  /** The team with the most participants among `who`, and how many teams are in it. */
+  const teamOf = (who: Iterable<number>) => {
+    const tally = new Map<number, number>();
+    for (const i of who) {
+      const t = participants[i].teamId;
+      if (t != null) tally.set(t, (tally.get(t) ?? 0) + 1);
+    }
+    const best = [...tally].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    return { teamId: best ? best[0] : null, teams: tally.size };
+  };
   const orgTeam = new Map<string, number | null>();
   let conflicts = 0;
   const counted = new Set<number>();
   for (const [org, who] of voters) {
-    const tally = new Map<number, number>();
-    for (const i of who) {
-      counted.add(i);
-      const t = participants[i].teamId;
-      if (t != null) tally.set(t, (tally.get(t) ?? 0) + 1);
-    }
-    if (tally.size > 1) conflicts++;
-    const best = [...tally].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
-    orgTeam.set(org, best ? best[0] : null);
+    who.forEach((i) => counted.add(i));
+    const t = teamOf(who);
+    if (t.teams > 1) conflicts++;
+    orgTeam.set(org, t.teamId);
   }
-  return { orgTeam, byOrgId: byId.size, byEmail, sharedSkipped, conflicts, participantsMatched: counted.size };
+  /** Every org with a participant in it, counted or not, for organizers to look over. */
+  const orgs = [
+    ...[...voters].map(([org, who]) => ({ org, via: byId.has(org) ? ("testmu" as const) : ("email" as const), who: [...who], teamId: orgTeam.get(org) ?? null, counted: true })),
+    ...[...shared].map(([org, who]) => ({ org, via: "email" as const, who, teamId: teamOf(who).teamId, counted: false })),
+  ];
+  return { orgTeam, orgs, byOrgId: byId.size, byEmail, sharedSkipped: shared.size, conflicts, participantsMatched: counted.size };
 }
 
 export function buildFinalStats(files: UsageFiles, participants: Participant[], teams: Map<number, { slug: string; name: string }>): FinalStats {
@@ -134,6 +144,18 @@ export function buildFinalStats(files: UsageFiles, participants: Participant[], 
     t.orgs++;
     add(t.counts, c);
   }
+  const team = (id: number | null) => (id != null && teams.has(id) ? teams.get(id)! : null);
+  const orgs = m.orgs
+    .map((o) => ({
+      org: o.org,
+      team: team(o.teamId),
+      via: o.via,
+      participants: o.who.map((i) => participants[i].name?.trim() || "(no name)").sort(),
+      users: files.emails[o.org]?.length ?? null,
+      counted: o.counted,
+      counts: counts.get(o.org) ?? zero(),
+    }))
+    .sort((a, b) => Number(b.counted) - Number(a.counted) || b.counts.test_runs - a.counts.test_runs || a.org.localeCompare(b.org));
   return {
     data_generated: files.latest.generated,
     window: { from: files.latest.window.from, to: files.latest.window.to },
@@ -141,6 +163,7 @@ export function buildFinalStats(files: UsageFiles, participants: Participant[], 
     teams: [...perTeam]
       .map(([id, t]) => ({ ...teams.get(id)!, orgs: t.orgs, counts: t.counts }))
       .sort((a, b) => b.counts.test_runs - a.counts.test_runs || a.slug.localeCompare(b.slug)),
+    orgs,
     matched: {
       orgs: m.orgTeam.size,
       by_org_id: m.byOrgId,
@@ -159,8 +182,8 @@ const SYNCED = ["MEMBER_ADDED", "MEMBER_INVITED", "ALREADY_IN_TEAM"];
 
 /** This event's participants with their current team and the TestMu AI orgs we know they are in. */
 async function loadParticipants() {
-  const rows = await query<{ email: string | null; team_id: number | null; slug: string | null; name: string | null; claim_org: string | null; sync_org: string | null }>(
-    `select lower(m.email) as email, t.id as team_id, t.slug, t.name,
+  const rows = await query<{ email: string | null; member_name: string | null; team_id: number | null; slug: string | null; team_name: string | null; claim_org: string | null; sync_org: string | null }>(
+    `select lower(m.email) as email, coalesce(nullif(m.display_name, ''), m.name) as member_name, t.id as team_id, t.slug, t.name as team_name,
             p.response->>'organization_id' as claim_org, s.organization_id::text as sync_org
        from members m
        left join team_memberships tm on tm.member_id = m.id and tm.left_at is null
@@ -173,8 +196,8 @@ async function loadParticipants() {
   const teams = new Map<number, { slug: string; name: string }>();
   const participants: Participant[] = rows.map((r) => {
     const teamId = r.team_id == null ? null : Number(r.team_id);
-    if (teamId != null && r.slug) teams.set(teamId, { slug: r.slug, name: r.name ?? r.slug });
-    return { email: r.email, teamId, orgs: [r.sync_org, r.claim_org].filter((o): o is string => !!o) };
+    if (teamId != null && r.slug) teams.set(teamId, { slug: r.slug, name: r.team_name ?? r.slug });
+    return { email: r.email, name: r.member_name, teamId, orgs: [r.sync_org, r.claim_org].filter((o): o is string => !!o) };
   });
   return { participants, teams };
 }
@@ -204,7 +227,8 @@ export async function importFinalStats(latestText: string, emailsText: string, o
 export async function getFinalStats(): Promise<FinalStats | null> {
   try {
     const [r] = await query<{ s: FinalStats | null }>("select settings->'final_stats' as s from hack_events where id = current_event_id()");
-    return r?.s ?? null;
+    // Saves from before the org list have no `orgs`.
+    return r?.s ? { ...r.s, orgs: r.s.orgs ?? [] } : null;
   } catch (err) {
     console.error("[final-stats] read failed", err);
     return null;
