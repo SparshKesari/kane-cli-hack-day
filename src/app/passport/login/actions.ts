@@ -21,9 +21,10 @@ const schema = z.object({
 // Both prove the person.
 export async function personalLogin(_prev: PersonalLoginState, form: FormData): Promise<PersonalLoginState> {
   const input = parse(schema, formObject(form));
-  // Throttle per client and per email, so passwords and one-time codes can't be guessed here.
+  // Throttle per email, so passwords and one-time codes can't be guessed here, and per client
+  // only against floods: everyone at the venue shares one public IP.
   const [byClient, byEmail] = await Promise.all([
-    rateLimit(`member-login:${await clientKey()}`, { limit: 10, windowSec: 300 }),
+    rateLimit(`member-login:${await clientKey()}`, { limit: 200, windowSec: 300 }),
     rateLimit(`member-login-email:${sha256(input.email)}`, { limit: 10, windowSec: 900 }),
   ]);
   if (!byClient.ok || !byEmail.ok) return { error: "Too many tries. Wait a few minutes and try again.", email: input.email };
