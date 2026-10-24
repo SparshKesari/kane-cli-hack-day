@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import Schedule from "@/components/home/Schedule";
 import Challenge from "@/components/home/Challenge";
 import Prizes from "@/components/home/Prizes";
+import Judging from "@/components/home/Judging";
 import Judges from "@/components/home/Judges";
 import Rules from "@/components/home/Rules";
 import Closer from "@/components/home/Closer";
@@ -24,6 +25,7 @@ export default function Home() {
       <Schedule keyOnly />
       <Challenge />
       <Prizes />
+      <Judging />
       <Judges />
       <Rules />
       <Closer />

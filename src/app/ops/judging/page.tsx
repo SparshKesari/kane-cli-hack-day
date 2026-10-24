@@ -124,7 +124,7 @@ async function JudgingView() {
             </tbody>
           </table>
         </div>
-        <p className="mt-2 font-plex text-xs text-lightgray">Only committed scores count. Ties break on validation evidence, then harness. Unknown values show —, never 0.</p>
+        <p className="mt-2 font-plex text-xs text-lightgray">Only committed scores count. Ties break on Kane usage, then completion. Unknown values show —, never 0.</p>
       </section>
 
       <section aria-labelledby="demo-h">

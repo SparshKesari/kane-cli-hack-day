@@ -4,7 +4,7 @@ import { judging, prizes } from "@/data/hackday";
 import { AppError, idempotent, parse, serverNow, withAudit, writeAudit, z, zx, type Receipt } from "./core";
 import { staffActor, type Staff } from "./auth";
 
-// Judging (EVALUATION.md, decision D3). Five categories, each scored with a
+// Judging (judgingCriteria in src/data/hackday.ts). Four categories, each scored with a
 // 0–5 anchor worth anchor × weight / 5 points. Scores are human decisions:
 // nothing here fills a mark from AI, and a committed score is frozen (the
 // judge_scores trigger refuses any later change). An organizer lock ends all
@@ -554,8 +554,9 @@ export async function getAggregate(): Promise<{ rows: AggregateRow[]; lines: Sco
     .sort(
       (a, b) =>
         b.final.mean! - a.final.mean! ||
-        (b.final.categories.validation_evidence ?? 0) - (a.final.categories.validation_evidence ?? 0) ||
-        (b.final.categories.harness_kane ?? 0) - (a.final.categories.harness_kane ?? 0) ||
+        // Ties: Kane usage first, then completion (the two the room can't fake).
+        (b.final.categories.kane_usage ?? 0) - (a.final.categories.kane_usage ?? 0) ||
+        (b.final.categories.completion ?? 0) - (a.final.categories.completion ?? 0) ||
         a.team_name.localeCompare(b.team_name),
     );
   ranked.forEach((r, i) => (r.rank = i + 1));

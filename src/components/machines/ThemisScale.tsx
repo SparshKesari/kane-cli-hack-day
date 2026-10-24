@@ -727,7 +727,7 @@ export default function ThemisScale({ className = "" }: { className?: string }) 
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {RUBRIC.map((c, i) => {
             const on = placed.has(i);
             const lit = on && i === shownActive;
