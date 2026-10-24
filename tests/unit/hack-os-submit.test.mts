@@ -89,3 +89,12 @@ test("hack-os and /start use hack-gtm's real names: launch/video/showcase.mp4, a
   assert.match(start, /--yes --json/);
   assert.doesNotMatch(start, /Hacker News post/);
 });
+
+test("after the team lock time rosters stay open: hack-os never tells people the server locked every roster", () => {
+  for (const b of skills) {
+    const md = readFileSync(`${b}/hack-os/SKILL.md`, "utf8");
+    assert.doesNotMatch(md, /locked every roster/, b);
+    assert.match(md, /Rosters stay open after that time/, b);
+    assert.match(md, /`roster_locked`, `submitted` or `withdrawn`/, b);
+  }
+});

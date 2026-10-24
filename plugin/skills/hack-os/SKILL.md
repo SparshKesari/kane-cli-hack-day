@@ -51,7 +51,7 @@ Route from `participant_get_status` data: `team` null → team; team not locked 
 
 **Never skip the idea step.** Once activation is done, go to `references/idea.md` and take them through the idea check before any building, even if `next_action` says build. `idea.saved` false → the idea step, always. `idea.saved` true but you haven't checked this idea with them (`node <skill>/scripts/state.mjs get` shows idea_check null) → offer the check once, and build only after they've seen it or said no.
 
-**Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, the server has locked every roster, even if `team.state` still says `recruiting`, `formed` or `active` (that field catches up later). Don't ask the captain to lock it then. Before that time, the captain locks it with `team_lock` (`references/signup-team.md`).
+**Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, every team can go on to activation without a captain lock (`team.locked` reads true then), so don't ask the captain to lock it. Rosters stay open after that time: people can still join or leave with an invite code. Only say a roster is locked when `team.state` is `roster_locked`, `submitted` or `withdrawn`. Before that time, the captain locks it with `team_lock` (`references/signup-team.md`).
 
 **Already submitted?** `team.state` doesn't change on final submission. Before sending anyone to the Submit tab, call `submission_preflight`: "Already finalized: receipt …" → show the receipt under Done and don't send them to submit again.
 
