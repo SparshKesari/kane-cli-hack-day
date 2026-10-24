@@ -9,6 +9,7 @@ import { DEFAULT_TRACK, challenge } from "@/data/hackday";
 import { AppError, parse, serverNow, siteUrl, toAppError, toEnvelope, z, zx, type EnvelopeAction, type Evidence } from "./core";
 import { tokenActor, type BearerAuth } from "./auth";
 import { KANE_CAPABILITIES, proposeMilestone, recordRun, type KaneCaller } from "./kane";
+import { COUPON_MESSAGES } from "./codex-coupon";
 import * as A from "./mcp-adapters";
 import { PUBLIC_EVIDENCE_KINDS } from "./public-evidence";
 import {
@@ -374,6 +375,33 @@ export function buildMcpServer(auth: BearerAuth) {
         links: [{ label: "Activation", url: "/activate" }],
         uiType: "builder_passport",
         fallbackText: r.activated ? "Activated: all three steps are done." : `${args.step}: ${done ? "done" : "not done"}`,
+      };
+    },
+  );
+
+  tool(
+    "codex_coupon_send",
+    {
+      title: "Email the Codex coupon",
+      description:
+        "Email the participant their OpenAI Codex coupon (/activate step 3). It goes only to an address on the participant list: the signed-in email by default, or `email` when they registered for the event with another address. Asking again re-sends the same coupon. The coupon is never returned here. Needs explicit confirmation.",
+      input: {
+        email: z.string().trim().max(200).optional().describe("The email they registered for the event with, if it isn't the signed-in one."),
+        explicit_confirmation: confirmField,
+      },
+    },
+    async (args, ctx) => {
+      const to = args.email?.trim() || ctx.member.email;
+      if (args.explicit_confirmation !== true) return confirmFirst("codex_coupon_send", "Send the coupon", `Email the Codex coupon to ${to}.`, "builder_passport", { email: to });
+      const r = await A.sendCodexCoupon(ctx, to);
+      const message = COUPON_MESSAGES[r.outcome](r.emailHint);
+      return {
+        status: r.outcome === "sent" ? "ok" : "needs_action",
+        message,
+        data: { outcome: r.outcome, resent: r.resent, email_hint: r.emailHint },
+        links: [{ label: "Activation", url: "/activate" }],
+        uiType: "builder_passport",
+        fallbackText: message,
       };
     },
   );
@@ -810,6 +838,7 @@ export const MCP_TOOL_NAMES = [
   "participant_update_profile",
   "activation_begin",
   "activation_tick",
+  "codex_coupon_send",
   "readiness_report",
   "team_create",
   "team_join",

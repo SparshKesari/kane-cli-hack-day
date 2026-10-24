@@ -207,7 +207,7 @@ function Provenance({ hit }: { hit: Hit }) {
   );
 }
 
-const SOURCE_LABEL: Record<string, string> = { luma_csv: "Luma", walk_in: "Walk-in", manual_offline: "Paper", registration: "Site only" };
+const SOURCE_LABEL: Record<string, string> = { luma_csv: "Luma", walk_in: "Walk-in", manual_offline: "Paper", api: "Added by API", registration: "Site only" };
 
 export function HitRow({ hit, canOverride }: { hit: Hit; canOverride: boolean }) {
   const [overriding, setOverriding] = useState(false);

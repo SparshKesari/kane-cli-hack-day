@@ -1,6 +1,7 @@
 // Node module hooks for running src/ TypeScript under `node --test` without a
 // bundler: resolves the "@/…" alias and extension-less imports, and swaps the
-// Next.js runtime modules that only exist inside a request for small stubs.
+// Next.js runtime modules that only exist inside a request for small stubs, and
+// nodemailer for one that records mail instead of sending it.
 import { existsSync, statSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
@@ -13,6 +14,7 @@ const STUBS = {
   "next/navigation": stub("next-navigation.mjs"),
   "next/cache": stub("next-cache.mjs"),
   "next/server": stub("next-server.mjs"),
+  nodemailer: stub("nodemailer.mjs"),
 };
 
 function probe(base) {
