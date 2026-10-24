@@ -9,6 +9,9 @@
 //   - /ship/{slug}/one-pager visibility and headers, the REST route and the MCP tool,
 //     fetched from a running dev server on the same database (QA_SITE_URL)
 //
+// Lock times come from a QA hack_events row that current_event_id() points at in this process only.
+// The dev server still sees the live event, so its checks don't depend on any lock.
+//
 //   QA_DATABASE_URL=postgres://…throwaway… [QA_SITE_URL=http://127.0.0.1:3103] npm run test:db
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
@@ -38,10 +41,30 @@ const staff = { organizer: 0, judge: 0 };
 const pe = { video: 0, shot: 0, pending: 0, other: 0 };
 const runs = { own: 0, other: 0 };
 const token = `khk_${tag}_page`;
+const schema = `qa_page_${tag}`;
+let eventId = 0;
 
 before(async () => {
   if (skip) return;
-  process.env.DATABASE_URL = QA;
+  const pg = (await import("pg")).default;
+  const c = new pg.Client({ connectionString: QA });
+  await c.connect();
+  try {
+    const { rows } = await c.query<{ id: number }>(
+      `insert into hack_events (slug, name, starts_at, team_lock_at, idea_lock_at, submission_locks_at, demos_start_at)
+       values ($1, 'QA team page', now(), now() + interval '2 days', now() + interval '2 days', now() + interval '2 days', now() + interval '2 days') returning id`,
+      [`${tag}-event`],
+    );
+    eventId = Number(rows[0].id);
+    await c.query(`create schema ${schema}`);
+    await c.query(`create function ${schema}.current_event_id() returns bigint language sql stable as $$ select ${eventId}::bigint $$`);
+  } finally {
+    await c.end();
+  }
+  // Every connection this process opens resolves current_event_id() to the QA event first.
+  const url = new URL(QA!);
+  url.searchParams.set("options", `-c search_path=${schema},public`);
+  process.env.DATABASE_URL = url.toString();
   process.env.SESSION_SECRET ||= "qa-session-secret-not-for-production";
   process.env.PUBLIC_EVIDENCE_BASE_URL ||= "https://evidence.example.test";
   const [db, page, session, headers] = await Promise.all([
@@ -97,6 +120,8 @@ after(async () => {
   if (skip || !m) return;
   await m.db.query("delete from teams where id = any($1::bigint[])", [teams.map((t) => t.id)]).catch(() => {});
   await m.db.query("delete from staff_accounts where id = any($1::bigint[])", [[staff.organizer, staff.judge]]).catch(() => {});
+  await m.db.query("delete from hack_events where id = $1", [eventId]).catch(() => {});
+  await m.db.query(`drop schema if exists ${schema} cascade`).catch(() => {});
   await m.db.pool.end();
 });
 
@@ -216,14 +241,13 @@ test("another team's or non-public evidence, other runs and bad links are refuse
 test("after the lock a participant is refused and an organizer may write, audited", { skip }, async () => {
   const t = teams[1];
   const me = await asMember(t.members[0]);
-  const [ev] = await m.db.query<{ locks: Date }>("select submission_locks_at as locks from hack_events where id = current_event_id()");
-  await m.db.query("update hack_events set submission_locks_at = now() - interval '1 minute' where id = current_event_id()");
+  await m.db.query("update hack_events set submission_locks_at = now() - interval '1 minute' where id = $1", [eventId]);
   try {
     await assert.rejects(m.page.updateTeamPage(t.slug, me, { commit_sha: SHA }), (e: { code?: string; status?: number }) => e.code === "SUBMISSION_LOCKED" && e.status === 423);
     const w = await m.page.updateTeamPage(t.slug, asStaff("organizer"), { commit_sha: SHA });
     assert.equal(w.commit_sha, SHA);
   } finally {
-    await m.db.query("update hack_events set submission_locks_at = $1 where id = current_event_id()", [ev.locks]);
+    await m.db.query("update hack_events set submission_locks_at = now() + interval '2 days' where id = $1", [eventId]);
   }
   const [audit] = await m.db.query<{ actor_type: string; actor_id: number; payload: { after_lock: boolean; by_organizer: boolean } }>(
     "select actor_type, actor_id, payload from audit_events where action = 'team_page.update' and resource_id = $1 order by id desc limit 1",
@@ -266,6 +290,7 @@ test("one-pager visibility and headers, the REST route and the MCP tool on the d
   };
   const memberCookie = await cookieFor(() => m.session.setMemberSession({ memberId: t.members[1], personal: true }));
   const staffCookie = await cookieFor(() => m.session.setStaffSession(staff.judge, "judge"));
+  const organizerCookie = await cookieFor(() => m.session.setStaffSession(staff.organizer, "organizer"));
   const outsiderCookie = await cookieFor(() => m.session.setMemberSession({ memberId: teams[1].members[0], personal: true }));
   const get = (cookie?: string) => fetch(url, { headers: cookie ? { cookie } : {}, redirect: "manual" });
 
@@ -300,13 +325,13 @@ test("one-pager visibility and headers, the REST route and the MCP tool on the d
   await m.db.query("update projects set showcase_state = 'unlisted' where id = $1", [t.project]);
   assert.equal(await (await get()).text(), "<h1>second</h1>");
 
-  // REST: readback by id, then a PUT whose Idempotency-Key header replays.
+  // REST: readback by id, then an organizer PUT (allowed whatever the live lock says) whose Idempotency-Key header replays.
   const api = `${SITE}/api/v1/teams/${t.id}/page`;
   const rest = await (await fetch(api, { headers: { cookie: memberCookie } })).json();
   assert.equal(rest.data.slug, t.slug);
   assert.equal(rest.data.statuses.one_pager, "published");
   assert.ok(rest.actions.some((a: { id: string; requires_human_confirmation: boolean }) => a.id === "finalize_in_browser" && a.requires_human_confirmation));
-  const put = (body: unknown) => fetch(`${SITE}/api/v1/teams/${t.slug}/page`, { method: "PUT", headers: { cookie: memberCookie, "content-type": "application/json", "idempotency-key": `${tag}-rest-1` }, body: JSON.stringify(body) });
+  const put = (body: unknown) => fetch(`${SITE}/api/v1/teams/${t.slug}/page`, { method: "PUT", headers: { cookie: organizerCookie, "content-type": "application/json", "idempotency-key": `${tag}-rest-1` }, body: JSON.stringify(body) });
   const p1 = await (await put({ commit_sha: SHA, expected_version: rest.data.page_version })).json();
   const p2 = await (await put({ commit_sha: SHA, expected_version: rest.data.page_version })).json();
   assert.equal(p1.data.receipt.id, p2.data.receipt.id);
