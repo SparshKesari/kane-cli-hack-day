@@ -165,6 +165,17 @@ if want upgrade; then
   check "upgrade: the 12 bundled hack-* folders removed, your own hack-foo kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | sed "s|.*/||" | tr "\n" " ")" = "hack-foo hack-os " ] && [ "$(cat "$H/.agents/skills/hack-foo/SKILL.md")" = mine ]' "$LOG"
 fi
 
+# 8a. ~/.codex/skills is a link to ~/.agents/skills: the legacy cleanup must not delete the fresh hack-os.
+if want same-dir; then
+  fresh same-dir
+  mkdir -p "$H/.agents/skills" "$H/.codex"
+  ln -s "$H/.agents/skills" "$H/.codex/skills"
+  run_install --yes --site "$SITE"; RC=$?
+  check "same-dir: hack-os installed and still there" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
+  run_install --yes --site "$SITE"; RC=$?
+  check "same-dir: re-run keeps hack-os" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
+fi
+
 # 8b. Codex: an existing ~/.codex with its own config and the 0.1.2 skill copies. --yes connects it
 # (no token in config.toml, backup made, other servers kept), removes the duplicate skills, and a
 # re-run changes nothing. With CODEX_BIN_DIR (the real @openai/codex, kept off ORIG_PATH so the

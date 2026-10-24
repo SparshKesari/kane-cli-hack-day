@@ -34,7 +34,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
 KANEHACK_VERSION="0.1.5"
 KANEHACK_SHA256="4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
-SKILLS_SHA256="1b84cdd2ad53a6135feb151dfaf3800c76399f238cb38eda712be414604be865"
+SKILLS_SHA256="d487c3946990b5e7003fafe0be8cf15d346cec0cf71169159a28065cea6de2be"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -159,7 +159,7 @@ OLD_SKILLS="hack-onboard hack-doctor hack-team hack-idea hack-harness hack-verif
 # Missing, installed by an older bundle, or the old 12 still there: re-offer (the marker file names the bundle version).
 NEED_SKILLS="$({ skill_dirs | while IFS= read -r d; do
   if [ ! -f "${d}/hack-os/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-os/.bundle-version" 2>/dev/null || [ -f "${d}/hack-onboard/.bundle-version" ]; then echo yes; fi
-done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ] || [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then echo yes; fi; } | head -n1)"
+done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then echo yes; fi; } | head -n1)"
 if [ -z "$NEED_SKILLS" ]; then pass hack_skills "${KANEHACK_VERSION}"; else warn hack_skills "not found or older" "Offered below"; fi
 
 # One unauthenticated request: 401 means the API is up and wants a token.
@@ -240,8 +240,9 @@ if [ -n "$WANT_KH" ] || [ -n "$WANT_SKILLS" ]; then
       exit 1
     fi
     pass hack_skills "hack-os → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load it."
-    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ] || [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then
-      for s in $OLD_SKILLS hack-os; do rm -rf "${LEGACY_SKILLS:?}/${s}"; done
+    # Only the old 12, never hack-os: ~/.codex/skills may be the same folder as ~/.agents/skills.
+    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then
+      for s in $OLD_SKILLS; do rm -rf "${LEGACY_SKILLS:?}/${s}"; done
       pass codex_skills "removed the old copies in ${LEGACY_SKILLS} (Codex reads ~/.agents/skills; two copies listed each skill twice)"
     fi
   fi

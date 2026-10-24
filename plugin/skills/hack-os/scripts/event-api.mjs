@@ -5,9 +5,9 @@
 //   node event-api.mjs list
 //   node event-api.mjs call <tool> --args <file.json> [--confirmed]
 //
-// Signs in the way kanehack 0.1.4 does: the TestMu AI key (TESTMU_USERNAME/TESTMU_ACCESS_KEY,
-// then Kane CLI's LT_USERNAME/LT_ACCESS_KEY, then the one `kanehack login` saved), plus the
-// pairing token when there is one. Writes need --confirmed, given only after the person
+// /mcp needs the pairing token from `kanehack pair` (src/app/mcp/route.ts). The TestMu AI key
+// (TESTMU_USERNAME/TESTMU_ACCESS_KEY, then Kane CLI's LT_USERNAME/LT_ACCESS_KEY, then the one
+// `kanehack login` saved) rides along for the site's key gate, the way kanehack 0.1.4 sends it. Writes need --confirmed, given only after the person
 // approved those exact arguments. No automatic retry of writes.
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -56,7 +56,7 @@ try {
     pick(process.env.LT_USERNAME, process.env.LT_ACCESS_KEY) ||
     pick(c.testmu?.username, c.testmu?.access_key);
   const token = process.env.KANEHACK_TOKEN || c.token || "";
-  if (!token && !testmu) fail("NOT_SIGNED_IN: the person runs `kanehack login` in their own terminal (their TestMu AI key is on kaneclihack.sh/register), or `kanehack pair`");
+  if (!token) fail("NOT_PAIRED: run `kanehack pair --start --json`, then the person approves in the browser (they need a profile on https://kaneclihack.sh/register first). If the site also asks for the TestMu AI key, the person runs `kanehack login` in their own terminal.");
   if (token) secrets.push(token);
   if (testmu) secrets.push(testmu.access_key);
   const headers = {
@@ -66,20 +66,26 @@ try {
     ...(testmu ? { "X-TestMu-Username": testmu.username, "X-TestMu-Access-Key": testmu.access_key } : {}),
   };
 
-  const rpc = async (method, params) => {
+  const down = "Try again in a minute; https://kaneclihack.sh shows whether the site is up. Carry on with local work and show server state as unknown.";
+  const rpc = async (method, params, write = false) => {
     let url = new URL("/mcp", base);
     for (let i = 0; i < 4; i++) {
-      const res = await fetch(url, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(20000), headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+      let res;
+      try {
+        res = await fetch(url, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(20000), headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+      } catch {
+        fail(write ? "UNREACHABLE: the write's outcome is uncertain; read back before trying again. " + down : "UNREACHABLE: can't reach the event server (check Wi-Fi). " + down);
+      }
       if (res.status >= 300 && res.status < 400) {
         const next = new URL(res.headers.get("location") ?? "", url);
         if (!trusted(next) || next.pathname !== "/mcp") fail("Redirect refused");
         url = next;
         continue;
       }
-      if (res.status === 401) fail("UNAUTHENTICATED: the person runs `kanehack login` again in their own terminal (TestMu AI key from kaneclihack.sh/register), or `kanehack pair`");
+      if (res.status === 401) fail("UNAUTHENTICATED: pair again with `kanehack pair --start --json`. If the site wants the TestMu AI key, the person runs `kanehack login` in their own terminal; TESTMU_* or LT_* environment variables, when set, are sent instead and must be their event key.");
       if (res.status === 403) fail("FORBIDDEN: check desk check-in, role and team");
       if (res.status === 429) fail("RATE_LIMITED: retry after " + (res.headers.get("retry-after") || "a minute"));
-      if (!res.ok) fail(`HTTP ${res.status}: outcome uncertain for writes; read back before trying again`);
+      if (!res.ok) fail(write ? `HTTP ${res.status}: outcome uncertain for this write; read back before trying again` : `SERVER_UNAVAILABLE: the event server isn't answering (HTTP ${res.status}). ${down}`);
       const body = await res.json();
       if (body.error) fail("MCP error: " + JSON.stringify(scrub(body.error)));
       if (!body.result) fail("Missing JSON MCP result; use the native MCP tools in a new Codex session");
@@ -106,7 +112,7 @@ try {
     if (pos < 0 || !a[pos + 1]) fail("Provide --args FILE.json (use {} for no arguments)");
     const args = JSON.parse(readFileSync(a[pos + 1], "utf8"));
     if (!args || Array.isArray(args) || typeof args !== "object") fail("Arguments must be a JSON object matching the tool's schema");
-    const result = await rpc("tools/call", { name, arguments: args });
+    const result = await rpc("tools/call", { name, arguments: args }, !readOnly);
     console.log(JSON.stringify(scrub(result), null, 2));
     if (result.isError) process.exitCode = 1;
     for (const part of result.content ?? [])

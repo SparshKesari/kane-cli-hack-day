@@ -16,20 +16,21 @@ Run `kanehack doctor --json` and read its checks. Fix only what failed, one at a
 
 Intel Mac: Kane CLI doesn't support it. Send them to the help desk for a loaner or a teammate's machine.
 
-## 2. Sign in with the TestMu AI key
+## 2. Sign in: profile, pairing, TestMu key
 
-The event's sign-in is the person's TestMu AI username and access key. They get it on `https://kaneclihack.sh/register` once their profile is saved.
+Ask first: "Have you saved your profile on https://kaneclihack.sh/register?" If not → `references/signup-team.md` and stop until they're done. Pairing can't be approved without a profile.
 
-1. No profile yet → `references/signup-team.md` (sign up on the website first).
-2. Ask them to run `kanehack login` **in their own terminal window**, not in this chat, and paste the username and key there. Never ask for the key here.
-3. Then run `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile on `/register`.
+**Pair this machine (required: the event's Codex tools only accept a paired machine).**
 
-If they already ran `kane-cli login`, the LT_USERNAME / LT_ACCESS_KEY environment variables may already sign them in; `kanehack doctor` shows it.
-
-Fallback when the key route fails: pairing.
-
-1. `kanehack pair --start --json`. Show only `user_code` and `verification_url`; they approve in the browser.
+1. `kanehack pair --start --json`. Show only `user_code` and `verification_url`; they approve in the browser while signed in to the site.
 2. `kanehack pair --wait --timeout 30 --json`. Exit 0 = paired. 4 = still pending: wait and run it again. 3 = server unreachable: check network. 1 = expired or denied: start again.
+
+**Save the TestMu AI key too.** The site may also require it. The username and key are shown on `/register` once the profile is saved.
+
+1. Ask them to run `kanehack login` **in their own terminal window**, not in this chat, and paste the username and key there. Never ask for the key here.
+2. `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile on `/register`.
+
+If TESTMU_USERNAME / TESTMU_ACCESS_KEY or LT_USERNAME / LT_ACCESS_KEY are set in their environment, they're sent instead of the saved key; a personal LambdaTest key there causes "not accepted". They unset those or use their event key.
 
 ## 3. Connect Codex to the event tools
 

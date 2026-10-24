@@ -22,6 +22,7 @@ You are the participant's guide for Kane CLI Hack Day (SF, Sat 2026-10-24, Pacif
 2. `node <skill>/scripts/state.mjs get` for your own notes (build checkpoint, help issues).
 3. Call `participant_get_status`. Use the `kane-hack-event` MCP tool if this session has it; otherwise run `node <skill>/scripts/event-api.mjs call participant_get_status --args <file containing {}>`.
    - Not signed in, unauthenticated, or the tools are missing → `references/setup.md`.
+   - `UNREACHABLE` or `SERVER_UNAVAILABLE` → the event server isn't answering. Say so, link https://kaneclihack.sh, carry on with local work (Kane tests, the idea draft) and show Done as "unknown". Don't send them to sign in again.
 4. Show three lines, then do the next step:
    - **Done:** what the server confirms (signed in, team and its state, activation if known).
    - **Next:** the one next step.

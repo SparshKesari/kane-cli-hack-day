@@ -14,15 +14,16 @@ const SCRIPT = fileURLToPath(new URL("../../plugin/skills/hack-os/scripts/event-
 const MCP_TS = fileURLToPath(new URL("../../src/server/mcp.ts", import.meta.url));
 
 type Seen = { headers: IncomingHttpHeaders[]; calls: string[] };
-function server(status = 200): Promise<{ s: Server; url: string; seen: Seen }> {
+/** A stand-in /mcp. `status` fails every request, or only tools/call when `onlyCalls`. */
+function server(status = 200, onlyCalls = false): Promise<{ s: Server; url: string; seen: Seen }> {
   const seen: Seen = { headers: [], calls: [] };
   const s = createServer((req, res) => {
     let body = "";
     req.on("data", (b) => (body += b));
     req.on("end", () => {
       seen.headers.push(req.headers);
-      if (status !== 200) { res.statusCode = status; return res.end("{}"); }
       const rpc = JSON.parse(body);
+      if (status !== 200 && (!onlyCalls || rpc.method === "tools/call")) { res.statusCode = status; return res.end("{}"); }
       res.setHeader("content-type", "application/json");
       if (rpc.method === "tools/list")
         return res.end(JSON.stringify({ jsonrpc: "2.0", id: rpc.id, result: { tools: [
@@ -101,22 +102,32 @@ test("a write without --confirmed is refused before it is sent", async () => {
   } finally { s.close(); }
 });
 
-test("sends the TestMu key saved by kanehack login, with no pairing token, and never prints it", async () => {
+test("sends the TestMu key alongside the pairing token, and never prints either", async () => {
   const { s, url, seen } = await server();
   try {
-    const r = await run(home({ api: url, testmu: { username: "ana", access_key: "LTkey_abc999" } }), ["list"]);
+    const r = await run(home({ api: url, token: "khk_secret_123", testmu: { username: "ana", access_key: "LTkey_abc999" } }), ["list"]);
     assert.equal(r.code, 0, r.err);
     assert.equal(seen.headers[0]["x-testmu-username"], "ana");
     assert.equal(seen.headers[0]["x-testmu-access-key"], "LTkey_abc999");
-    assert.equal(seen.headers[0].authorization, undefined);
-    assert.doesNotMatch(r.out + r.err, /LTkey_abc999/);
+    assert.equal(seen.headers[0].authorization, "Bearer khk_secret_123");
+    assert.doesNotMatch(r.out + r.err, /LTkey_abc999|khk_secret_123/);
+  } finally { s.close(); }
+});
+
+test("a TestMu key alone isn't enough for /mcp: asks for kanehack pair and sends nothing", async () => {
+  const { s, url, seen } = await server();
+  try {
+    const r = await run(home({ api: url, testmu: { username: "ana", access_key: "LTkey_abc999" } }), ["list"]);
+    assert.equal(r.code, 2);
+    assert.ok(pairFirst(r.err), r.err);
+    assert.equal(seen.headers.length, 0);
   } finally { s.close(); }
 });
 
 test("TestMu env wins over the saved key: TESTMU_* first, then Kane CLI's LT_*", async () => {
   const { s, url, seen } = await server();
   try {
-    const h = home({ api: url, testmu: { username: "saved", access_key: "k_saved" } });
+    const h = home({ api: url, token: "khk_x", testmu: { username: "saved", access_key: "k_saved" } });
     await run(h, ["list"], { LT_USERNAME: "lt", LT_ACCESS_KEY: "k_lt" });
     await run(h, ["list"], { LT_USERNAME: "lt", LT_ACCESS_KEY: "k_lt", TESTMU_USERNAME: "tm", TESTMU_ACCESS_KEY: "k_tm" });
     assert.equal(seen.headers[0]["x-testmu-username"], "lt");
@@ -124,21 +135,56 @@ test("TestMu env wins over the saved key: TESTMU_* first, then Kane CLI's LT_*",
   } finally { s.close(); }
 });
 
-test("not signed in at all says how to sign in", async () => {
+/** `kanehack pair` is the fix that unlocks /mcp, so it must come before any mention of login. */
+const pairFirst = (err: string) => {
+  const i = err.indexOf("kanehack pair"), j = err.indexOf("kanehack login");
+  return i >= 0 && (j < 0 || i < j);
+};
+
+test("not signed in at all says to pair", async () => {
   const r = await run(home({}), ["list"]);
   assert.equal(r.code, 2);
-  assert.match(r.err, /kanehack login/);
+  assert.ok(pairFirst(r.err), r.err);
 });
 
-test("maps 401 and 5xx to plain errors", async () => {
-  for (const [status, re] of [[401, /UNAUTHENTICATED/], [503, /outcome uncertain/]] as const) {
-    const { s, url } = await server(status);
-    try {
-      const r = await run(home({ token: "khk_x", api: url }), ["list"]);
-      assert.equal(r.code, 2);
-      assert.match(r.err, re);
-    } finally { s.close(); }
-  }
+test("401 says to pair again first", async () => {
+  const { s, url } = await server(401);
+  try {
+    const r = await run(home({ token: "khk_x", api: url }), ["list"]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /UNAUTHENTICATED/);
+    assert.ok(pairFirst(r.err), r.err);
+  } finally { s.close(); }
+});
+
+test("a 5xx on a read says the server isn't answering, with the site link", async () => {
+  const { s, url } = await server(503);
+  try {
+    const r = await run(home({ token: "khk_x", api: url }), ["list"]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /SERVER_UNAVAILABLE/);
+    assert.match(r.err, /kaneclihack\.sh/);
+    assert.doesNotMatch(r.err, /outcome uncertain/);
+  } finally { s.close(); }
+});
+
+test("a 5xx on a write says the outcome is uncertain", async () => {
+  const { s, url } = await server(503, true);
+  try {
+    const h = home({ token: "khk_x", api: url });
+    const r = await run(h, ["call", "help_create", "--args", join(h, "args.json"), "--confirmed"]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /outcome uncertain/);
+  } finally { s.close(); }
+});
+
+test("an unreachable server says so, with the site link", async () => {
+  const { s, url } = await server();
+  await new Promise((ok) => s.close(ok));
+  const r = await run(home({ token: "khk_x", api: url }), ["list"]);
+  assert.equal(r.code, 2);
+  assert.match(r.err, /UNREACHABLE/);
+  assert.match(r.err, /kaneclihack\.sh/);
 });
 
 test("refuses a non-official origin", async () => {

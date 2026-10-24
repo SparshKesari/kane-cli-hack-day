@@ -30,7 +30,7 @@ $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads cr
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $KanehackVersion = "0.1.5"
 $KanehackSha256 = "4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
-$SkillsSha256 = "1b84cdd2ad53a6135feb151dfaf3800c76399f238cb38eda712be414604be865"
+$SkillsSha256 = "d487c3946990b5e7003fafe0be8cf15d346cec0cf71169159a28065cea6de2be"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -117,7 +117,7 @@ $CodexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $UserHome 
 $legacySkills = Join-Path $CodexDir "skills"
 # Bundles up to 0.1.4 installed these 12 skills (marked by hack-onboard\.bundle-version); hack-os replaces them.
 $OldSkills = @("hack-onboard", "hack-doctor", "hack-team", "hack-idea", "hack-harness", "hack-verify", "hack-progress", "hack-help", "hack-demo", "hack-showcase", "hack-gtm", "hack-submit")
-$hasLegacy = (Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")) -or (Test-Path (Join-Path $legacySkills "hack-os\.bundle-version"))
+$hasLegacy = Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")
 function SkillsCurrent($d) {
   $marker = Join-Path $d "hack-os\.bundle-version"
   (Test-Path (Join-Path $d "hack-os\SKILL.md")) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $KanehackVersion) -and -not (Test-Path (Join-Path $d "hack-onboard\.bundle-version"))
@@ -202,7 +202,8 @@ if ($wantKh -or $wantSkills) {
       }
       Pass "hack_skills" "hack-os → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load it."
       if ($hasLegacy) {
-        foreach ($s in $OldSkills + "hack-os") { $p = Join-Path $legacySkills $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
+        # Only the old 12, never hack-os: .codex\skills may be the same folder as .agents\skills.
+        foreach ($s in $OldSkills) { $p = Join-Path $legacySkills $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
         Pass "codex_skills" "removed the old copies in $legacySkills (Codex reads .agents\skills; two copies listed each skill twice)"
       }
     }

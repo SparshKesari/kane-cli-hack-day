@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,11 +22,11 @@ function pathWithGh(authExit: number | null) {
 
 type Draft = { title: string; body_file: string; url: string; gh_ready: boolean; gh_argv: string[] | null };
 
-function draft(title: string, body: string, PATH = pathWithGh(null)): Promise<{ code: number | null; json: Draft; err: string }> {
+function draft(title: string, body: string, PATH = pathWithGh(null), env: Record<string, string> = {}): Promise<{ code: number | null; json: Draft; err: string }> {
   const f = join(mkdtempSync(join(tmpdir(), "hackos-issue-")), "body.md");
   writeFileSync(f, body);
   return new Promise((done) => {
-    const p = spawn(process.execPath, [SCRIPT, "--title", title, "--body-file", f], { env: { ...process.env, PATH } });
+    const p = spawn(process.execPath, [SCRIPT, "--title", title, "--body-file", f], { env: { ...process.env, PATH, ...env } });
     let out = "", err = "";
     p.stdout.on("data", (b) => (out += b));
     p.stderr.on("data", (b) => (err += b));
@@ -87,4 +87,26 @@ test("with a signed-in gh it gives the exact gh command", async () => {
 test("missing arguments are a usage error", async () => {
   const r = await new Promise<number | null>((done) => spawn(process.execPath, [SCRIPT, "--title", "x"]).on("close", done));
   assert.equal(r, 2);
+});
+
+test("redacts the other shapes secrets come in", async () => {
+  const body = [
+    "kane-cli login --username ana --access-key LT_AbCdEf123456",
+    'config: {"access_key":"LT_json999","token":"abc123tok"}',
+    "Authorization: Basic YW5hOkxUX0FiQ2RFZjEyMzQ1Ng==",
+    "C:\\Users\\ana\\orbit\\app.ts failed",
+    `cwd: ${homedir()}`,
+  ].join("\n");
+  const r = await draft("t", body);
+  const out = readFileSync(r.json.body_file, "utf8");
+  for (const raw of ["LT_AbCdEf123456", "LT_json999", "abc123tok", "YW5hOkxUX0FiQ2RFZjEyMzQ1Ng==", "C:\\Users\\ana", homedir()]) assert.ok(!out.includes(raw), `leaked ${raw} in:\n${out}`);
+});
+
+test("redacts this machine's own keys and token wherever they appear", async () => {
+  const h = mkdtempSync(join(tmpdir(), "hackos-home-"));
+  mkdirSync(join(h, ".kanehack"));
+  writeFileSync(join(h, ".kanehack/config.json"), JSON.stringify({ token: "khk_mytoken_0001", testmu: { username: "ana", access_key: "SavedKeyAAA111" } }));
+  const r = await draft("SavedKeyAAA111 broke", "key SavedKeyAAA111, env EnvKeyBBB222, tok khk_mytoken_0001", pathWithGh(null), { HOME: h, LT_ACCESS_KEY: "EnvKeyBBB222" });
+  const all = r.json.title + readFileSync(r.json.body_file, "utf8");
+  for (const raw of ["SavedKeyAAA111", "EnvKeyBBB222", "khk_mytoken_0001"]) assert.ok(!all.includes(raw), `leaked ${raw}`);
 });

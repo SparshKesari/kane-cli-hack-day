@@ -24,13 +24,38 @@ if (!title0 || !bodyFile) {
 }
 
 const home = homedir();
-const redact = (s) =>
-  s
-    .split(home + "/").join("~/")
-    .replace(/khk_[A-Za-z0-9_-]+/g, "[redacted]")
-    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+// This machine's own secrets, wherever they appear: the pairing token and TestMu key kanehack saved,
+// and the key environment variables.
+const known = [process.env.KANEHACK_TOKEN, process.env.TESTMU_ACCESS_KEY, process.env.LT_ACCESS_KEY];
+try {
+  const c = JSON.parse(readFileSync(join(home, ".kanehack", "config.json"), "utf8"));
+  known.push(c.token, c.testmu?.access_key);
+} catch {}
+// Patterns from packages/kanehack/lib/redact.mjs, plus the shapes Kane and kanehack commands print.
+const SECRET_VALUE = [
+  /\bgh[pousr]_[A-Za-z0-9]{20,}/g,
+  /\bgithub_pat_[A-Za-z0-9_]{20,}/g,
+  /\bsk-[A-Za-z0-9_-]{20,}/g,
+  /\bkh[kpbh]_[A-Za-z0-9_-]+/g,
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
+  /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
+];
+const SECRET_KEY = /"([^"]*(?:pass(?:word|wd)?|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|authorization|cookie|credential)[^"]*)"\s*:\s*"[^"]*"/gi;
+const redact = (text) => {
+  let s = text;
+  for (const v of known) if (typeof v === "string" && v.length >= 6) s = s.split(v).join("[redacted]");
+  if (home.length > 1) s = s.split(home).join("~");
+  s = s.replace(/[A-Za-z]:\\+Users\\+[^\\\s"']+/g, "~").replace(/\/(?:Users|home)\/[^/\s"']+/g, "~");
+  for (const re of SECRET_VALUE) s = s.replace(re, "[redacted]");
+  return s
+    .replace(SECRET_KEY, (_m, key) => `"${key}":"[redacted]"`)
+    .replace(/(--(?:access-key|api-key|password|passwd|secret|token|key))(\s+|=)\S+/gi, "$1$2[redacted]")
+    .replace(/\b(bearer|basic)\s+\S+/gi, "$1 [redacted]")
     .replace(/(access[_-]?key|password|passwd|secret|token)(\s*[:=]\s*)\S+/gi, "$1$2[redacted]")
     .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[email]");
+};
 
 const t = redact(title0.trim());
 const title = t.startsWith(PREFIX) ? t : PREFIX + t;
