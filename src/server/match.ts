@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { AppError, parse, withAudit, z, zx, type Receipt } from "./core";
 import { notifyMembers, notifyTeam } from "./member-notifications";
 import { TEAM_SIZE_CAP, currentTeamOf, listRecruitingTeams, normalizeTags, receiptOf, type ActingMember } from "./teams";
+import { trackLabel } from "@/data/hackday";
 
 // Matchmaker (SPEC §4). People opt in to being discoverable; suggestions rank
 // complementary skills and shared interests, each with a plain-words reason.
@@ -171,7 +172,7 @@ export async function suggestions(who: ActingMember, filters: unknown = {}) {
           team_id: t.id,
           slug: t.slug,
           name: t.name,
-          track: t.track,
+          track: trackLabel(t.track),
           summary_public: t.summary_public,
           seeking_skills: t.seeking_skills,
           member_skills: memberSkills.get(t.id)?.skills ?? [],

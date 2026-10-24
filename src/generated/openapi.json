@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**149 operations**: 0 live in production, 125 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**148 operations**: 0 live in production, 124 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -3987,108 +3987,6 @@
     }
    }
   },
-  "/api/v1/ideas/radar": {
-   "post": {
-    "tags": [
-     "ideas"
-    ],
-    "operationId": "post_api_v1_ideas_radar",
-    "summary": "[new] Check opted-in idea overlap",
-    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** ideas · Existing blueprint contract: Check opted-in idea overlap  \n**Source:** `src/app/api/v1/ideas/radar/route.ts`\n\n```text\nPOST /api/v1/ideas/radar  idea_check_overlap: compares your opt-in public summary\nwith other teams' opt-in public summaries. Private descriptions are never used.\n```",
-    "parameters": [
-     {
-      "name": "Idempotency-Key",
-      "in": "header",
-      "required": false,
-      "schema": {
-       "type": "string"
-      },
-      "description": "Retries with the same key return the original result."
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "Envelope with status ok | needs_action | partial.",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Envelope"
-        }
-       }
-      }
-     },
-     "400": {
-      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Envelope"
-        }
-       }
-      }
-     },
-     "401": {
-      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Envelope"
-        }
-       }
-      }
-     },
-     "403": {
-      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Envelope"
-        }
-       }
-      }
-     },
-     "503": {
-      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Envelope"
-        }
-       }
-      }
-     }
-    },
-    "x-status": "new",
-    "x-access": "testmu",
-    "security": [
-     {
-      "testmuKey": [],
-      "testmuUser": []
-     },
-     {
-      "testmuBasic": []
-     },
-     {
-      "testmuCookie": []
-     },
-     {
-      "staffCookie": []
-     }
-    ],
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "additionalProperties": true
-       }
-      }
-     },
-     "description": "JSON object; fields are listed in the description above."
-    }
-   }
-  },
   "/api/v1/ideas/validate": {
    "post": {
     "tags": [
@@ -5442,7 +5340,7 @@
     ],
     "operationId": "get_api_v1_me_flow",
     "summary": "[new] Where you are in the event-day flow. Browser-only (your own session cookie).",
-    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/flow/route.ts`\n\n```text\nWhere you are in the event-day flow. Browser-only (your own session cookie).\nTeammates waiting on the team page poll this to move on once the captain\nconfirms the final team; /setup polls it to move on to the Idea tab once a\nmachine is paired and a Kane run is on record.\n```",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/me/flow/route.ts`\n\n```text\nWhere you are in the event-day flow. Browser-only (your own session cookie).\nTeammates waiting on the team page poll this to move on once the captain\nconfirms the final team; /setup polls it to move on to the Idea tab once a\nmachine is signed in (kanehack signin / register, or pairing). Kane runs come after the idea.\n```",
     "parameters": [],
     "responses": {
      "200": {

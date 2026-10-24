@@ -32,7 +32,7 @@ export default function SetupPage() {
         intro="Install one small helper, pair it with your passport, and connect Codex. Then Codex can do the day with you: team, idea, Kane runs, help and submission."
         jumps={[
           { href: "#install", label: "1 · Install" },
-          { href: "#pair", label: "2 · Pair" },
+          { href: "#pair", label: "2 · Sign in" },
           { href: "#connect", label: "3 · Connect" },
           { href: "#skills", label: "4 · Skills" },
           { href: "#prove", label: "5 · Prove it" },
@@ -43,10 +43,10 @@ export default function SetupPage() {
           <YourStatus />
         </Suspense>
       </div>
-      <Step id="install" n="01" title="Install the helper" body="Checks your machine, installs kanehack and the twelve hack-day skills, and makes kanehack a command. It asks before installing anything and never uses sudo.">
+      <Step id="install" n="01" title="Install the helper" body="Checks your machine, installs kanehack and the two hack-day skills ($hack-os and $hack-gtm), and makes kanehack a command. It asks before installing anything and never uses sudo.">
         <Cmds cmds={INSTALL} />
       </Step>
-      <Step id="pair" n="02" title="Pair this machine" body="Links kanehack to your passport so your runs and requests count for you and your team. You approve the code in your own browser.">
+      <Step id="pair" n="02" title="Sign this machine in" body="Links kanehack to your passport so your runs and requests count for you and your team. Type your password in your own terminal, once; Codex never sees it.">
         <Cmds cmds={PAIR} />
       </Step>
       <Step id="connect" n="03" title="Connect your agent" body="Points your agent at the event server, so the skills can read your status, record runs and open help tickets as you.">
@@ -119,7 +119,7 @@ function Cmds({ cmds }: { cmds: Cmd[] }) {
   );
 }
 
-/** For a signed-in participant: is a machine paired, and has a run been reported yet? Both → on to the Idea tab. */
+/** For a signed-in participant: is a machine signed in (→ on to the Idea tab), and has a run been reported yet? */
 async function YourStatus() {
   const member = await getMember();
   if (!member) {
@@ -153,7 +153,7 @@ async function YourStatus() {
       )}
       {p.team && (
         <div className="basis-full">
-          <OnToIdea ideaUrl={`/t/${p.team.slug}/idea`} done={paired && proven} />
+          <OnToIdea ideaUrl={`/t/${p.team.slug}/idea`} done={paired} />
         </div>
       )}
     </div>

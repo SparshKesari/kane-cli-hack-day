@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
-import Button from "@/components/ui/Button";
 import DegradedServiceAlert from "@/components/ui/DegradedServiceAlert";
 import StatusPill from "@/components/ui/StatusPill";
 import { formatEventTime, getEvent } from "@/lib/event";
 import { isEnabled } from "@/lib/flags";
-import { getIdea, latestAssessment, listRevisions, type IdeaStatus } from "@/server/ideas";
-import { getTeamInfo } from "@/server/teams";
+import { getIdea, latestAssessment, listRevisions } from "@/server/ideas";
 import { Panel } from "@/app/team/blocks";
 import Hub, { type HubContext } from "../hub";
 import IdeaChecklist, { AdvisoryBanner, VerdictPill } from "./checklist";
-import { IdeaForm, SelectIdeaButton, ValidateForm } from "./parts";
+import { IdeaForm, ValidateForm } from "./parts";
 
 export const metadata: Metadata = { title: "Idea" };
 
-// Idea lab (T-IDEA-01..04): the private idea with revisions, the advisory
-// validator, and the idea's state up to the freeze at the idea lock.
+// Idea lab: the private idea with revisions and the advisory validator, up to
+// the freeze at the idea lock.
 
 export default function IdeaTab({ params }: PageProps<"/t/[slug]/idea">) {
   return (
@@ -24,36 +22,19 @@ export default function IdeaTab({ params }: PageProps<"/t/[slug]/idea">) {
   );
 }
 
-const STATES: { id: IdeaStatus; label: string }[] = [
-  { id: "draft", label: "Draft" },
-  { id: "validated", label: "Validated" },
-  { id: "shared", label: "Shared" },
-  { id: "selected", label: "Selected" },
-  { id: "frozen", label: "Frozen" },
-];
-
 async function IdeaLab({ team, me }: HubContext) {
-  const [idea, info, event, on] = await Promise.all([getIdea(team.id), getTeamInfo({ id: team.id }), getEvent(), isEnabled("idea")]);
+  const [idea, event, on] = await Promise.all([getIdea(team.id), getEvent(), isEnabled("idea")]);
   if (!idea) return null;
   const [latest, revisions] = await Promise.all([latestAssessment(idea.id), listRevisions(idea.id)]);
   // Validation itself adds a revision, so any later revision is an edit the check hasn't seen.
   const stale = !!latest && latest.revision < idea.revision;
   const canEdit = !!me && !idea.locked;
-  const captain = !!me && info?.captain_id === me.id;
   const slug = team.slug;
 
   return (
     <section className="py-10 sm:py-14">
       <div className="container-page space-y-10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <ol className="flex flex-wrap gap-x-4 gap-y-2 font-plex text-xs" aria-label="Idea state">
-            {STATES.map((s) => (
-              <li key={s.id} aria-current={s.id === idea.status ? "step" : undefined} className={s.id === idea.status ? "text-lime" : "text-lightgray"}>
-                {s.id === idea.status ? "→ " : ""}
-                {s.label}
-              </li>
-            ))}
-          </ol>
+        <div className="flex flex-wrap items-center justify-end gap-4">
           {idea.locked ? (
             <StatusPill tone="pending">Frozen at {formatEventTime(idea.idea_lock_at, event)}</StatusPill>
           ) : (
@@ -62,8 +43,8 @@ async function IdeaLab({ team, me }: HubContext) {
         </div>
 
         {!on && (
-          <DegradedServiceAlert state="degraded" system="Idea lab" manualRoute={`/t/${slug}/idea/print?blank=1`} manualLabel="Print the paper worksheet">
-            The validator and radar are switched off. You can still save your idea; use the paper worksheet for the checklist.
+          <DegradedServiceAlert state="degraded" system="Idea lab">
+            The validator here is switched off. You can still save your idea, and check it with $hack-os in Codex.
           </DegradedServiceAlert>
         )}
 
@@ -87,13 +68,6 @@ async function IdeaLab({ team, me }: HubContext) {
               />
               {!me && <p className="mt-3 font-plex text-xs text-lightgray">Viewing as organizer: read-only.</p>}
             </Panel>
-
-            {captain && !idea.locked && (idea.status === "validated" || idea.status === "shared") && (
-              <Panel title="Lock it in">
-                <p className="mb-3 font-plex text-sm text-lightgray">Tell organizers this is what you&apos;re building. You can still edit until the freeze.</p>
-                <SelectIdeaButton slug={slug} />
-              </Panel>
-            )}
 
             {revisions.length > 0 && (
               <Panel title="Revisions">
@@ -121,7 +95,7 @@ async function IdeaLab({ team, me }: HubContext) {
               ) : (
                 <div className="space-y-3">
                   <AdvisoryBanner />
-                  <p className="font-plex text-sm text-lightgray">Eight checks against the challenge brief, a verdict, three changes and a Kane path. Save your idea, then validate.</p>
+                  <p className="font-plex text-sm text-lightgray">Eight checks against the challenge brief, a verdict, three changes and a Kane path. Save your idea, then validate here, or check it with $hack-os in Codex (that check stays on your machine).</p>
                 </div>
               )}
               {me && on && (
@@ -130,12 +104,6 @@ async function IdeaLab({ team, me }: HubContext) {
                 </div>
               )}
             </Panel>
-
-            <div className="flex flex-wrap gap-3">
-              <Button href={`/t/${slug}/idea/print`} variant="secondary" className="min-h-11">
-                Printable checklist
-              </Button>
-            </div>
           </div>
         </div>
       </div>

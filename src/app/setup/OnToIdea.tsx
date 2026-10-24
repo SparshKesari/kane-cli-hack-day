@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { apiFetch } from "@/lib/api-client";
 
-// /setup → the team's Idea tab. Setup counts as done once a machine is paired
-// and a Kane run is on record. Already done when the page opened: just a button
+// /setup → the team's Idea tab. Setup counts as done once a machine is signed in
+// (the idea comes before the first Kane run). Already done when the page opened: just a button
 // (so people can come back to setup). Done while the page is open: move on by itself.
 export default function OnToIdea({ ideaUrl, done }: { ideaUrl: string; done: boolean }) {
   const router = useRouter();

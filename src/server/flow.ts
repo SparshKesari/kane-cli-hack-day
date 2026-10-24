@@ -11,6 +11,7 @@ import { memberLoginWithCode } from "./pairing";
 import { appendConsents } from "./passport";
 import { respondIntro } from "./match";
 import { admitToTeam, currentTeamOf, listRecruitingTeams, normalizeTags, type ActingMember } from "./teams";
+import { trackLabel } from "@/data/hackday";
 
 // The event-day participant flow (branch event-day-flow):
 //   /register  profile (name, Luma email, skills, interests, handles, a personal
@@ -313,7 +314,7 @@ export async function listOpenTeams(viewerId: number): Promise<PoolTeam[]> {
     team_id: t.id,
     slug: t.slug,
     name: t.name,
-    track: t.track,
+    track: trackLabel(t.track),
     summary_public: t.summary_public,
     seeking_skills: t.seeking_skills,
     open_seats: Math.max(0, t.cap - t.member_count),

@@ -1,6 +1,6 @@
 {
   "name": "kanehack",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Kane CLI Hack Day helper: pair this machine, check your setup, report Kane CLI runs (exit code + NDJSON) to your team's Proof tab, ask a mentor, preflight your submission.",
   "type": "module",
   "bin": {

@@ -5,15 +5,9 @@ import { event } from "@/data/hackday";
 
 const fmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", timeZone: event.timezone, timeZoneName: "short" });
 
-export type FreshnessState = "fresh" | "delayed" | "stale" | "offline";
+import { freshnessOf, type FreshnessState } from "@/lib/freshness";
 
-export function freshnessOf(asOf: Date, now: Date, staleAfterSec = 120): FreshnessState {
-  const age = (now.getTime() - asOf.getTime()) / 1000;
-  if (age > staleAfterSec * 5) return "offline";
-  if (age > staleAfterSec) return "stale";
-  if (age > staleAfterSec / 2) return "delayed";
-  return "fresh";
-}
+export { freshnessOf, type FreshnessState };
 
 export default function FreshnessStamp({
   asOf,

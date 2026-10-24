@@ -1,5 +1,5 @@
 // The participant path through Hack OS with an AI agent: install the helper,
-// pair this machine, connect Codex to the event MCP server, then work
+// sign this machine in, connect Codex to the event MCP server, then work
 // through the day with the hack-os skill. /setup, the team hub's Setup tab,
 // /readiness and the passport all read from here, so a command changes in one
 // place. Commands must match public/install.*, packages/kanehack and
@@ -26,18 +26,19 @@ export const INSTALL: Cmd[] = [
 ];
 
 export const PAIR: Cmd[] = [
-  { label: "In your terminal", value: "kanehack pair", note: "Approve the code it shows at /pair, signed in as yourself." },
+  { label: "In your own terminal, once", value: "kanehack password", note: "Your kaneclihack.sh password, typed hidden and kept in ~/.kanehack (mode 600). Never in a Codex chat." },
   {
-    label: "From an AI agent",
-    value: "kanehack pair --start\n# approve the code in your browser, then:\nkanehack pair --wait",
-    note: "--wait exits 4 while the code is still pending: run it again after approving.",
+    label: "Then (you or Codex)",
+    value: "kanehack signin --email you@example.com",
+    note: 'New here? kanehack register --name "Your Name" --email you@example.com --linkedin <handle> --x <handle> saves your profile and signs in.',
   },
+  { label: "Or approve in the browser", value: "kanehack pair", note: "Approve the code it shows at /pair, signed in as yourself." },
 ];
 
 export const CONNECT: Cmd[] = [
   {
     label: "Codex",
-    value: `export KANEHACK_TOKEN="$(kanehack token)"\ncodex mcp add kane-hack-event --url ${MCP_URL} --bearer-token-env-var KANEHACK_TOKEN`,
+    value: "kanehack connect codex",
     note: "The skills load from ~/.agents/skills (the installer puts them there). Start a new Codex session, then type $hack-os.",
   },
 ];
@@ -53,7 +54,7 @@ export type SkillInfo = { name: string; does: string; ask: string };
 export const SKILL_GROUPS: { phase: string; skills: SkillInfo[] }[] = [
   {
     phase: "Get set up",
-    skills: [{ name: "hack-os", does: "Checks your machine, pairs it with your passport and connects Codex to the event, with the exact fix for anything missing.", ask: "Show my Hack Day status and do my next step." }],
+    skills: [{ name: "hack-os", does: "Checks your machine, signs it in to your passport and connects Codex to the event, with the exact fix for anything missing.", ask: "Show my Hack Day status and do my next step." }],
   },
   {
     phase: "Team and idea",

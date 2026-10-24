@@ -9,6 +9,7 @@ import { getMembers, getTeamBySlug, type Member, type Team } from "@/lib/teams";
 import { SessionButtons } from "./parts";
 import Bell from "./Bell";
 import TabNav from "./TabNav";
+import { trackLabel } from "@/data/hackday";
 
 // The shell every hub tab renders in. It gates on the team cookie (password,
 // then "who are you?") and only then renders the tab, so nothing behind it
@@ -125,7 +126,7 @@ function HubHeader({ team, slug, me, showSession }: { team: Team; slug?: string;
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0">
             <Eyebrow>
-              {team.is_solo ? "Solo" : "Team"} hub · {team.track}
+              {team.is_solo ? "Solo" : "Team"} hub · {trackLabel(team.track)}
             </Eyebrow>
             <h1 className="mt-3 font-dots text-[2.25rem] leading-[0.95] font-black break-words text-bright sm:text-[3rem]">{team.name}</h1>
             <p className="mt-3 max-w-2xl font-plex text-sm text-lightgray">{team.idea}</p>

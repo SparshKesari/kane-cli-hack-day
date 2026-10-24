@@ -17,6 +17,7 @@ import { listIntros } from "@/server/match";
 import { Panel, Stat, Tag } from "../team/blocks";
 import { leavePoolAction } from "./actions";
 import { IntroButtons, MatchProfileForm, RequestIntro } from "./parts";
+import { trackLabel } from "@/data/hackday";
 
 export const metadata: Metadata = { title: "Matchmaking" };
 
@@ -264,7 +265,7 @@ function TeamCard({ t, mySkills }: { t: PoolTeam; mySkills: Set<string> }) {
   return (
     <li className="brackets flex flex-col gap-3 border border-hairline p-5">
       <div className="flex items-center justify-between gap-2 font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">
-        <span>Team · {t.track}</span>
+        <span>Team · {trackLabel(t.track)}</span>
         <span>
           {t.open_seats} open {t.open_seats === 1 ? "seat" : "seats"}
         </span>
