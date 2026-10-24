@@ -13,11 +13,11 @@ import { syncTeamAfterClaim } from "./testmu-team";
 // ceremony for participants:
 //   1 testmu_signup  a link to TestMu AI + a Done tick
 //   2 testmu_plan    a server-side claim of the hack-day plan (the member's own email)
-//   3 codex_credits  a personal OpenAI Codex credit code from an organizer-uploaded pool + a Done tick
+//   3 codex_credits  the OpenAI Codex coupon, emailed to the registered address + a Done tick
 // All three done → members.activated_at (what metrics and the desk read).
 //
-// Step 3 opens once the member is on a team and has ticked step 1. It does not
-// wait for step 2, so a TestMu AI outage never blocks the Codex credits.
+// Step 3 never waits for step 2, so a TestMu AI outage never blocks the Codex credits.
+// The code pool below (import, assign, reveal) stays for organizers but isn't on /activate.
 
 export const STEP_IDS: ActivationStepId[] = ["testmu_signup", "testmu_plan", "codex_credits"];
 
@@ -63,15 +63,11 @@ async function requireTeam(member: MemberRow) {
   if (!member.team_id) throw new AppError("CONFLICT", { userMessage: "Join or create a team first (at /team), then activate." });
 }
 
-/** Tick or untick step 1 or 3. Step 2 is ticked only by a successful claim; step 3 needs an assigned code. */
+/** Tick or untick step 1 or 3. Step 2 is ticked only by a successful claim; step 3 is the person's own tick (the coupon comes by email). */
 export async function setTick(member: MemberRow, step: ActivationStepId, done: boolean) {
   if (step === "testmu_plan") throw new AppError("VALIDATION_FAILED", { userMessage: "Step 2 is ticked when your plan activates." });
   await requireTeam(member);
   return withAudit(memberActor(member), done ? "activation.tick" : "activation.untick", "activation_tick", async (tx) => {
-    if (step === "codex_credits" && done) {
-      const { rows } = await tx.query("select 1 from codex_credit_codes where assigned_member_id = $1 and status = 'assigned'", [member.id]);
-      if (!rows[0]) throw new AppError("CONFLICT", { userMessage: "Get your Codex credit code first." });
-    }
     if (done) await tx.query("insert into activation_ticks (member_id, step) values ($1, $2) on conflict do nothing", [member.id, step]);
     else await tx.query("delete from activation_ticks where member_id = $1 and step = $2", [member.id, step]);
     await syncActivated(tx, member.id);

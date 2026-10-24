@@ -31,7 +31,7 @@ export const setup: { id: string; title: string; body: string; value?: string; l
     body: "Use your registration email at testmuai.com. Your OpenAI credits and KaneAI Pro are matched by email.",
     link: { label: "testmuai.com", href: "https://www.testmuai.com" },
   },
-  { id: "coupon", title: "Redeem your OpenAI coupon", body: "[steps]" },
+  { id: "coupon", title: "Redeem your OpenAI coupon", body: "It comes by email to the address you registered with. Open it and follow its steps to add the credits to your OpenAI account." },
   {
     id: "install",
     title: "Set up your agent",

@@ -5,7 +5,7 @@ import { refresh } from "next/cache";
 import type { ActivationStepId } from "@/data/activation-steps";
 import { requirePersonalMember } from "@/server/auth";
 import { runAction } from "@/server/core";
-import { assignCodexCode, claimPlan, getActivationView, setTick, type ClaimView } from "@/server/event-activation";
+import { claimPlan, getActivationView, setTick, type ClaimView } from "@/server/event-activation";
 import { retryTeamInvites, teamInvitesPending } from "@/server/testmu-team";
 
 // /activate checklist actions. The member always comes from the personal
@@ -35,12 +35,6 @@ export async function claimPlanAction(form: FormData): Promise<ActState> {
   refresh();
   if (!r.ok) return { ok: false, message: r.error.message };
   return { ok: r.data.outcome === "claimed", message: r.data.message, outcome: r.data.outcome };
-}
-
-export async function codexCodeAction(): Promise<ActState> {
-  const r = await runAction(async () => assignCodexCode(await requirePersonalMember()));
-  refresh();
-  return r.ok ? { ok: true } : { ok: false, message: r.error.message };
 }
 
 /** Captain: invite the teammates not in the TestMu AI team yet. The password goes to TestMu AI only. */
