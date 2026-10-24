@@ -294,7 +294,6 @@ if ($khHave -and (Test-Path $cmdShim)) {
 # first). Codex's config gets the URL plus `kanehack mcp-headers`, which prints the auth header
 # when Codex connects: the token is never written there or printed here.
 # A different server with that name is left alone.
-$agentsShown = $false
 function ConnectAgent($agent, $label, $where) {
   # Native stderr must not become a terminating error here (Windows PowerShell 5.1).
   $ErrorActionPreference = "Continue"
@@ -311,18 +310,13 @@ function ConnectAgent($agent, $label, $where) {
 if (-not $NoAgents) {
   $khReady = $khHave -and (Test-Path $entry)
   if ((Have codex) -or (Test-Path $CodexDir)) {
-    $agentsShown = $true
     if ($khReady) { ConnectAgent "codex" "Codex" (Join-Path $CodexDir "config.toml") }
     else { Warn "codex_mcp" "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex" }
   }
 }
 
-Write-Host "`nNext, in this terminal:"
-Write-Host "  1. $kh pair        link this machine to your passport (approve the code it shows in your browser)"
-Write-Host "  2. $kh doctor      re-check your setup"
-Write-Host "  3. $kh report -- kane-cli run `"Open $Site and find the schedule`" --agent"
-Write-Host "     (your first Kane run, sent to your team's Proof tab)"
-if ($agentsShown) { Write-Host 'Then in Codex: start a new session and type $hack-os' }
+Write-Host ""
+Write-Host 'Next: start a Codex session and enter $hack-os'
 Write-Host "Web: $Site/passport"
 if ($script:NoTtySkips -gt 0) {
   $siteArg = if ($Site -ne $DefaultSite) { " -Site $Site" } else { "" }
