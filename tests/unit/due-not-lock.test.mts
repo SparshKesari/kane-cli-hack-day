@@ -34,3 +34,15 @@ test("agents hear that submissions are due, not that they lock", () => {
   assert.doesNotMatch(src("src/server/mcp.ts"), /[Ss]ubmissions lock/);
   assert.doesNotMatch(src("src/app/api/v1/event/brief/route.ts"), /Submissions lock/);
 });
+
+test("MCP tool descriptions don't tell agents an idea or evidence locks at a time", () => {
+  const mcp = src("src/server/mcp.ts");
+  assert.doesNotMatch(mcp, /Refused after the idea lock|before the submission lock|the server lock time/);
+});
+
+test("the event brief tells agents nothing locks on the clock", () => {
+  const mcp = src("src/server/mcp.ts");
+  assert.match(mcp, /const NO_CLOCK_LOCKS = "Nothing locks on the clock: teams, ideas and submissions stay open after their due times\.";/);
+  assert.match(mcp, /message: `\$\{e\.name\}: phase \$\{e\.phase\.toUpperCase\(\)\}\. \$\{NO_CLOCK_LOCKS\}/);
+  assert.match(mcp, /clock_locks: NO_CLOCK_LOCKS,/);
+});
