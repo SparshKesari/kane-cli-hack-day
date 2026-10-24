@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.28";
+const VERSION = "0.1.29";
 // TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
 const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");

@@ -19,7 +19,8 @@ export function scan(text) {
     if (!t) continue;
     if (t.startsWith("testrun_")) out.family = "testrun";
     else if (t.startsWith("test_md_") && out.family !== "testrun") out.family = "testmd";
-    else if (t === "run_end" && out.family === "unknown") out.family = "run";
+    else if ((t === "run_start" || t === "run_end") && out.family === "unknown") out.family = "run";
+    // A run's own coverage event (Kane CLI 0.10.0-rc.3+, before run_end) doesn't make it a cover stream: run_start came first.
     else if ((t === "coverage" || t === "gaps") && out.family === "unknown") out.family = "assurance";
 
     if (t === "testrun_start" && ev.execution_id) out.executionId = String(ev.execution_id);
