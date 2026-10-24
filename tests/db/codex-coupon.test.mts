@@ -43,12 +43,12 @@ before(async () => {
     import("../../src/server/mcp.ts"),
   ]);
   m = { db, coupon, roster, activation, A, mcp };
-  await db.query(`insert into codex_credit_codes (code, batch) select 'QA-${tag}-' || n, 'qa-${tag}' from generate_series(1, 6) n`);
+  await db.query(`insert into codex_credit_codes (code, batch) select 'QA-${tag}-' || n, 'qa-${tag}' from generate_series(1, 10) n`);
 });
 
 after(async () => {
   if (skip || !m) return;
-  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma"].map((w) => hash(addr(w)));
+  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma", "kim"].map((w) => hash(addr(w)));
   await m.db.query(`delete from codex_credit_codes where code like 'QA-${tag}-%'`).catch(() => {});
   await m.db
     .query(
@@ -268,4 +268,22 @@ test("the event tool emails the signed-in member's address by default, or the on
   const r = await m.A.sendCodexCoupon(ctx, addr("jo.luma"));
   assert.equal(r.outcome, "sent");
   assert.equal(mail().sent.at(-1)!.to, addr("jo.luma"));
+});
+
+test("when the roster row and the member each hold a code, the roster row's code is the one re-sent", { skip }, async () => {
+  await addPeople({ email: addr("kim"), name: "Kim QA" });
+  const [g] = await m.db.query<{ id: number }>("select id from roster_guests where email_hash = $1", [hash(addr("kim"))]);
+  const [mem] = await m.db.query<{ id: number }>("insert into members (team_id, name, email, email_hash) values (null, 'Kim QA', $1, $2) returning id", [addr("kim"), hash(addr("kim"))]);
+  const take = async (set: string, params: unknown[]) =>
+    (await m.db.query<{ code: string }>(
+      `update codex_credit_codes set status = 'assigned', ${set} where id = (select id from codex_credit_codes where code like 'QA-${tag}-%' and status = 'available' order by id limit 1) returning code`,
+      params,
+    ))[0];
+  // The member's (older) code from a staff reassignment, and a newer one already emailed to the roster row.
+  await take("assigned_member_id = $1, assigned_at = now() - interval '1 hour', assigned_by = 'staff:1'", [mem.id]);
+  const mine = await take("assigned_guest_id = $1, assigned_at = now(), assigned_by = 'email', email_count = 1", [g.id]);
+  const res = await askCoupon(addr("kim"));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).data.outcome, "sent");
+  assert.match(mail().sent.at(-1)!.text, new RegExp(mine.code));
 });

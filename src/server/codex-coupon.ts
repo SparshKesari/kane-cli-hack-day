@@ -45,12 +45,13 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
 
   const got = await transaction(async (tx) => {
     await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`codex-coupon:${hash}`]);
-    // Theirs already: sent before (to any of their roster rows), or handed to their member by the old /activate flow.
+    // Theirs already: sent before (to any of their roster rows), or handed to their member by the old /activate
+    // flow or a staff reassignment. A code already on a roster row wins, so linking never gives a row two codes.
     const { rows: mine } = await tx.query<{ id: number; code: string; email_count: number }>(
       `select id, code, email_count from codex_credit_codes
         where status = 'assigned' and event_id = current_event_id()
           and (assigned_guest_id = any($1::bigint[]) or ($2::bigint is not null and assigned_member_id = $2))
-        order by assigned_at, id limit 1`,
+        order by (assigned_guest_id is not null) desc, assigned_at, id limit 1`,
       [guests.map((g) => g.id), memberId],
     );
     if (mine[0]) {
