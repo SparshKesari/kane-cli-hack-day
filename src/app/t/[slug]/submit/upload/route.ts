@@ -5,9 +5,9 @@ import { getProjectByTeam, mediaPrefix } from "@/server/showcase";
 
 // Short-lived tokens so a team's browser uploads screenshots straight to the
 // private Blob store (no function body limit). Only signed-in members of this
-// team, only images, only into this project's showcase/p<id>/ folder, and only
-// before the submission lock (server clock). The pathname is attached to the
-// submission when the draft is saved.
+// team, only images, and only into this project's showcase/p<id>/ folder, at any
+// time (the deadline time no longer locks anything). The pathname is attached to
+// the submission when the draft is saved.
 
 export async function POST(request: Request, ctx: RouteContext<"/t/[slug]/submit/upload">) {
   const { slug } = await ctx.params;
