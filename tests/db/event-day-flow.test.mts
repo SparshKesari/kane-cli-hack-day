@@ -313,6 +313,23 @@ test("the real claim API is never called outside production", { skip }, async ()
   process.env.TESTMU_TRIAL_CLAIM_URL = saved;
 });
 
+// The skill used to go from activation straight to building on next_action "build".
+test("after activation the next step is the idea, until the team saves one", { skip }, async () => {
+  await register("nextidea");
+  let me = (await viewer())!;
+  await m.teams.createTeam(acting(me), { name: `${tag} Next`, track: "Web App" });
+  await m.db.query("update members set activated_at = now() where id = $1", [me.id]);
+  me = (await m.auth.getMemberById(me.id))!;
+  const { participantStatus } = await import("../../src/server/mcp-adapters.ts");
+  let s = await participantStatus(me);
+  assert.equal(s.next_action.id, "idea");
+  assert.equal(s.idea?.saved, false, "a new team's idea row has only the team name");
+  await m.db.query("update ideas set private_description = 'Staff photograph a shelf; the app lists what is missing.' where team_id = $1", [me.team_id]);
+  s = await participantStatus(me);
+  assert.equal(s.next_action.id, "build");
+  assert.equal(s.idea?.saved, true);
+});
+
 test("Codex codes: distinct under concurrency, re-shown, empty pool, upload dedupe", { skip }, async () => {
   const T = tag.toUpperCase();
   // Upload preview: dedupe in the file and against the pool.

@@ -38,11 +38,13 @@ Read only the file for the step you're on.
 | Not signed in, setup problems, Codex not connected | `references/setup.md`                                          |
 | No profile yet, no team, or team not locked        | `references/signup-team.md`                                    |
 | On a locked team, activation not confirmed         | `references/activate.md`                                       |
-| Activated, no saved idea                           | `references/idea.md` (it loads `references/idea-validator.md`) |
+| Activated, idea not checked or not saved           | `references/idea.md` (it loads `references/idea-validator.md`) |
 | Building, testing with Kane, or "ready to submit"  | `references/build.md`                                          |
 | Stuck on anything                                  | `references/help.md`                                           |
 
 Route from `participant_get_status` data: `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
+
+**Never skip the idea step.** Once activation is done, go to `references/idea.md` and take them through the idea check before any building, even if `next_action` says build. `idea.saved` false → the idea step, always. `idea.saved` true but you haven't checked this idea with them (no `~/.kanehack/os/idea-check.json`) → offer the check once, and build only after they've seen it or said no.
 
 **Is the team locked?** `team.state` is `roster_locked` or `submitted` → yes. Otherwise call `event_get_brief`: once its `server_time` is past `deadlines.team_lock`, the server has locked every roster, even if `team.state` still says `recruiting`, `formed` or `active` (that field catches up later). Don't ask the captain to lock it then. Before that time, the captain locks it on `/team`.
 

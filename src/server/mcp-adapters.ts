@@ -38,7 +38,7 @@ async function teamRow(teamId: number | null) {
 const CONSENT_CATEGORIES = ["selfie_storage", "photo_publication", "face_matching", "social_mention", "teammate_discovery", "idea_discovery", "activity_publication"] as const;
 
 export async function participantStatus(m: MemberRow) {
-  const [team, consents, activation, tickets] = await Promise.all([
+  const [team, consents, activation, tickets, idea] = await Promise.all([
     teamRow(m.team_id),
     query<{ category: string; granted: boolean; recorded_at: Date }>("select category, granted, recorded_at from member_consent_current where member_id = $1", [m.id]),
     query<{ id: number; status: string; updated_at: Date; receipt_code: string | null }>(
@@ -46,19 +46,25 @@ export async function participantStatus(m: MemberRow) {
       [m.id],
     ),
     query<{ code: string; status: string }>("select code, status from help_tickets where member_id = $1 and status not in ('resolved','closed','duplicate') order by created_at desc limit 3", [m.id]),
+    // A team's idea row starts with only the team name: it counts as saved once it has a description.
+    m.team_id ? query<{ saved: boolean }>("select trim(private_description) <> '' as saved from ideas where team_id = $1", [m.team_id]) : Promise.resolve([]),
   ]);
   const act = activation[0] ?? null;
+  const ideaSaved = !!idea[0]?.saved;
   // No desk step on event day: the first thing to do is find a team.
   const next = !team
     ? { id: "find_team", label: "Create or join a team", href: "/match" }
     : act?.status !== "active" && !m.activated_at
       ? { id: "activate", label: "Finish activation", href: "/activate" }
-      : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
+      : !ideaSaved
+        ? { id: "idea", label: "Write your idea, check it with $hack-os, then save it on the Idea tab", href: `/t/${team.slug}/idea` }
+        : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
   return {
     member: { public_code: m.public_code, name: m.display_name ?? m.name, role: m.role, checked_in: !!m.checked_in_at, activated: !!m.activated_at },
     team: team ? { slug: team.slug, name: team.name, state: team.state, hub_url: `/t/${team.slug}` } : null,
     activation: act ? { session_id: act.id, status: act.status, receipt_code: act.receipt_code, updated_at: act.updated_at.toISOString() } : null,
     consents: Object.fromEntries(CONSENT_CATEGORIES.map((c) => [c, consents.find((x) => x.category === c)?.granted ?? null])),
+    idea: team ? { saved: ideaSaved, url: `/t/${team.slug}/idea` } : null,
     open_help: tickets,
     next_action: next,
     privacy_scope: "You see your own record and your team's. Nothing here is public.",
