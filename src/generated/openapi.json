@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**148 operations**: 0 live in production, 124 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**150 operations**: 0 live in production, 126 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -24,6 +24,9 @@
   },
   {
    "name": "auth"
+  },
+  {
+   "name": "codex"
   },
   {
    "name": "cron"
@@ -559,6 +562,94 @@
     "operationId": "post_api_import_photo",
     "summary": "[new] The photo pipeline posts each tagged event photo here once (multipart):",
     "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/import/photo/route.ts`\n\n```text\nThe photo pipeline posts each tagged event photo here once (multipart):\n  file      the JPEG (the pipeline resizes to fit the 4.5 MB request limit)\n  key       stable id for the photo (content hash); re-sending is a no-op\n  teams     one or more team slugs the photo was matched to\n  people    optional P-codes of people the pipeline face-matched (suggestions only)\n  caption   optional, shown under the photo\n  width, height\n\nConsent gate (T-PHOTO-01): a photo reaches a gallery only when every\nsuggested person and every current member of the team has said yes to\nphoto publication. Anything else is stored privately and HELD for review\nin /ops/media (\"held for review\"), never published on a camera match alone.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "open",
+    "security": [],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
+  "/api/import/roster": {
+   "post": {
+    "tags": [
+     "import"
+    ],
+    "operationId": "post_api_import_roster",
+    "summary": "[new] organizers add people to the participant list (Codex coupon eligibility).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** No TestMu key (handshake, docs or server-to-server with its own secret).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/import/roster/route.ts`\n\n```text\nPOST /api/import/roster: organizers add people to the participant list (Codex coupon eligibility).\nAuthorization: Bearer <ROSTER_API_TOKEN>. Body { email, name? } or { people: [{ email, name? }, …] }\n(up to 500). Re-adding someone changes nothing; someone revoked stays revoked.\n  curl -X POST https://www.kaneclihack.sh/api/import/roster -H \"Authorization: Bearer $ROSTER_API_TOKEN\" \\\n       -H 'content-type: application/json' -d '{\"email\":\"ann@example.com\",\"name\":\"Ann Lee\"}'\n```",
     "parameters": [
      {
       "name": "Idempotency-Key",
@@ -2205,6 +2296,108 @@
     "x-status": "new",
     "x-access": "open",
     "security": [],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
+  "/api/v1/codex/coupon": {
+   "post": {
+    "tags": [
+     "codex"
+    ],
+    "operationId": "post_api_v1_codex_coupon",
+    "summary": "[new] email a participant their OpenAI Codex coupon if they are on the list.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/codex/coupon/route.ts`\n\n```text\nPOST /api/v1/codex/coupon: email a participant their OpenAI Codex coupon if they are on the list.\nBody { email }; the hack-os skill calls it at the Codex step. On the participant list → the\nperson's coupon is emailed to that address (the same code on every request). The response\nnever carries the code: data.outcome is sent / not_on_list / out_of_codes. Three emails an\nhour per listed address; a generous per-IP limit, since the whole venue shares one address.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ],
     "requestBody": {
      "required": false,
      "content": {

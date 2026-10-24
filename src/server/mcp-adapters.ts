@@ -6,6 +6,8 @@ import { AppError, serverNow, withAudit, z, type Actor } from "./core";
 import type { MemberRow } from "./auth";
 import { listMilestones } from "./kane";
 import * as activation from "./activation";
+import { requestCodexCoupon } from "./codex-coupon";
+import { enforceRateLimit } from "./ratelimit";
 import { getActivationView, setTick } from "./event-activation";
 import * as deck from "./deck";
 import * as help from "./help";
@@ -118,6 +120,13 @@ export async function tickActivation(ctx: Ctx, step: "testmu_signup" | "codex_cr
   await setTick(ctx.member, step, done);
   const v = await getActivationView(ctx.member.id);
   return { step, done, activated: v.done };
+}
+
+/** Step 3: email their Codex coupon to `email` (default: the signed-in address) if it is on the participant list. */
+export async function sendCodexCoupon(ctx: Ctx, email?: string | null) {
+  // A person needs one or two tries (their own address, then the one they registered with); this stops list probing.
+  await enforceRateLimit(`codex-coupon-member:${ctx.member.id}`, { limit: 10, windowSec: 3600 });
+  return requestCodexCoupon(email?.trim() || ctx.member.email);
 }
 
 export async function beginActivation(ctx: Ctx) {
