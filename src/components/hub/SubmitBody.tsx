@@ -10,7 +10,7 @@ export default function SubmitBody({ dashboard }: { dashboard: string }) {
   const { team, idea, final } = submissions;
   return (
     <>
-      <StepBlock id="team" kicker="Step 1 · Team registration" time={to12h(team.deadline)} tag="Closes" title="Register your team">
+      <StepBlock id="team" kicker="Step 1 · Team registration" time={to12h(team.deadline)} tag="Due" title="Register your team">
         <Checklist label="You’ll need" items={team.needs} />
         <p>{team.solo}</p>
         {/* Only signed-in teams see this tab, so registration is already done. */}
@@ -23,13 +23,13 @@ export default function SubmitBody({ dashboard }: { dashboard: string }) {
         </p>
       </StepBlock>
 
-      <StepBlock id="idea" kicker="Step 2 · Idea submission" time={to12h(idea.deadline)} tag="Locks" title="Save your idea in the hub">
+      <StepBlock id="idea" kicker="Step 2 · Idea submission" time={to12h(idea.deadline)} tag="Due" title="Save your idea in the hub">
         <Checklist label="Add" items={idea.needs} />
         <p>{idea.note}</p>
         <Button href={idea.devpost.href}>{idea.devpost.label} →</Button>
       </StepBlock>
 
-      <StepBlock id="final" kicker="Step 3 · Final submission" time={to12h(final.deadline)} tag="Locks" title="Submit your project">
+      <StepBlock id="final" kicker="Step 3 · Final submission" time={to12h(final.deadline)} tag="Due" title="Submit your project">
         <p>All three essentials, plus at least two content pieces. Tick them off as you ship.</p>
         {/* The bundle checklist as an engine: every piece adds thrust, all four content pieces light the afterburner. */}
         <Afterburner />

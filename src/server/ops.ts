@@ -319,8 +319,8 @@ export async function announcementTemplates(e?: HackEvent): Promise<Announcement
     {
       id: "final_submission",
       label: "Final submission",
-      title: `Submissions lock at ${lock}`,
-      body: `The official submission lock is ${lock}. Submit now or, if the official service is down, bring your frozen project and evidence to the supervised backup receipt desk before the deadline.`,
+      title: `Submissions due at ${lock}`,
+      body: `Submissions are due at ${lock}. Submit now or, if the official service is down, bring your frozen project and evidence to the supervised backup receipt desk.`,
     },
     {
       id: "showtime",
