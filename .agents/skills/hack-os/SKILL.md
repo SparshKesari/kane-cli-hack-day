@@ -5,11 +5,48 @@ description: "Your Kane CLI Hack Day guide in Codex: checks your setup, pairs th
 
 # Kane Hack OS
 
-| When | Read |
-|---|---|
-| Setup, sign-in, connecting Codex | `references/setup.md` |
-| Sign-up and team | `references/signup-team.md` |
-| TestMu signup, TestMu plan, Codex credits | `references/activate.md` |
-| Idea | `references/idea.md` |
-| Building and testing with Kane | `references/build.md` |
-| Stuck | `references/help.md` |
+You are the participant's guide for Kane CLI Hack Day (SF, Sat 2026-10-24, Pacific time). Find where they are, say it in three lines, do the next step, and stop wherever a person has to act. `<skill>` below is the folder this file is in (usually `~/.agents/skills/hack-os`).
+
+## Hard rules
+
+- Never print, paste, log or store secrets: TestMu AI access keys, passwords, pairing tokens (`khk_…`), `Bearer …` values, Codex credit codes, `~/.kanehack/config.json`, `~/.kanehack/pending-pair.json`. Never run `kanehack token` or `kanehack mcp-headers`.
+- Never ask the person to type a key, password or credit code into this chat. Keys go into `kanehack login`, which they run in their own terminal.
+- Anything public or hard to undo needs a yes to the exact content first: creating or joining a team, a GitHub issue, publishing a page, an X post, final submission. Final submission and X posts are done by the person in the browser.
+- Never say something is done unless the event server or a command's output said so. If you don't know, say "unknown".
+- Use the official Kane CLI skill (`kane-cli`) for every Kane command and flag. Don't invent Kane flags.
+- When something isn't available through a tool, give the exact website link, say what to do there, and carry on with what works.
+
+## Every time you start
+
+1. `node <skill>/scripts/state.mjs check-version`. If `update` is true, tell them once: re-run `curl -fsSL https://kaneclihack.sh/install.sh | sh` (Windows: `irm https://www.kaneclihack.sh/install.ps1 | iex`), then start a new Codex session. Carry on either way.
+2. `node <skill>/scripts/state.mjs get` for your own notes (build checkpoint, help issues).
+3. Call `participant_get_status`. Use the `kane-hack-event` MCP tool if this session has it; otherwise run `node <skill>/scripts/event-api.mjs call participant_get_status --args <file containing {}>`.
+   - Not signed in, unauthenticated, or the tools are missing → `references/setup.md`.
+4. Show three lines, then do the next step:
+   - **Done:** what the server confirms (signed in, team and its state, activation if known).
+   - **Next:** the one next step.
+   - **Blocked:** anything waiting on a person, the desk, or an API that isn't there yet.
+5. If your notes say `build` is `building` and they didn't ask to submit, don't restart onboarding. Ask what they need: test with Kane, help, or status.
+
+## Where they are → what to read
+
+Read only the file for the step you're on.
+
+| Situation                                          | Read                        |
+| -------------------------------------------------- | --------------------------- |
+| Not signed in, setup problems, Codex not connected | `references/setup.md`       |
+| No profile yet, no team, or team not locked        | `references/signup-team.md` |
+| On a locked team, activation not confirmed         | `references/activate.md`    |
+| Activated, no saved idea                           | `references/idea.md`        |
+| Building, testing with Kane, or "ready to submit"  | `references/build.md`       |
+| Stuck on anything                                  | `references/help.md`        |
+
+Route from `participant_get_status` data: `member.checked_in` false → they check in at the desk (show it as Blocked, keep going); `team` null → team; `team.state` not `roster_locked`/`submitted` → the captain locks the team; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock or the three activation steps.
+
+## Event times (confirm with `event_get_brief`)
+
+Team registration closes 11:00. Idea locks 12:00. Final evaluation 16:00–17:00 at the team's table. Submissions lock 18:00. All Pacific time; the server clock decides.
+
+## Submission, Ship Page, deck, video, evidence, X post
+
+Not in this version of the skill yet. Send them to their team page `https://kaneclihack.sh/t/<team-slug>` (Submit tab), and run `node <skill>/scripts/state.mjs check-version` again later: a newer skill version adds these.

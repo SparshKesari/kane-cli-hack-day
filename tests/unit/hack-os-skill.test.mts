@@ -51,9 +51,11 @@ test("every MCP tool named in the skill is registered in src/server/mcp.ts", () 
   const real = new Set([...mcp.matchAll(/tool\(\s*"([a-z_]+)"/g)].map((m) => m[1]));
   assert.ok(real.has("participant_get_status"), "parsed the tool registry");
   const prefix = /^(participant|team|idea|help|submission|showcase|deck|event|activation|kane|milestone|readiness|harness|demo)_[a-z_]+$/;
+  // `kanehack doctor --json` check names, which the setup guide quotes; not MCP tools.
+  const doctorChecks = new Set(["kane_cli", "kane_skill"]);
   for (const f of textFiles().filter((f) => f.endsWith(".md")))
     for (const [, name] of read(f).matchAll(/`([a-z_]+)`/g))
-      if (prefix.test(name)) assert.ok(real.has(name), `${f} names unknown tool ${name}`);
+      if (prefix.test(name) && !doctorChecks.has(name)) assert.ok(real.has(name), `${f} names unknown tool ${name}`);
 });
 
 test("only official hosts appear", () => {
@@ -69,4 +71,9 @@ test("never tells the agent to print secrets", () => {
   for (const f of textFiles())
     for (const line of read(f).split("\n"))
       if (/kanehack token|mcp-headers/.test(line)) assert.match(line, /never|don't|do not/i, `${f}: ${line}`);
+});
+
+test("the routing table names every reference file", () => {
+  const md = read("SKILL.md");
+  for (const f of readdirSync(join(SKILL, "references"))) assert.ok(md.includes(`references/${f}`), `SKILL.md never routes to references/${f}`);
 });
