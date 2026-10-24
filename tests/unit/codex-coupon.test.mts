@@ -46,6 +46,21 @@ test("the coupon email works without a name and escapes what it shows", () => {
   assert.match(m.html, /&lt;b&gt;x&lt;\/b&gt;/);
 });
 
+test("the coupon email carries the redemption link when the code has one", () => {
+  const link = "https://platform.openai.com/p/AbCdEfGh12345678";
+  const m = couponEmail({ name: "Ann", code: "AbCdEfGh12345678", link });
+  assert.match(m.text, new RegExp(`Redeem it here: ${link.replace(/[.]/g, "\\.")}`));
+  assert.match(m.html, new RegExp(`<a href="${link.replace(/[.]/g, "\\.")}">`));
+});
+
+test("a link that isn't https is left out of the email", () => {
+  for (const link of ["http://platform.openai.com/p/X", "javascript:alert(1)", "https://bad host/x", null, undefined]) {
+    const m = couponEmail({ name: "Ann", code: "CODE-1234", link });
+    assert.doesNotMatch(m.text, /Redeem it here/, String(link));
+    assert.doesNotMatch(m.html, /<a href="(?!https:\/\/www\.kaneclihack\.sh)/, String(link));
+  }
+});
+
 test("the roster API token: unset or short secret refuses everyone, otherwise exact Bearer match", () => {
   const secret = "s3cret-roster-token-0123456789";
   assert.equal(bearerOk(`Bearer ${secret}`, undefined), false);

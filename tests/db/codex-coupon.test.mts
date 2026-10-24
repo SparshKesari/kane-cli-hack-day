@@ -43,7 +43,11 @@ before(async () => {
     import("../../src/server/mcp.ts"),
   ]);
   m = { db, coupon, roster, activation, A, mcp };
-  await db.query(`insert into codex_credit_codes (code, batch) select 'QA-${tag}-' || n, 'qa-${tag}' from generate_series(1, 10) n`);
+  // Like the real pool: each code keeps its redemption link (an extra CSV column) in `extra`.
+  await db.query(
+    `insert into codex_credit_codes (code, batch, extra)
+     select 'QA-${tag}-' || n, 'qa-${tag}', jsonb_build_object('link', 'https://platform.openai.com/p/QA-${tag}-' || n) from generate_series(1, 10) n`,
+  );
 });
 
 after(async () => {
@@ -144,6 +148,7 @@ test("someone on the list gets a code by email, and the response never carries i
   assert.equal(last.to, addr("ann"));
   assert.match(last.text, new RegExp(k.code));
   assert.match(last.text, /^Hi Ann QA,/);
+  assert.ok(last.text.includes(`Redeem it here: https://platform.openai.com/p/${k.code}`), "the code's redemption link is in the email");
 });
 
 test("asking again re-sends the same code instead of taking another", { skip }, async () => {
