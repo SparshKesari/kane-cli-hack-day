@@ -6,6 +6,7 @@
 //   node state.mjs set-build building|ready
 //   node state.mjs add-issue https://github.com/LambdaTest/kane-cli/issues/123
 //   node state.mjs check-version [--site https://kaneclihack.sh]
+//   node state.mjs key-required [--site https://www.kaneclihack.sh]
 //
 // JSON on stdout; exit 0, or 2 for a usage error. Never store secrets here.
 import { mkdirSync, readFileSync, renameSync, writeFileSync, chmodSync } from "node:fs";
@@ -51,11 +52,16 @@ function newer(a, b) {
   return false;
 }
 
-async function checkVersion(args) {
+function siteFrom(args, fallback) {
   const i = args.indexOf("--site");
-  const site = new URL(i >= 0 ? args[i + 1] ?? "" : "https://kaneclihack.sh");
+  const site = new URL(i >= 0 ? args[i + 1] ?? "" : fallback);
   const local = process.env.KANEHACK_OS_ALLOW_LOCAL === "1" && site.protocol === "http:" && ["127.0.0.1", "localhost"].includes(site.hostname);
   if (!local && !(site.protocol === "https:" && OFFICIAL.has(site.hostname))) usage("--site must be https://kaneclihack.sh");
+  return site;
+}
+
+async function checkVersion(args) {
+  const site = siteFrom(args, "https://kaneclihack.sh");
   let current = "dev";
   try {
     current = readFileSync(BUNDLE_VERSION, "utf8").trim() || "dev";
@@ -70,6 +76,18 @@ async function checkVersion(args) {
   }
 }
 
+// Whether the site wants the TestMu AI key right now (kanehack doctor flags a missing key either way).
+async function keyRequired(args) {
+  const site = siteFrom(args, "https://www.kaneclihack.sh");
+  try {
+    const res = await fetch(new URL("/api/v1/auth/testmu/status", site), { signal: AbortSignal.timeout(5000) });
+    const v = res.ok ? (await res.json())?.data?.key_required : undefined;
+    out(typeof v === "boolean" ? { key_required: v } : { key_required: null, error: "unreachable" });
+  } catch {
+    out({ key_required: null, error: "unreachable" });
+  }
+}
+
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "get") out(load());
 else if (cmd === "set-build") {
@@ -80,4 +98,5 @@ else if (cmd === "set-build") {
   const s = load();
   out(s.help_issues.includes(args[0]) ? s : save({ ...s, help_issues: [...s.help_issues, args[0]] }));
 } else if (cmd === "check-version") await checkVersion(args);
-else usage("Use: get | set-build building|ready | add-issue <url> | check-version [--site URL]");
+else if (cmd === "key-required") await keyRequired(args);
+else usage("Use: get | set-build building|ready | add-issue <url> | check-version [--site URL] | key-required [--site URL]");

@@ -9,7 +9,7 @@ Run `kanehack doctor --json` and read its checks. Fix only what failed, one at a
 - `kane_cli` missing → `npm i -g @testmuai/kane-cli`. Then `kane-cli whoami`; if not signed in, the person runs `kane-cli login --oauth` and approves in their browser.
 - `kane_skill` missing → `npx @testmuai/kane-cli-skill`.
 - `codex` → `codex login status`; if not signed in, the person runs `codex login`.
-- `testmu_key` failed → step 2.
+- `testmu_key` failed → step 2 decides whether it matters.
 - `api` failed → network problem; check Wi-Fi, then retry.
 
 `kanehack` itself missing → they run the install command: `curl -fsSL https://kaneclihack.sh/install.sh | sh` (Windows: `irm https://www.kaneclihack.sh/install.ps1 | iex`).
@@ -25,10 +25,12 @@ Ask first: "Have you saved your profile on https://kaneclihack.sh/register?" If 
 1. `kanehack pair --start --json`. Show only `user_code` and `verification_url`; they approve in the browser while signed in to the site.
 2. `kanehack pair --wait --timeout 30 --json`. Exit 0 = paired. 4 = still pending: wait and run it again. 3 = server unreachable: check network. 1 = expired or denied: start again.
 
-**Save the TestMu AI key too.** The site may also require it. The username and key are shown on `/register` once the profile is saved.
+**Save the TestMu AI key if the site asks for one.** Run `node <skill>/scripts/state.mjs key-required`.
 
-1. Ask them to run `kanehack login` **in their own terminal window**, not in this chat, and paste the username and key there. Never ask for the key here.
-2. `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile on `/register`.
+- `false` → skip this part. Doctor's `testmu_key` check will still fail; that's expected, say nothing about it.
+- `true`, or `null` (couldn't tell) → the username and key are shown on `/register` once the profile is saved.
+  1. Ask them to run `kanehack login` **in their own terminal window**, not in this chat, and paste the username and key there. Never ask for the key here.
+  2. `kanehack doctor --json` again: `testmu_key` should pass. If it says the key isn't linked to a Hack Day profile, they finish the profile on `/register`. If `/register` shows no key, send them to the help desk.
 
 If TESTMU_USERNAME / TESTMU_ACCESS_KEY or LT_USERNAME / LT_ACCESS_KEY are set in their environment, they're sent instead of the saved key; a personal LambdaTest key there causes "not accepted". They unset those or use their event key.
 

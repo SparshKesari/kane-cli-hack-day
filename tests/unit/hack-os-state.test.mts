@@ -22,7 +22,7 @@ function sandbox(bundleVersion?: string) {
   return { script: join(skill, "scripts/state.mjs"), state: join(dir, "os", "state.json") };
 }
 
-type Out = { version?: number; build?: string | null; help_issues?: string[]; updated_at?: string | null; current?: string; latest?: string | null; update?: boolean | null; error?: string };
+type Out = { version?: number; build?: string | null; help_issues?: string[]; updated_at?: string | null; current?: string; latest?: string | null; update?: boolean | null; error?: string; key_required?: boolean | null };
 
 function run(sb: { script: string; state: string }, ...args: string[]): Promise<{ code: number | null; json: Out; stderr: string }> {
   return new Promise((done) => {
@@ -108,4 +108,32 @@ test("check-version refuses a non-official site unless local testing is allowed"
     spawn(process.execPath, [sb.script, "check-version", "--site", "https://evil.example"], { env: { ...process.env, KANEHACK_OS_STATE: sb.state } }).on("close", done),
   );
   assert.equal(r, 2);
+});
+
+test("key-required reads the site's TestMu key switch", async () => {
+  for (const [required, want] of [[false, false], [true, true]] as const) {
+    const s = await new Promise<Server>((ok) => {
+      const srv = createServer((req, res) => {
+        res.setHeader("content-type", "application/json");
+        res.end(req.url === "/api/v1/auth/testmu/status" ? JSON.stringify({ status: "ok", data: { key_required: required, connected: false } }) : "{}");
+      });
+      srv.listen(0, "127.0.0.1", () => ok(srv));
+    });
+    try {
+      const r = await run(sandbox(), "key-required", "--site", `http://127.0.0.1:${(s.address() as AddressInfo).port}`);
+      assert.equal(r.code, 0);
+      assert.deepEqual(r.json, { key_required: want });
+    } finally {
+      s.close();
+    }
+  }
+});
+
+test("key-required with the site unreachable says unknown", async () => {
+  const s = await serve("");
+  const port = (s.address() as AddressInfo).port;
+  await new Promise((ok) => s.close(ok));
+  const r = await run(sandbox(), "key-required", "--site", `http://127.0.0.1:${port}`);
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.json, { key_required: null, error: "unreachable" });
 });
