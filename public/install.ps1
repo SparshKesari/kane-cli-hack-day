@@ -1,5 +1,5 @@
 # Kane CLI Hack Day installer for Windows: https://www.kaneclihack.sh/install.ps1
-# Version: 0.1.14
+# Version: 0.1.15
 #
 # Read me before you run me. This script checks Node, Git, Chrome, the OpenAI
 # Codex CLI, Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
@@ -29,9 +29,9 @@ param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [swit
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-$KanehackVersion = "0.1.14"
-$KanehackSha256 = "80353c3bfcd47722b1b228a58225041f6685c3d84fd4e65c2b2e15360eda8472"
-$SkillsSha256 = "2b0792c4be445c14ec37ea927c77ec57604398720d93dd65f33c02de17fa0b0a"
+$KanehackVersion = "0.1.15"
+$KanehackSha256 = "4614d4887880c5b7ab9c33c1f487558aaaba24faf2116a8a50c00e11e93967ea"
+$SkillsSha256 = "07947e2c7ae9082c319f7df00c6cd0a0ef9e4e8a7d893b92bfa4301cbf5fa3f8"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -301,7 +301,7 @@ function ConnectAgent($agent, $label, $where) {
   $rc = $LASTEXITCODE
   if ($rc -eq 0) { Pass "$($agent)_mcp" "$label already connected to the event server (kane-hack-event)"; return }
   if ($rc -eq 2) { Warn "$($agent)_mcp" "another kane-hack-event server is configured; left alone" "Run $kh connect $agent to see it"; return }
-  if (Ask "Connect $label to the event server (adds kane-hack-event to $where; no token is stored)?") {
+  if (Ask "Connect $label to the event server and let its sandbox reach the network and ~/.kanehack (in $where; no token is stored)?") {
     & node $entry connect $agent
     if ($LASTEXITCODE -eq 0) { Pass "$($agent)_mcp" "$label -> kane-hack-event (pair, then start a new $label session)" }
     else { Warn "$($agent)_mcp" "not connected" "$kh connect $agent" }

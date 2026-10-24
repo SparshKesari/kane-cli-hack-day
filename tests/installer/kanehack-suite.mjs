@@ -223,14 +223,29 @@ try {
   const toml = (d) => readFileSync(join(d, "config.toml"), "utf8");
   const baks = (d) => readdirSync(d).filter((f) => f.endsWith(".bak")).length;
   const mcpUrl = `${API}/mcp`;
+  let t = "";
   let cx = codexCase("absent");
   r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
   check("connect codex --check with no config → exit 1 absent", r.code === 1 && r.json?.state === "absent", r.show);
   r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
   check("connect codex with no config.toml → added, no backup", r.code === 0 && r.json?.state === "added" && r.json?.backup === null && toml(cx).includes(`url = "${mcpUrl}"`), r.show);
+  // Codex's default sandbox has no network and can't write ~/.kanehack, and some approval policies
+  // never offer the escalation: connect codex lets the sandbox reach the network and write ~/.kanehack.
+  const khDir = join(HOME, ".kanehack");
+  const sandboxOk = (text) => /^\[sandbox_workspace_write\]$/m.test(text) && /^network_access = true$/m.test(text) && (text.split(/\r?\n/).find((l) => l.startsWith("writable_roots")) ?? "").includes(khDir);
+  check("connect codex: Codex's sandbox may reach the network and write ~/.kanehack", sandboxOk(toml(cx)) && r.json?.sandbox === "added", r.show + "\n" + toml(cx));
+  cx = codexCase("sandbox-mine", 'model = "x"\n\n[sandbox_workspace_write]\nwritable_roots = ["/tmp/mine"]\nnetwork_access = false\n');
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  t = toml(cx);
+  check("connect codex next to an own sandbox section → network on, ~/.kanehack added, own roots kept, one section", r.code === 0 && r.json?.sandbox === "updated" && sandboxOk(t) && t.includes('"/tmp/mine"') && t.match(/\[sandbox_workspace_write\]/g).length === 1 && !/network_access = false/.test(t), r.show + "\n" + t);
+  r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
+  check("connect codex again with that sandbox → current, unchanged", r.code === 0 && r.json?.state === "current" && r.json?.sandbox === "current" && toml(cx) === t, r.show);
+  writeFileSync(join(cx, "config.toml"), t.replace(/\[sandbox_workspace_write\][\s\S]*?(?=\n\[|$)/, ""));
+  r = kh(["connect", "codex", "--check", "--json"], { CODEX_HOME: cx });
+  check("connect codex --check without the sandbox settings → exit 1 (run connect codex again)", r.code === 1 && r.json?.state === "current" && r.json?.sandbox === "absent", r.show);
   cx = codexCase("existing", '# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n');
   r = kh(["connect", "codex", "--json"], { CODEX_HOME: cx });
-  let t = toml(cx);
+  t = toml(cx);
   check("connect codex next to other servers → added, backup made, others kept", r.code === 0 && r.json?.state === "added" && baks(cx) === 1 && t.startsWith('# my settings\nmodel = "gpt-5"\n\n[mcp_servers.other]\ncommand = "echo"\nargs = ["hi"]\n') && t.includes("[mcp_servers.kane-hack-event]"), r.show + "\n" + t);
   check("codex config: url + http_headers_helper (kanehack mcp-headers), no token", t.includes(`url = "${mcpUrl}"`) && /http_headers_helper = ".*kanehack.*mcp-headers"/.test(t) && !t.includes(cfg.token) && !/khk_/.test(t), t);
   const helperLine = t.split(/\r?\n/).find((l) => l.startsWith("http_headers_helper"));

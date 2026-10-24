@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.14
+# Version: 0.1.15
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
@@ -33,9 +33,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.14"
-KANEHACK_SHA256="80353c3bfcd47722b1b228a58225041f6685c3d84fd4e65c2b2e15360eda8472"
-SKILLS_SHA256="2b0792c4be445c14ec37ea927c77ec57604398720d93dd65f33c02de17fa0b0a"
+KANEHACK_VERSION="0.1.15"
+KANEHACK_SHA256="4614d4887880c5b7ab9c33c1f487558aaaba24faf2116a8a50c00e11e93967ea"
+SKILLS_SHA256="07947e2c7ae9082c319f7df00c6cd0a0ef9e4e8a7d893b92bfa4301cbf5fa3f8"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -363,7 +363,7 @@ connect_agent() { # $1 codex  $2 display name  $3 where it's written
     0) pass "${1}_mcp" "$2 already connected to the event server (kane-hack-event)" ;;
     2) warn "${1}_mcp" "another kane-hack-event server is configured; left alone" "Run ${KH} connect $1 to see it" ;;
     *)
-      if ask "Connect $2 to the event server (adds kane-hack-event to $3; no token is stored)?"; then
+      if ask "Connect $2 to the event server and let its sandbox reach the network and ~/.kanehack (in $3; no token is stored)?"; then
         rc=0; "${PREFIX}/bin/kanehack" connect "$1" || rc=$?
         if [ "$rc" -eq 0 ]; then pass "${1}_mcp" "$2 → kane-hack-event (pair, then start a new $2 session)"
         else warn "${1}_mcp" "not connected" "${KH} connect $1"; fi

@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.14";
+const VERSION = "0.1.15";
 // TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
 const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");
@@ -725,6 +725,49 @@ function codexEntryText(e, url, helper) {
   return [...e.lines.slice(0, e.start), ...block, ...kept, ...e.lines.slice(e.end)].join(e.eol);
 }
 
+// Codex's default sandbox (workspace-write) has no network and can't write outside the project,
+// so kanehack (and Kane CLI, npm) fail inside Codex unless the person approves an escalation, which
+// some approval policies never offer. connect codex lets that sandbox reach the network and write
+// ~/.kanehack: [sandbox_workspace_write] network_access = true, writable_roots += ~/.kanehack.
+const SANDBOX_TABLE = "sandbox_workspace_write";
+const tomlPath = (v) => (v.includes("'") ? JSON.stringify(v) : `'${v}'`);
+
+/** The sandbox settings in `text`: current / absent / outdated (fixable) / unrecognized (left alone), and the text with them set. */
+function codexSandbox(text, eol) {
+  const lines = text === "" ? [] : text.split(/\r?\n/);
+  if (lines.some((l) => new RegExp(String.raw`^[ \t]*${SANDBOX_TABLE}[ \t]*[.=]`).test(l))) return { state: "unrecognized", text };
+  const start = lines.findIndex((l) => new RegExp(String.raw`^[ \t]*\[${SANDBOX_TABLE}\][ \t]*(#.*)?$`).test(l));
+  const comment = "# Added by kanehack (Kane CLI Hack Day): Codex's sandbox may reach the network (kanehack, Kane CLI, npm) and write ~/.kanehack.";
+  if (start < 0) {
+    const block = [`[${SANDBOX_TABLE}]`, comment, "network_access = true", `writable_roots = [${tomlPath(DIR)}]`];
+    const sep = text === "" ? "" : (text.endsWith("\n") ? "" : eol) + eol;
+    return { state: "absent", text: text + sep + block.join(eol) + eol };
+  }
+  let end = lines.findIndex((l, i) => i > start && /^[ \t]*\[/.test(l));
+  if (end < 0) end = lines.length;
+  const body = lines.slice(start + 1, end);
+  const netAt = body.findIndex((l) => /^[ \t]*network_access[ \t]*=/.test(l));
+  const rootsAt = body.findIndex((l) => /^[ \t]*writable_roots[ \t]*=/.test(l));
+  const rootsLine = rootsAt < 0 ? null : body[rootsAt];
+  if (rootsLine !== null && !/\][ \t]*(#.*)?$/.test(rootsLine)) return { state: "unrecognized", text };
+  const roots = rootsLine === null ? [] : [...rootsLine.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)].map((m) => (m[2] !== undefined ? m[2] : JSON.parse(`"${m[1]}"`)));
+  const netOn = netAt >= 0 && /=[ \t]*true[ \t]*(#.*)?$/.test(body[netAt]);
+  const hasRoot = roots.includes(DIR);
+  if (netOn && hasRoot) return { state: "current", text };
+  const next = [...body];
+  if (!netOn) {
+    if (netAt >= 0) next[netAt] = "network_access = true";
+    else next.unshift("network_access = true");
+  }
+  if (!hasRoot) {
+    const at = next.findIndex((l) => /^[ \t]*writable_roots[ \t]*=/.test(l));
+    if (at >= 0) next[at] = next[at].replace(/\[([^\]]*)\]/, (_, inner) => `[${inner.trim() ? `${inner.trimEnd()}, ` : ""}${tomlPath(DIR)}]`);
+    else next.splice(next.findIndex((l) => /^[ \t]*network_access[ \t]*=/.test(l)) + 1, 0, `writable_roots = [${tomlPath(DIR)}]`);
+  }
+  if (!next.some((l) => l.startsWith("# Added by kanehack"))) next.unshift(comment);
+  return { state: "outdated", text: [...lines.slice(0, start + 1), ...next, ...lines.slice(end)].join(eol) };
+}
+
 function codexCli() {
   const r = probe("codex", ["--version"], { timeout: 20_000 });
   return r.found && r.code === 0 ? r.stdout.trim().split("\n")[0].slice(0, 40) || "codex" : null;
@@ -762,22 +805,31 @@ async function connectCodex(a, cfg) {
     const what = e.state === "different" ? `another server named ${MCP_NAME} (${e.existing.url ?? e.existing.command ?? "no url"})` : `${MCP_NAME} in a form kanehack doesn't edit`;
     fail(`${file} already has ${what}. Left it alone. To replace it: codex mcp remove ${MCP_NAME}, then kanehack connect codex`, EXIT.ACTION, "MCP_NAME_TAKEN", { ...base, state: e.state });
   }
+  const eol = e.eol ?? "\n";
+  const sb = codexSandbox(e.state === "current" ? e.text : codexEntryText(e, url, helper), eol);
+  const sandbox = sb.state === "outdated" ? "updated" : sb.state === "absent" ? (e.state === "current" && a.flags.check ? "absent" : "added") : sb.state;
+  if (sb.state === "unrecognized") say(warn(`${file} sets [${SANDBOX_TABLE}] in a form kanehack doesn't edit: make sure it has network_access = true and ${DIR} in writable_roots.`));
   if (a.flags.check) {
-    const current = e.state === "current";
-    if (!JSON_MODE) say(current ? ok(`Codex is connected to ${url}.`) : warn(`Codex isn't connected (${e.state === "absent" ? `no ${MCP_NAME} in ${file}` : "old setup"}). Run: kanehack connect codex`));
-    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state });
+    const current = e.state === "current" && (sb.state === "current" || sb.state === "unrecognized");
+    if (!JSON_MODE)
+      say(
+        current
+          ? ok(`Codex is connected to ${url}.`)
+          : warn(`Codex isn't ${e.state === "current" ? "set up for kanehack (its sandbox can't reach the network or ~/.kanehack)" : `connected (${e.state === "absent" ? `no ${MCP_NAME} in ${file}` : "old setup"})`}. Run: kanehack connect codex`),
+      );
+    emit({ ok: current, exit_code: current ? 0 : 1, ...base, state: e.state, sandbox: sb.state === "absent" ? "absent" : sb.state === "outdated" ? "outdated" : sb.state });
     process.exitCode = current ? EXIT.OK : EXIT.FAIL;
     return;
   }
-  if (e.state === "current") {
+  if (e.state === "current" && (sb.state === "current" || sb.state === "unrecognized")) {
     say(ok(`Codex is already connected: ${MCP_NAME} → ${url}`));
     nextSteps(cfg);
-    return emit({ ok: true, exit_code: 0, ...base, state: "current", backup: null });
+    return emit({ ok: true, exit_code: 0, ...base, state: "current", sandbox, backup: null });
   }
   mkdirSync(codexHome(), { recursive: true });
   const backup = e.text !== null ? `${file}.kanehack-${stamp()}.bak` : null;
   if (backup) copyFileSync(file, backup);
-  writeAtomic(file, codexEntryText(e, url, helper));
+  writeAtomic(file, sb.text);
   if (cli) {
     const g = codexGet();
     const t = g.json?.transport ?? {};
@@ -788,9 +840,10 @@ async function connectCodex(a, cfg) {
     }
   }
   say(ok(`Codex ${e.state === "absent" ? "connected" : "updated"}: ${MCP_NAME} → ${url} (${cli ? "checked with codex mcp get" : "codex isn't on PATH, so not checked"}). No token is stored in ${file}.`));
+  if (sandbox === "added" || sandbox === "updated") say(dim(`Codex's sandbox may now reach the network and write ${DIR} ([${SANDBOX_TABLE}] in ${file}), so kanehack and Kane CLI work inside Codex.`));
   if (backup) say(dim(`Backup of the old file: ${backup}`));
   nextSteps(cfg);
-  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : "updated", backup, verified_with_codex: Boolean(cli) });
+  emit({ ok: true, exit_code: 0, ...base, state: e.state === "absent" ? "added" : e.state === "current" ? "current" : "updated", sandbox, backup, verified_with_codex: Boolean(cli) });
 }
 
 async function connect(a) {
