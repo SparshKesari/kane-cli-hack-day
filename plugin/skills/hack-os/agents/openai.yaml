@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kane Hack OS"
+  short_description: "One guide from setup to proof and submission"
+  default_prompt: "Use $hack-os to check my Hack Day progress and complete my next pending step."

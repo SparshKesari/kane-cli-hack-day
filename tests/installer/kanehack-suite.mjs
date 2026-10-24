@@ -222,7 +222,7 @@ try {
     const sk = codexSkills(codexEnv, work);
     for (const c of copied) rmSync(c, { recursive: true, force: true });
     const names = Object.keys(sk.hack);
-    check("codex debug prompt-input lists all 12 hack-* skills, each once", sk.code === 0 && names.length === 12 && Object.values(sk.hack).every((n) => n === 1), JSON.stringify(sk));
+    check("codex debug prompt-input lists the hack-os and hack-gtm skills once each", sk.code === 0 && names.sort().join() === "hack-gtm,hack-os" && sk.hack["hack-os"] === 1 && sk.hack["hack-gtm"] === 1, JSON.stringify(sk));
     const st = await codexMcpStatus(codexEnv);
     check("codex app-server: kane-hack-event connects through the helper and lists the event tools", !st.error && st.toolsError === null && st.tools.length > 0 && (APPROVE !== "mock" || st.tools.includes("readiness_report")), JSON.stringify(st).slice(0, 1500));
     if (APPROVE === "mock") {

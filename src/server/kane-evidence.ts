@@ -21,6 +21,9 @@ const ZIP_MAX_ENTRIES = 2000;
 const ZIP_MAX_TOTAL = 200 * 1024 * 1024;
 const ZIP_MAX_RATIO = 100;
 
+/** Kane CLI seals each run as a zip with this extension. */
+export const KANE_PACK_EXT = "evidence";
+
 type Rule = { exts: string[]; types: string[]; magic?: (b: Buffer) => boolean; text?: boolean };
 
 const isPng = (b: Buffer) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -37,7 +40,7 @@ const RULES: Record<EvidenceKind, Rule> = {
   video: { exts: ["mp4", "webm"], types: ["video/mp4", "video/webm"], magic: (b) => isMp4(b) || isWebm(b) },
   report: { exts: ["pdf", "json", "md", "html", "txt"], types: ["application/pdf", "application/json", "text/markdown", "text/html", "text/plain"] },
   testmd: { exts: ["md"], types: ["text/markdown", "text/plain"], text: true },
-  zip: { exts: ["zip"], types: ["application/zip", "application/x-zip-compressed"], magic: isZip },
+  zip: { exts: ["zip", KANE_PACK_EXT], types: ["application/zip", "application/x-zip-compressed"], magic: isZip },
   log: { exts: ["log", "txt"], types: ["text/plain"], text: true },
   other: { exts: ["txt", "json"], types: ["text/plain", "application/json"], text: true },
 };
@@ -147,4 +150,15 @@ export function inspectEvidence(input: { kind: EvidenceKind; name: string; claim
     if (why) return { verdict: "quarantine", contentType, ext, reason: why };
   }
   return { verdict: "ok", contentType, ext };
+}
+
+/** A Kane `.evidence` pack is a zip, whatever kind the client sent. */
+export function evidenceKindFor(kind: EvidenceKind, name: string): EvidenceKind {
+  return extOf(name) === KANE_PACK_EXT ? "zip" : kind;
+}
+
+/** Whether the bytes carry the signature of this exact extension (an image or video type). */
+export function magicMatches(ext: string, b: Buffer) {
+  const check: Record<string, (b: Buffer) => boolean> = { png: isPng, jpg: isJpeg, jpeg: isJpeg, webp: isWebp, mp4: isMp4, webm: isWebm };
+  return !!check[ext]?.(b);
 }

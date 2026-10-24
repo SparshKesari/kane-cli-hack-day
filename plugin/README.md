@@ -1,6 +1,6 @@
 # Kane Hack OS plugin
 
-Twelve participant skills plus the event MCP server for Kane CLI Hack Day.
+One participant skill, `hack-os`, plus the event MCP server for Kane CLI Hack Day.
 
 > **Status: not announced as installable.** The skills and the `/mcp` server are implemented in this repo, but the plugin must pass a clean, fresh-session install test (Codex on macOS, and Windows if we claim it) before anyone tells participants to install it (TASKS T-PLG-05, acceptance A09). Until then the supported path is the web app plus `kanehack`.
 
@@ -8,26 +8,17 @@ Twelve participant skills plus the event MCP server for Kane CLI Hack Day.
 
 | Path | What |
 |---|---|
-| `plugin.json` | Manifest (name `kane-hack-os`, version 0.1.0). Bump the version on every release. |
+| `plugin.json` | Manifest (name `kane-hack-os`, version 0.3.0) listing both skills. Bump the version on every release. |
 | `mcp.json` | The remote MCP server `kane-hack-event` → `https://www.kaneclihack.sh/mcp`, Streamable HTTP, bearer token from `KANEHACK_TOKEN`. |
-| `skills/hack-*/SKILL.md` | The 12 skills. The same files are mirrored at `.agents/skills/hack-*`, where Codex finds them when it runs in this repo. |
+| `skills/hack-os/` | The skill: `SKILL.md`, one reference file per phase, and small helper scripts. Mirrored at `.agents/skills/hack-os`, where Codex finds it when it runs in this repo. |
+| `skills/hack-gtm/` | The launch kit, from the event team: X and LinkedIn posts, blog, Show HN post, HTML deck and a voiced demo video from the Kane evidence pack. Mirrored at `.agents/skills/hack-gtm`. Its `scripts/remotion` is a separate project the participant installs; the site's `tsc` and ESLint skip it. |
 | `hooks/README.md` | The optional, opt-in lifecycle hook (off by default). |
 | `GENERATIVE_UI_CONTRACT.md` | How tool envelopes map to UI cards and to plain text. |
 
 | Skill | MCP tools it uses |
 |---|---|
-| hack-onboard | participant_get_status, participant_update_profile, activation_begin, activation_get_checkpoint |
-| hack-doctor | readiness_report, event_get_brief, help_diagnose |
-| hack-team | participant_get_status, team_find, team_create, team_join |
-| hack-idea | idea_validate, idea_check_overlap, harness_get_capabilities |
-| hack-harness | harness_get_capabilities, event_get_brief |
-| hack-verify | kane_record_run, milestone_propose |
-| hack-progress | kane_record_run, milestone_propose, submission_preflight |
-| hack-help | help_diagnose, help_create, help_get_status |
-| hack-demo | deck_get, deck_update, demo_generate, showcase_preview |
-| hack-showcase | showcase_preview, showcase_publish, submission_preflight |
-| hack-gtm | showcase_preview, milestone_propose |
-| hack-submit | submission_preflight, submission_finalize, event_get_brief |
+| hack-os | participant_get_status, event_get_brief, team_find, team_create, team_join, idea_validate, idea_check_overlap, help_diagnose, help_create, submission_preflight (plus `kanehack` for setup, sign-in and run reports) |
+| hack-gtm | none: it writes drafts from the project brief and the Kane evidence pack; the person posts them |
 
 `social_publish` is an organizer action on the web and is deliberately **not** an MCP tool.
 
@@ -51,7 +42,7 @@ npx @testmuai/kane-cli-skill
 
 Verified with `codex-cli 0.164.0` (2026-10-23).
 
-1. **Install** (Codex already installed: `npm i -g @openai/codex`): `curl -fsSL https://kaneclihack.sh/install.sh | sh` (Windows: `irm https://www.kaneclihack.sh/install.ps1 | iex`). It puts the 12 skills in `~/.agents/skills`, the folder Codex reads for personal skills, and offers "Connect Codex to the event server?". Under an agent add `--yes` (`-Yes`); `--no-agents` (`-NoAgents`) skips the Codex step.
+1. **Install** (Codex already installed: `npm i -g @openai/codex`): `curl -fsSL https://kaneclihack.sh/install.sh | sh` (Windows: `irm https://www.kaneclihack.sh/install.ps1 | iex`). It puts the `hack-os` skill in `~/.agents/skills`, the folder Codex reads for personal skills, and offers "Connect Codex to the event server?". Under an agent add `--yes` (`-Yes`); `--no-agents` (`-NoAgents`) skips the Codex step.
 2. **Pair**: `kanehack pair` (from inside Codex: `kanehack pair --start --json`, approve in your browser, then `kanehack pair --wait --json`).
 3. **Connect** (if you skipped it in the installer): `kanehack connect codex`. It backs up `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`), adds
 
@@ -63,7 +54,7 @@ Verified with `codex-cli 0.164.0` (2026-10-23).
 
    and checks it with `codex mcp get kane-hack-event --json`. It's idempotent, keeps your other keys in that table, and never overwrites a different server named `kane-hack-event` (it tells you to `codex mcp remove kane-hack-event` first). `codex mcp add` isn't used because it can't set a headers helper; its `--bearer-token-env-var KANEHACK_TOKEN` would mean exporting the token into every shell that starts Codex.
 4. **Invoke**: start a new Codex session and type `$hack-onboard` (or pick it from `/skills`). Codex also picks a skill by its description when you just ask, e.g. "set me up for Kane Hack Day".
-5. **Verify**: `codex mcp list` shows `kane-hack-event`; in a session `/mcp` lists its tools; `/skills` lists the 12 `hack-*` skills; `kanehack doctor` checks `codex`, `codex_skills` and `codex_mcp`.
+5. **Verify**: `codex mcp list` shows `kane-hack-event`; in a session `/mcp` lists its tools; `/skills` lists `hack-os`; `kanehack doctor` checks `codex`, `codex_skills` and `codex_mcp`.
 
 Codex notes: it reads skills from `.agents/skills` in the repo (cwd up to the repo root), `~/.agents/skills`, `/etc/codex/skills` and also `$CODEX_HOME/skills`. Installer 0.1.2 copied the skills into `~/.codex/skills` too, so Codex listed each one twice; 0.1.3 removes those copies. To turn one skill off: `[[skills.config]]` with `path = "…/SKILL.md"` and `enabled = false` in `~/.codex/config.toml`. The headers helper runs with `sh -c` (Windows: `cmd /Q /D /C`), a 10 s timeout and only PATH/HOME-style variables, which is why it uses absolute paths and reads the token from the config file. If `kanehack doctor` says `codex_mcp` uses an older setup (for example after a Node upgrade moved `node`), run `kanehack connect codex` again.
 
@@ -95,4 +86,4 @@ A long Kane run can outlast a command time limit: run it in the background and r
 
 ## Before announcing (T-PLG-05)
 
-On a clean macOS user (and Windows, if claimed): install Node, run the installer, pair, `kanehack connect codex`, open a fresh Codex session, confirm the 12 skills are discovered, call `event_get_brief` and `participant_get_status`, and run one `kanehack report` end to end. Record the date, Codex version and result here. Not done yet.
+On a clean macOS user (and Windows, if claimed): install Node, run the installer, pair, `kanehack connect codex`, open a fresh Codex session, confirm `hack-os` is discovered, call `event_get_brief` and `participant_get_status`, and run one `kanehack report` end to end. Record the date, Codex version and result here. Not done yet.

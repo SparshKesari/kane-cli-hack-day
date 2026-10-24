@@ -2,7 +2,7 @@
 // Ask the real Codex CLI what it sees, without an OpenAI login. Used by kanehack-suite.mjs and
 // the installer tests. HOME / USERPROFILE / CODEX_HOME come from the environment you pass.
 //
-//   node tests/installer/codex-probe.mjs skills          → {"hack": {"hack-onboard": 1, …}, "roots": […]}
+//   node tests/installer/codex-probe.mjs skills          → {"hack": {"hack-os": 1}, "roots": […]}
 //   node tests/installer/codex-probe.mjs mcp             → mcpServerStatus/list entry for kane-hack-event
 //   node tests/installer/codex-probe.mjs get             → codex mcp get kane-hack-event --json
 //

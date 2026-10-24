@@ -10,6 +10,17 @@ import { AppError, parse, serverNow, siteUrl, toAppError, toEnvelope, z, zx, typ
 import { tokenActor, type BearerAuth } from "./auth";
 import { KANE_CAPABILITIES, proposeMilestone, recordRun, type KaneCaller } from "./kane";
 import * as A from "./mcp-adapters";
+import { PUBLIC_EVIDENCE_KINDS } from "./public-evidence";
+import {
+  completePublicEvidenceUpload,
+  listPublicEvidenceObjects,
+  objectsEnvelope,
+  receiptEnvelope,
+  removalEnvelope,
+  removePublicEvidence,
+  requestPublicEvidenceUpload,
+  uploadEnvelope,
+} from "./public-evidence-upload";
 import { teamPageEnvelope } from "./team-page";
 
 // The event MCP server (T-MCP-01…05). One McpServer per request (stateless
@@ -640,6 +651,59 @@ export function buildMcpServer(auth: BearerAuth) {
   );
 
   tool(
+    "public_evidence_request_upload",
+    {
+      title: "Request a public evidence upload",
+      description:
+        "Get a presigned S3 PUT for one participant-approved, public-safe file: screenshot, video, ndjson, report, testmd or log. Kane packs, HAR, HTML, SVG and PDF are refused. PUT the bytes with exactly data.headers before data.expires_at, then call public_evidence_complete. The same sha256 is the same object. Request again for a fresh URL.",
+      input: {
+        project_id: zx.id.optional(),
+        kind: z.enum(PUBLIC_EVIDENCE_KINDS),
+        filename: z.string(),
+        content_type: z.string(),
+        size_bytes: z.number().int().positive(),
+        sha256: z.string(),
+        run_id: z.union([z.number().int().positive(), z.string()]).optional(),
+        kane_execution_id: z.string().optional(),
+        commit_sha: z.string().optional(),
+        participant_approved: z.boolean().describe("Send true only after the participant approved publishing this exact file for anyone to read."),
+        idempotency_key: z.string().min(8).max(200),
+      },
+    },
+    async (args, ctx) => uploadEnvelope(await requestPublicEvidenceUpload(caller, args, { requestId: ctx.requestId })),
+  );
+
+  tool(
+    "public_evidence_complete",
+    {
+      title: "Complete a public evidence upload",
+      description: "After the PUT: the server re-hashes the upload, checks its type and scans text for credentials, then publishes it and returns the public URL. A failed check rejects those bytes for good.",
+      input: { object_id: z.string().trim().max(40) },
+    },
+    async (args, ctx) => receiptEnvelope(await completePublicEvidenceUpload(caller, args.object_id, { requestId: ctx.requestId })),
+  );
+
+  tool(
+    "public_evidence_list",
+    { title: "List public evidence", description: "Your team's public evidence objects with status (pending, public, rejected, removed) and public URLs.", input: {}, readOnly: true },
+    async () => objectsEnvelope((await listPublicEvidenceObjects(caller)).objects),
+  );
+
+  tool(
+    "public_evidence_remove",
+    {
+      title: "Remove public evidence",
+      description: "Unpublish one public evidence object (the public link stops working). Works before the submission lock and needs explicit confirmation.",
+      input: { object_id: z.string().trim().max(40), reason: z.string().max(300).optional(), explicit_confirmation: confirmField },
+      destructive: true,
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("public_evidence_remove", `Remove ${args.object_id}`, `Remove ${args.object_id} from the public bucket. Its public link stops working.`, "kane_run", { object_id: args.object_id });
+      return removalEnvelope(await removePublicEvidence(caller, args.object_id, { reason: args.reason }, { requestId: ctx.requestId }));
+    },
+  );
+
+  tool(
     "team_page_get",
     {
       title: "Get team page",
@@ -709,6 +773,10 @@ export const MCP_TOOL_NAMES = [
   "deck_update",
   "showcase_publish",
   "social_draft",
+  "public_evidence_request_upload",
+  "public_evidence_complete",
+  "public_evidence_list",
+  "public_evidence_remove",
   "team_page_get",
   "team_page_update",
 ] as const;

@@ -2,8 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { Label, inputCls } from "@/components/forms/fields";
 import type { ActivationStepId } from "@/data/activation-steps";
-import { claimPlanAction, codexCodeAction, tickAction, type ActState } from "./actions";
+import { claimPlanAction, codexCodeAction, retryTeamInvitesAction, tickAction, type ActState } from "./actions";
 
 // Small client controls for the /activate checklist. Each posts a server
 // action; the page re-renders from the database afterwards.
@@ -44,7 +45,11 @@ export function TickButton({ step, done, label = "Done" }: { step: ActivationSte
 export function ClaimPlanButton({ retry, label }: { retry: boolean; label?: string }) {
   const [state, setState] = useState<ActState>(null);
   return (
-    <form action={async () => setState(await claimPlanAction())} className="flex flex-wrap items-center gap-3">
+    <form action={async (form) => setState(await claimPlanAction(form))} className="flex flex-wrap items-end gap-3">
+      <div className="min-w-60 flex-1">
+        <Label htmlFor="plan-pw" hint="Already had a TestMu AI account? Use that one">Your kaneclihack.sh password</Label>
+        <input id="plan-pw" name="password" type="password" required minLength={8} maxLength={255} autoComplete="current-password" className={`${inputCls} min-h-11`} />
+      </div>
       <Submit className={primary} pending="Activating…">
         {label ?? (retry ? "Try again" : "Activate my plan")}
       </Submit>
@@ -60,6 +65,23 @@ export function GetCodeButton() {
     <form action={async () => setState(await codexCodeAction())} className="flex flex-wrap items-center gap-3">
       <Submit className={primary} pending="Getting your code…">
         Get my Codex credit code
+      </Submit>
+      <Note state={state} />
+    </form>
+  );
+}
+
+/** Captain: retry the team invites that failed. Teammates already added or invited are skipped. */
+export function RetryTeamInvitesForm() {
+  const [state, setState] = useState<ActState>(null);
+  return (
+    <form action={async (form) => setState(await retryTeamInvitesAction(form))} className="flex flex-wrap items-end gap-3" data-team-invites-retry>
+      <div className="min-w-60 flex-1">
+        <Label htmlFor="invite-pw" hint="Used once · never stored">Your TestMu AI password</Label>
+        <input id="invite-pw" name="password" type="password" required minLength={8} maxLength={255} autoComplete="current-password" className={`${inputCls} min-h-11`} />
+      </div>
+      <Submit className={primary} pending="Inviting…">
+        Retry team invites
       </Submit>
       <Note state={state} />
     </form>

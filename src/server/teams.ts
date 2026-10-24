@@ -216,7 +216,7 @@ export async function createTeam(who: ActingMember, input: unknown): Promise<Cre
       const { rows: cur } = await tx.query("select 1 from team_memberships where member_id = $1 and left_at is null for update", [who.member.id]);
       if (cur.length) throw new AppError("CONFLICT", { userMessage: "You're already on a team. Leave it first, then start a new one." });
 
-      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1", [slug]);
+      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1 union all select 1 from project_slug_redirects where old_slug = $1", [slug]);
       if (taken.length) throw new AppError("CONFLICT", { userMessage: "That team name is taken. Try another." });
 
       const { rows } = await tx.query<{ id: number; state: TeamState; now: Date }>(
@@ -641,7 +641,7 @@ export async function formTeamFromPool(staff: Staff, input: unknown) {
         [data.member_ids],
       );
       if (busy.length) throw new AppError("CONFLICT", { userMessage: `Already on a team: ${busy.map((b) => b.name).join(", ")}. Reload the pool.` });
-      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1", [slug]);
+      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1 union all select 1 from project_slug_redirects where old_slug = $1", [slug]);
       if (taken.length) throw new AppError("CONFLICT", { userMessage: "That team name is taken. Try another." });
       const captain = people[0].id;
       const { rows } = await tx.query<{ id: number; now: Date }>(
@@ -762,3 +762,10 @@ export function normalizeTags(v: string | string[] | undefined | null): string[]
   const list = (Array.isArray(v) ? v : (v ?? "").split(/[,\n]/)).map((s) => s.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 60)).filter(Boolean);
   return [...new Set(list)].slice(0, 12);
 }
+
+/** What anyone signed in may read about a team that isn't theirs. */
+export function publicTeamInfo(t: TeamInfo): PublicTeamInfo {
+  return { id: t.id, slug: t.slug, name: t.name, track: t.track, member_count: t.member_count, cap: t.cap, locked: t.locked, recruiting_open: t.recruiting_open, summary_public: t.summary_public };
+}
+
+export type PublicTeamInfo = Pick<TeamInfo, "id" | "slug" | "name" | "track" | "member_count" | "cap" | "locked" | "recruiting_open" | "summary_public">;
