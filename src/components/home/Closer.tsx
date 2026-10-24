@@ -1,5 +1,4 @@
-import { ctas } from "@/data/hackday";
-import Button from "@/components/ui/Button";
+import StartCommand from "@/components/home/StartCommand";
 import Decode from "@/components/ui/Decode";
 import Statue from "@/components/art/Statue";
 import Caption from "@/components/art/Caption";
@@ -18,12 +17,7 @@ export default function Closer() {
           <h2 className="font-dots text-[15vw] leading-[0.85] font-black tracking-[-0.04em] whitespace-nowrap text-bright sm:text-[8rem] lg:text-[6.5rem] xl:text-[8rem]">
             <Decode text="Ship by 6" />
           </h2>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <Button href={ctas.register.href}>{ctas.register.label}</Button>
-            <Button href={ctas.login.href} variant="secondary">
-              {ctas.login.label}
-            </Button>
-          </div>
+          <StartCommand className="mt-10" />
         </div>
         {/* Nike, goddess of victory, landing on a warship's prow: ship it, and win. */}
         <figure className="mx-auto w-64">
