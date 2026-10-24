@@ -4,14 +4,14 @@
 
 Length: 4 to 6 posts. Each under 280 characters including URLs (a URL counts as 23 characters regardless of length). Count before handing over; put the count in a comment after each post.
 
-### Post 1 (the eligibility post)
+### Post 1 (the launch post)
 
-Must contain: hook sentence, the Ship Page URL, the deck URL, `@testmuai`, `@OpenAI`. Nothing else. Do not start with a mention.
+Must contain: hook sentence, the Ship Page URL (and the deck URL if they published one), `@testmuai`, `@OpenAI`. Nothing else. Do not start with a mention.
 
 Shape that works for dev tools:
 
 ```
-We built <Project> at the Kane CLI x OpenAI Hack Day: <what it does in 8 words>.
+We built <Project> at Kane CLI Hack Day: <what it does in 8 words>.
 
 Built with @OpenAI, tested with Kane CLI from @testmuai. Live proof and deck:
 <ship page url>
@@ -75,6 +75,6 @@ Write one 500 to 800 character variant per teammate, each from a different angle
 
 ## Timing
 
-- X: post within the event share window (eligibility). If the window allows, 9 to 11am US Pacific on a weekday for reach.
+- X: post on event day, before submissions lock at 18:00 Pacific, so it counts; add the link on the Submit tab.
 - LinkedIn: Tuesday to Thursday, 8 to 10am in the author's time zone. Teammates share 2 to 6 hours later, not at the same minute.
 - Reply to every comment in the first two hours. Early replies lift distribution on both platforms.

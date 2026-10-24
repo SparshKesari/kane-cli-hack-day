@@ -41,6 +41,29 @@ test("no build output or dependencies ship in the bundle", () => {
   for (const f of files(SKILL)) assert.doesNotMatch(f, /(^|\/)(node_modules|out|dist|__pycache__)\/|\.(mp4|mp3|wav|pyc)$/, f);
 });
 
+const textFiles = () => files(SKILL).filter((f) => /\.(md|html)$/.test(f));
+
+test("uses the event's own name, never a co-branded one", () => {
+  for (const f of textFiles())
+    for (const line of read(f).split("\n"))
+      if (/x OpenAI Hack Day/i.test(line)) assert.match(line, /never/i, `${f}: ${line}`);
+});
+
+test("never sends readers to the evidence pack, which stays private", () => {
+  for (const f of textFiles()) assert.doesNotMatch(read(f), /evidence serve|evidence pack link|evidence pack is in the repo/i, f);
+});
+
+test("runs its scripts from the skill folder, not the project's", () => {
+  const cmds = [...read("SKILL.md").matchAll(/^(?:python3|bash) (\S+)/gm)].map((m) => m[1]);
+  assert.ok(cmds.length >= 4, "SKILL.md shows the video commands");
+  for (const c of cmds) assert.match(c, /^<skill>\/scripts\//, c);
+});
+
+test("never picks a paid or remote voice on its own", () => {
+  assert.doesNotMatch(read("SKILL.md"), /OpenAI TTS, then edge-tts/);
+  assert.match(read("SKILL.md"), /Ask before installing anything or spending money/);
+});
+
 test("hack-os hands off to it and the plugin lists both skills", () => {
   assert.match(readFileSync(join(root, "plugin/skills/hack-os/SKILL.md"), "utf8"), /\$hack-gtm/);
   const plugin = JSON.parse(readFileSync(join(root, "plugin/plugin.json"), "utf8"));

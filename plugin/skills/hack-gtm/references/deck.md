@@ -1,18 +1,18 @@
 # HTML deck
 
-The deck is hosted at `/ship/<team>/deck` and its URL goes into the mandatory X post, so it has to be a single self-contained HTML file: inline CSS, inline JS, images as relative paths in the same folder (or base64 if the host only takes one file). No CDN fonts, no frameworks. Start from `assets/deck-template.html`.
+This deck is for presenting from a laptop or keeping in the repo, so it has to be a single self-contained HTML file: inline CSS, inline JS, images as relative paths in the same folder (or base64 for one file). No CDN fonts, no frameworks. Start from `assets/deck-template.html`. The public deck at `/ship/<team>/deck` is the one the team publishes in the site's Studio (`/studio/<team>/deck`); custom HTML is never shown publicly, so reuse the slide text there.
 
 ## Slide list (8 to 10)
 
 | # | Slide | Content | Rule |
 |---|---|---|---|
-| 1 | Title | Project name, one-line pitch, team, "Kane CLI x OpenAI Hack Day, <date>" | One sentence of text beyond the name |
+| 1 | Title | Project name, one-line pitch, team, "Kane CLI Hack Day, <date>" | One sentence of text beyond the name |
 | 2 | Problem | One scene, one sentence, one image or number | No bullet list |
 | 3 | What we built | The pitch expanded to three short lines, hero screenshot | Screenshot takes 60% of the slide |
 | 4 | Demo | Embedded `showcase.mp4` (muted, loop) or three screenshots | If video, add a poster image for print |
 | 5 | How it works | One diagram: user, app, OpenAI layer, Kane CLI loop | Four boxes max, labelled arrows |
 | 6 | Built with OpenAI | Model, API surface, what it owns, one tradeoff | Three lines |
-| 7 | Tested with Kane CLI | Left: annotated screenshot of the failed step with the error line. Right: the passing run totals from `run.yaml`. Bottom: `kane-cli evidence serve <pack>` | This is the proof slide; every element traces to the pack |
+| 7 | Tested with Kane CLI | Left: annotated screenshot of the failed step with the error line. Right: the passing run totals from `run.yaml`. Bottom: what Kane checked, in one line | This is the proof slide; every element traces to the pack, and the pack itself stays private |
 | 8 | What we learned | Three honest lines | No "key takeaways" heading |
 | 9 | Team and links | Names, handles, repo, Ship Page, deck URL, QR optional | |
 | 10 | (optional) What's next | Three lines | |

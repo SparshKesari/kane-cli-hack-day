@@ -9,6 +9,8 @@ Each scene becomes a still PNG (title cards, step frames with the screenshot
 letterboxed and a status pill, verdict card, outro). Stills are turned into
 clips of scene.seconds with the scene audio (if any), then concatenated.
 """
+from __future__ import annotations
+
 import argparse
 import json
 import subprocess
@@ -16,7 +18,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont  # pip install pillow
+from evidence_to_storyboard import redact_data
 
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -212,31 +214,39 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--vertical", action="store_true")
     a = ap.parse_args()
+    # Keep --help usable with stock Python, even without rendering dependencies.
+    global Image, ImageDraw, ImageFont
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        sys.exit("Pillow is required for ffmpeg rendering")
     sb_path = Path(a.storyboard)
-    sb = json.loads(sb_path.read_text())
+    sb = redact_data(json.loads(sb_path.read_text(encoding="utf-8")))
     base = sb_path.parent
     p = Painter(sb, base, a.vertical)
-    tmp = Path(tempfile.mkdtemp(prefix="render-"))
-    clips = []
-    for i, s in enumerate(sb["scenes"]):
-        png = tmp / f"{i:02d}.png"
-        p.paint(s).save(png)
-        clip = tmp / f"{i:02d}.mp4"
-        secs = float(s.get("seconds", 4))
-        audio = base / s["audio"] if s.get("audio") and (base / s["audio"]).exists() else None
-        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(sb.get("fps", 30)), "-i", str(png)]
-        if audio:
-            cmd += ["-i", str(audio)]
-        else:
-            cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"]
-        cmd += ["-t", f"{secs}", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(sb.get("fps", 30)),
-                "-c:a", "aac", "-b:a", "160k", str(clip)]
-        subprocess.run(cmd, check=True)
-        clips.append(clip)
-    lst = tmp / "list.txt"
-    lst.write_text("".join(f"file '{c}'\n" for c in clips))
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst),
-                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-movflags", "+faststart", a.out], check=True)
+    with tempfile.TemporaryDirectory(prefix="render-") as tmp_dir:
+        tmp = Path(tmp_dir)
+        clips = []
+        for i, s in enumerate(sb["scenes"]):
+            png = tmp / f"{i:02d}.png"
+            p.paint(s).save(png)
+            clip = tmp / f"{i:02d}.mp4"
+            secs = float(s.get("seconds", 4))
+            audio = base / s["audio"] if s.get("audio") and (base / s["audio"]).exists() else None
+            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(sb.get("fps", 30)), "-i", str(png)]
+            if audio:
+                cmd += ["-i", str(audio)]
+            else:
+                cmd += ["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"]
+            cmd += ["-t", f"{secs}", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(sb.get("fps", 30)),
+                    "-c:a", "aac", "-b:a", "160k", str(clip)]
+            subprocess.run(cmd, check=True)
+            clips.append(clip)
+        lst = tmp / "list.txt"
+        # Relative, generated filenames also work with Windows paths and quotes.
+        lst.write_text("".join(f"file '{c.name}'\n" for c in clips), encoding="utf-8")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst),
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-movflags", "+faststart", a.out], check=True)
     print(f"wrote {a.out}  ({len(clips)} scenes)")
 
 

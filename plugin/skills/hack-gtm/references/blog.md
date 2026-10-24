@@ -6,7 +6,7 @@ The blog is the long-form home for the project. Posts and HN point here; the dec
 
 ```yaml
 ---
-title: "<Project>: <what it does>, built in six hours and tested in a real browser"
+title: "<Project>: <what it does>, built in a day and tested in a real browser"
 description: "<under 160 characters, includes the product category, 'OpenAI' and 'Kane CLI'>"
 date: <YYYY-MM-DD>
 authors: [<names>]
@@ -56,7 +56,7 @@ Structure:
 
 1. The loop: how the team ran Kane CLI during the build (the actual command with `--agent`, how often, who read the output). One or two paragraphs.
 2. The first failure: the objective string, the step that failed, the annotated screenshot, what the failure record said, what the root cause turned out to be, the fix. This is the heart of the post.
-3. The pass: the passing run, the totals, the evidence pack. Give the command to open it: `kane-cli evidence serve <path>.evidence`.
+3. The pass: the passing run and its totals. Don't link or attach the evidence pack: it stays private (it holds network and console logs).
 4. What it changed about how you built: concrete behaviour, like "we stopped eyeballing the staging site and ran the flow after every merge".
 5. Limits and honest notes: what Kane CLI did not catch, where it was slow, what you would set up differently.
 

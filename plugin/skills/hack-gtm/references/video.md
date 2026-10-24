@@ -23,7 +23,7 @@ tests/<test-id>/
   auteur/execution.json
 ```
 
-If the pack is live (unsealed), run `kane-cli evidence validate <path>` first; `serve` and this pipeline expect sealed packs. If the team has a failed pack and a passed pack, pass both to the storyboard script (`--fail <pack> --pass <pack>`) so the video can show the fix.
+This pipeline expects sealed packs (the ones `kane-cli run` writes when it finishes); ask the Kane CLI skill if a pack isn't sealed. Screenshots are left out by default: text can be redacted, pixels can't. Show the person each step's screenshot first; only after their yes, rerun with `--include-screenshots` (before anyone edits the narration, since a rerun rewrites the drafts). If the team has a failed pack and a passed pack, pass both to the storyboard script (`--fail <pack> --pass <pack>`) so the video can show the fix.
 
 ## Storyboard schema (`launch/video/storyboard.json`)
 
@@ -93,11 +93,11 @@ Second person, present tense, concrete. Say the customer's job title. Say a numb
 
 ## Voice-over (`scripts/tts.py`)
 
-Provider order, first available wins:
+The person picks the voice; the script never chooses a paid or remote one by itself.
 
-1. OpenAI TTS (`OPENAI_API_KEY` set): model `gpt-4o-mini-tts`, voice `alloy` or the one in `--voice`. Fits the "built with OpenAI" story and the user likely has credits from the event.
-2. `edge-tts` (pip): free, decent neural voices, needs network.
-3. macOS `say` + `ffmpeg` to mp3: offline fallback.
+- Default: macOS `say` + `ffmpeg` to mp3. Free and local. On other systems the script stops and lists the options.
+- `--provider edge`: `edge-tts` (pip). Free, decent neural voices, but it sends the narration text to Microsoft.
+- `--provider openai`: OpenAI TTS, model `gpt-4o-mini-tts`, voice `alloy` or the one in `--voice`. Fits the "built with OpenAI" story, and it costs money on their own OpenAI account (`OPENAI_API_KEY`).
 
 Pass `--voice-notes "<how the author talks>"` to add a short style instruction to the OpenAI request. Keep narration conversational: contractions, no marketing adjectives. Read every line out loud once before rendering.
 
@@ -105,7 +105,7 @@ Pass `--voice-notes "<how the author talks>"` to add a short style instruction t
 
 ### Remotion (preferred)
 
-`scripts/remotion/` is a minimal Remotion project. `render.sh <launch/video dir>` copies `storyboard.json`, `assets/`, `steps/` and `audio/` into `public/`, installs deps if needed, and runs `npx remotion render Showcase out/showcase.mp4`. Composition duration is computed from the storyboard. Scenes are React components in `src/Showcase.tsx`; the step scene uses `step.json` element rect for the zoom target when present.
+`scripts/remotion/` is a minimal Remotion project. `render.sh <launch/video dir> [--dest <folder>]` copies the project into `./launch/remotion` (or `--dest`), copies `storyboard.json`, `assets/`, `steps/` and `audio/` into its `public/`, installs deps there, renders `Showcase`, and writes `showcase.mp4` back into the video folder. It never writes inside the installed skill. Composition duration is computed from the storyboard. Scenes are React components in `src/Showcase.tsx`; the step scene uses `step.json` element rect for the zoom target when present.
 
 Vertical cut: `render.sh <dir> --vertical` renders `ShowcaseVertical` at 1080x1920 with the same storyboard (step screenshots are cropped to the highlighted element).
 
@@ -113,7 +113,7 @@ Requirements: Node 18+, Chromium (Remotion downloads its own if missing). First 
 
 ### ffmpeg fallback (`scripts/render_ffmpeg.py`)
 
-No Node. Builds each scene as a PNG with Pillow (title cards, step frames with the screenshot letterboxed and a status pill), concatenates with the per-scene audio using ffmpeg, adds 0.4s crossfades, outputs H.264 MP4 with AAC audio. Lower polish, same content. Use it when Remotion install fails or the machine is locked down.
+No Node. Builds each scene as a PNG with Pillow (title cards, step frames with the screenshot letterboxed and a status pill), concatenates with the per-scene audio using ffmpeg, outputs H.264 MP4 with AAC audio. Lower polish, same content. Use it when Remotion install fails or the machine is locked down.
 
 ## Captions
 

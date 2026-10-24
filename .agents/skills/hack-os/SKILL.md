@@ -54,9 +54,11 @@ Team registration closes 11:00. Idea locks 12:00. Final evaluation 16:00–17:00
 
 ## Submission and launch assets
 
-What a team hands in (from the event team):
+What the event team asks for:
 
 - Project details: name, description, about, and how they used Kane CLI.
 - Launch assets: LinkedIn and X posts that tag the official accounts (several posts are fine; they share every link), a blog post, a Hacker News post, a deck, and a demo video with voice-over.
+
+The site's minimum for the shipped prize is smaller: the repo, a live URL or run command and a Kane CLI run report, plus any two of video, blog, X post and HN post, all live by 18:00 Pacific with their links on the Submit tab. Deck and video are never required. `submission_preflight` is the authority on what's missing; don't call something required when it isn't.
 
 The `$hack-gtm` skill drafts all of these from their project and their Kane evidence. Its drafts are samples: teams can write their own, in their own style. Nothing is posted without their yes, and they post it themselves. The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`; `references/build.md` has the steps.

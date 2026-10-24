@@ -8,7 +8,7 @@ Hacker News rewards plain description and punishes marketing language harder tha
 - The thing must be something people can try: a live demo, a repo they can run, or a video if neither exists. A landing page with a waitlist is not a Show HN.
 - One submission. Do not resubmit under a different title the same week. Do not ask friends to upvote; HN detects voting rings and buries the post.
 - The author must be present to answer for the first few hours.
-- Link the project's showcase page on kaneclihack.sh (`https://kaneclihack.sh/ship/<team>`). It carries the demo video, the verified repo and submitted SHA, the Kane CLI evidence and the deck in one place, so an HN reader can go from "what is it" to "show me the source" without hunting. Put the direct repo URL in the first comment for people who want to skip the page.
+- Link the project's showcase page on kaneclihack.sh (`https://kaneclihack.sh/ship/<team>`). It carries the demo video, the verified repo and submitted SHA, the team's Kane CLI runs and the deck in one place, so an HN reader can go from "what is it" to "show me the source" without hunting. Put the direct repo URL in the first comment for people who want to skip the page.
 
 ## Title
 
@@ -37,18 +37,18 @@ Do not include hashtags, handles, or "please upvote". Do not paste the LinkedIn 
 Template:
 
 ```
-Hi HN, I'm <name>, one of <n> people who built this at the Kane CLI x OpenAI Hack Day in SF yesterday.
+Hi HN, I'm <name>, one of <n> people who built this at Kane CLI Hack Day in SF on <date>.
 
 <Project> <does X>. We built it because <personal reason>. The link is our showcase page; the source is at <repo url> (submitted at <short SHA>).
 
-Under the hood: <OpenAI model/API> does <role>. Kane CLI runs the browser checks: we describe the flow in plain English and it drives Chrome, then seals an evidence pack with screenshots and console logs per step. Our login flow failed <n> times before we found <cause>. The evidence pack is in the repo under <path>; `kane-cli evidence serve <file>` opens it locally.
+Under the hood: <OpenAI model/API> does <role>. Kane CLI runs the browser checks: we describe the flow in plain English and it drives Chrome, then seals an evidence pack with screenshots and console logs per step. Our login flow failed <n> times before we found <cause>. The Ship Page lists the runs.
 
 Rough edges: <two or three honest items>.
 
 Would like to hear <specific question>.
 ```
 
-The showcase page is the submitted URL because it is the page the event backend verified (public, repo-linked, evidence attached). If the page is slow or down at posting time, do not submit; HN readers bounce in seconds and the thread dies. Check it with Kane CLI first: `kane-cli run "open https://kaneclihack.sh/ship/<team> and confirm the project title and the GitHub link are visible" --agent`.
+The showcase page is the submitted URL because it is the public, repo-linked page for the project. If the page is slow or down at posting time, do not submit; HN readers bounce in seconds and the thread dies. If they want, check it first with a Kane run that the Kane CLI skill writes (open the Ship Page, confirm the project title and the GitHub link are visible).
 
 ## Timing
 

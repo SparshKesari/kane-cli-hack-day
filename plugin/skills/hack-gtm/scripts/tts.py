@@ -6,19 +6,22 @@ audio length + 0.6s so timing follows the narration. Also writes showcase.srt.
 Usage:
   tts.py launch/video/storyboard.json --out launch/video/audio/ [--voice alloy] [--voice-notes "..."] [--provider openai|edge|say]
 
-Providers (first available wins unless --provider given):
-  openai : needs OPENAI_API_KEY, uses gpt-4o-mini-tts
-  edge   : pip install edge-tts
-  say    : macOS `say` + ffmpeg
+Without --provider, only macOS `say` is selected automatically.
+  say    : macOS `say` + ffmpeg, local
+  edge   : requires edge-tts; sends narration text to Microsoft
+  openai : requires openai and OPENAI_API_KEY; costs money on your OpenAI account
 Needs ffmpeg on PATH for duration probing and loudness normalisation.
 """
+from __future__ import annotations
+
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from evidence_to_storyboard import redact, redact_data
 
 
 def have(cmd):
@@ -76,20 +79,11 @@ def tts_say(text, dest: Path, voice, notes):
 def pick_provider(forced):
     if forced:
         return forced
-    if os.environ.get("OPENAI_API_KEY"):
-        try:
-            import openai  # noqa
-            return "openai"
-        except ImportError:
-            pass
-    try:
-        import edge_tts  # noqa
-        return "edge"
-    except ImportError:
-        pass
-    if have("say"):
+    if sys.platform == "darwin" and have("say"):
         return "say"
-    sys.exit("no TTS provider: set OPENAI_API_KEY (pip install openai), or pip install edge-tts, or run on macOS")
+    sys.exit("Choose a TTS provider explicitly: --provider say (local macOS say), "
+             "--provider edge (sends narration text to Microsoft), or "
+             "--provider openai (costs money on your OpenAI account; requires OPENAI_API_KEY).")
 
 
 def srt_time(t):
@@ -104,17 +98,23 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--voice")
     ap.add_argument("--voice-notes", default="")
-    ap.add_argument("--provider", choices=["openai", "edge", "say"])
+    ap.add_argument("--provider", choices=["say", "edge", "openai"],
+                    help="default: local macOS say if available; edge sends text to Microsoft; openai costs money on your OpenAI account")
     ap.add_argument("--pad", type=float, default=0.6)
     a = ap.parse_args()
 
+    provider = pick_provider(a.provider)
+    if provider == "say" and not have("say"):
+        sys.exit("--provider say requires macOS say; --provider edge sends text to Microsoft; "
+                 "--provider openai costs money on your OpenAI account.")
     if not have("ffmpeg"):
         sys.exit("ffmpeg is required")
-    sb_path = Path(a.storyboard)
-    sb = json.loads(sb_path.read_text())
-    out = Path(a.out)
+    sb_path = Path(a.storyboard).resolve()
+    sb = redact_data(json.loads(sb_path.read_text(encoding="utf-8")))
+    out = Path(a.out).resolve()
+    if not out.is_relative_to(sb_path.parent):
+        ap.error("--out must be within the storyboard directory for video asset paths")
     out.mkdir(parents=True, exist_ok=True)
-    provider = pick_provider(a.provider)
     fn = {"openai": tts_openai, "edge": tts_edge, "say": tts_say}[provider]
     print(f"provider: {provider}")
 
@@ -126,18 +126,22 @@ def main():
             print(f"  skip {scene['id']}: narration missing or TODO")
             t += float(scene.get("seconds", 4))
             continue
-        dest = out / f"{scene['id']}.mp3"
-        fn(text, dest, a.voice, a.voice_notes)
+        dest = out / f"{i:02d}.mp3"
+        try:
+            fn(text, dest, a.voice, redact(a.voice_notes))
+        except Exception as exc:
+            # Provider errors can echo credentials; never expose a raw traceback.
+            sys.exit(f"TTS provider {provider} failed: {redact(str(exc))}")
         normalise(dest)
         d = duration(dest)
-        scene["audio"] = str(dest.relative_to(sb_path.parent))
+        scene["audio"] = dest.relative_to(sb_path.parent).as_posix()
         scene["seconds"] = round(max(d + a.pad, float(scene.get("min_seconds", 2.5))), 2)
         srt.append(f"{i}\n{srt_time(t)} --> {srt_time(t + d)}\n{text}\n")
         t += scene["seconds"]
         print(f"  {scene['id']}: {d:.1f}s audio, scene {scene['seconds']}s")
 
-    sb_path.write_text(json.dumps(sb, indent=2))
-    (sb_path.parent / "showcase.srt").write_text("\n".join(srt))
+    sb_path.write_text(json.dumps(sb, indent=2), encoding="utf-8")
+    (sb_path.parent / "showcase.srt").write_text("\n".join(srt), encoding="utf-8")
     print(f"total {t:.1f}s  (target 60 to 90s)")
 
 
