@@ -372,6 +372,36 @@ try {
   check("submit --preflight --json → exit 0 if ready else 1, data.ready boolean", typeof r.json?.data?.ready === "boolean" && r.code === (r.json.data.ready ? 0 : 1), r.show);
   r = kh(["submit", "--json"]);
   check("submit without --preflight → exit 2", r.code === 2, r.show);
+
+  // ── publish: a participant-approved file to the public evidence bucket (request → PUT → complete) ──
+  const shot = join(work, "shot.png");
+  writeFileSync(shot, Buffer.concat([Buffer.from("89504e470d0a1a0a", "hex"), Buffer.from("not a real png body")]));
+  r = kh(["publish", shot, "--json"]);
+  check("publish without --yes and no TTY → exit 2 APPROVAL_NEEDED", r.code === 2 && r.json?.error?.code === "APPROVAL_NEEDED", r.show);
+  r = kh(["publish", join(work, "run.evidence"), "--yes", "--json"]);
+  check("publish a file that isn't there → exit 2 NOT_FOUND", r.code === 2 && r.json?.error?.code === "NOT_FOUND", r.show);
+  writeFileSync(join(work, "run.evidence"), "PK");
+  r = kh(["publish", join(work, "run.evidence"), "--yes", "--json"]);
+  check("publish a Kane evidence pack → refused before any upload, exit 2 REFUSED", r.code === 2 && r.json?.error?.code === "REFUSED" && /never published/.test(r.json?.error?.message ?? ""), r.show);
+  writeFileSync(join(work, "notes.docx"), "PK");
+  r = kh(["publish", join(work, "notes.docx"), "--yes", "--json"]);
+  check("publish a type the bucket doesn't take → exit 2 REFUSED", r.code === 2 && r.json?.error?.code === "REFUSED", r.show);
+  if (APPROVE === "mock") {
+    r = kh(["publish", shot, "--yes", "--json"]);
+    const pe = r.json?.object_id;
+    check("publish --yes → PUT with the signed headers, completed, a public URL", r.code === 0 && r.json?.ok === true && /^PE-\d+$/.test(String(pe)) && /^https:\/\//.test(String(r.json?.public_url)) && r.json?.kind === "screenshot", r.show);
+    r = kh(["publish", shot, "--yes", "--json"]);
+    check("publish the same file again → the same object, already public", r.code === 0 && r.json?.object_id === pe, r.show);
+    await fetch(`${API}/__mock/s3-fail`, { method: "POST" });
+    const vid = join(work, "showcase.mp4");
+    writeFileSync(vid, Buffer.from("000000186674797069736f6d0000020069736f6d69736f32", "hex"));
+    r = kh(["publish", vid, "--yes", "--json"]);
+    check("storage refuses the PUT → exit 1 UPLOAD_FAILED, says to run it again", r.code === 1 && r.json?.error?.code === "UPLOAD_FAILED" && /again/.test(r.json?.error?.message ?? ""), r.show);
+    r = kh(["publish", vid, "--yes", "--json"]);
+    check("publish a video → kind video, and the next step names the Submit tab's video field", r.code === 0 && r.json?.kind === "video" && /Demo video URL/.test(r.err), r.show);
+    const objs = await (await fetch(`${API}/__mock/evidence`)).json();
+    check("each public object got exactly one good PUT", objs.length === 2 && objs.every((o) => o.status === "public" && o.puts === 1), JSON.stringify(objs));
+  }
   r = kh(["consent", "no", "--json"]);
   check("consent no", r.code === 0 && r.json?.consent === false, r.show);
   r = kh(["report", "--json", "--", "kane-cli", "run", objective, "--agent"]);

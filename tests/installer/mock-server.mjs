@@ -12,7 +12,10 @@
 //   POST /api/v1/auth/token                         email + password → a bearer token (401 if they don't match)
 //   POST /api/v1/activation/claim                   bearer + password → outcome claimed (or error for another password)
 //   POST /mcp                                       initialize, tools/list, notifications (202), and tools/call:
-//                                                   readiness_report, help_create, help_get_status, submission_preflight
+//                                                   readiness_report, help_create, help_get_status, submission_preflight,
+//                                                   public_evidence_request_upload, public_evidence_complete
+//   PUT  /__s3/PE-n                                 the presigned upload: 200 only with the signed content-type,
+//                                                   x-amz-checksum-sha256 and matching bytes, like S3
 //
 // Test-only controls (not in the real app):
 //   POST /__mock/approve {user_code, team?}   approve a pairing as the demo member (team:false → member with no team)
@@ -20,6 +23,8 @@
 //   POST /__mock/revoke                       revoke every bearer token
 //   GET  /__mock/runs                         every run recorded
 //   GET  /__mock/mcp                          how many authenticated MCP requests arrived, and their methods
+//   GET  /__mock/evidence                     every public evidence object and how many PUTs it got
+//   POST /__mock/s3-fail                      the next PUT gets 403, like an expired URL
 //
 //   node tests/installer/mock-server.mjs [--port 3399] [--public DIR] [--redirect-to http://www.localhost:3399]
 //
@@ -27,7 +32,7 @@
 // Prints "mock-server listening on <port>" once it is ready.
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { join, resolve, extname } from "node:path";
 
 const arg = (name, dflt) => {
@@ -45,7 +50,9 @@ const runs = [];
 const tickets = new Map();
 const accounts = new Map(); // email → { password, member_id }
 const mcpAuthed = { count: 0, methods: [] }; // POST /mcp requests with a valid bearer (GET /__mock/mcp)
-const MCP_TOOLS = ["readiness_report", "help_create", "help_get_status", "submission_preflight"];
+const evidence = new Map(); // PE-n → { sha256, size_bytes, content_type, ext, status, puts }
+const s3 = { failNext: false };
+const MCP_TOOLS = ["readiness_report", "help_create", "help_get_status", "submission_preflight", "public_evidence_request_upload", "public_evidence_complete"];
 
 const env = (o) => ({
   schema_version: 1,
@@ -120,6 +127,26 @@ async function handle(req, res) {
     return createReadStream(f).pipe(res);
   }
 
+  // ── the presigned S3 PUT (no app auth; the URL is the authorization) ──
+  if (req.method === "PUT" && p.startsWith("/__s3/")) {
+    const o = evidence.get(p.slice(6));
+    const bytes = await new Promise((ok) => {
+      const b = [];
+      req.on("data", (c) => b.push(c)).on("end", () => ok(Buffer.concat(b)));
+    });
+    if (!o) return send(res, 404, { error: "NoSuchUpload" });
+    if (s3.failNext) {
+      s3.failNext = false;
+      return send(res, 403, { error: "AccessDenied" });
+    }
+    const sha = createHash("sha256").update(bytes).digest();
+    if (req.headers["content-type"] !== o.content_type || req.headers["x-amz-checksum-sha256"] !== Buffer.from(o.sha256, "hex").toString("base64")) return send(res, 403, { error: "SignatureDoesNotMatch" });
+    if (sha.toString("hex") !== o.sha256 || bytes.length !== o.size_bytes) return send(res, 400, { error: "BadDigest" });
+    o.puts++;
+    res.writeHead(200);
+    return res.end();
+  }
+
   const body = req.method === "POST" ? await readBody(req) : "";
 
   // ── test controls ──
@@ -137,6 +164,11 @@ async function handle(req, res) {
   }
   if (p === "/__mock/runs") return send(res, 200, runs);
   if (p === "/__mock/mcp") return send(res, 200, { authed_requests: mcpAuthed.count, methods: mcpAuthed.methods });
+  if (p === "/__mock/evidence") return send(res, 200, [...evidence].map(([object_id, o]) => ({ object_id, ...o })));
+  if (p === "/__mock/s3-fail") {
+    s3.failNext = true;
+    return send(res, 200, { ok: true });
+  }
 
   // ── pairing ──
   if (p === "/api/v1/pair/start" && req.method === "POST") {
@@ -246,6 +278,25 @@ async function handle(req, res) {
       e = tickets.has(a.ticket_id) ? env({ message: `Ticket ${a.ticket_id}: open.`, data: { ticket_id: a.ticket_id, status: "open" } }) : errEnv("NOT_FOUND", "No ticket with that id on your team.")[1];
     } else if (name === "submission_preflight") {
       e = env({ status: "needs_action", message: "2 things are missing before you can submit.", data: { ready: false, missing: ["repo_url", "demo_video"] } });
+    } else if (name === "public_evidence_request_upload") {
+      const ext = String(a.filename ?? "").split(".").pop();
+      const same = [...evidence].find(([, o]) => o.sha256 === a.sha256);
+      if (a.participant_approved !== true) e = errEnv("VALIDATION_FAILED", "The participant must approve publishing this file (participant_approved: true).")[1];
+      else if (same?.[1].status === "public") e = env({ message: `${same[0]} is already public (same sha256)`, data: { status: "exists", object_id: same[0], public_url: `https://cdn.mock/public/${a.sha256}.${ext}`, sha256: a.sha256 } });
+      else {
+        const id = same?.[0] ?? `PE-${evidence.size + 1}`;
+        if (!same) evidence.set(id, { sha256: a.sha256, size_bytes: a.size_bytes, content_type: a.content_type, ext, kind: a.kind, status: "pending", puts: 0 });
+        const headers = { "content-type": a.content_type, "x-amz-checksum-sha256": Buffer.from(String(a.sha256), "hex").toString("base64") };
+        e = env({ status: "needs_action", message: `PUT the file, then complete ${id}.`, data: { status: "upload_required", object_id: id, method: "PUT", url: `${site}/__s3/${id}`, headers, size_bytes: a.size_bytes, expires_at: new Date(Date.now() + 600_000).toISOString() } });
+      }
+    } else if (name === "public_evidence_complete") {
+      const o = evidence.get(a.object_id);
+      if (!o) e = errEnv("NOT_FOUND", `${a.object_id} isn't one of your team's objects.`)[1];
+      else if (!o.puts) e = { ...errEnv("NOT_FOUND", "The upload isn't there yet: PUT it, then complete again.")[1], error: { code: "NOT_FOUND", details: { reason: "upload_missing" } } };
+      else {
+        o.status = "public";
+        e = env({ message: `${a.object_id} is public`, data: { status: "public", object_id: a.object_id, public_url: `https://cdn.mock/public/${o.sha256}.${o.ext}`, sha256: o.sha256 } });
+      }
     } else return send(res, 200, { jsonrpc: "2.0", id: rpc.id ?? null, error: { code: -32602, message: `Unknown tool: ${name}` } });
     return send(res, 200, { jsonrpc: "2.0", id: rpc.id ?? 1, result: { content: [{ type: "text", text: JSON.stringify(e) }], isError: e.status === "error" } });
   }
