@@ -5,6 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { claimErrorText, mapClaimResponse, redactClaimBody } from "../../src/lib/testmu-claim.ts";
 import { maskCode, parseCodexCodes, splitCsvLine } from "../../src/lib/codex-codes.ts";
+import { ACTIVATION_STEPS, PLAN_MESSAGES } from "../../src/data/activation-steps.ts";
+import { readFileSync } from "node:fs";
 
 test("a 2xx without a success code is not a claim (an empty body, an HTML page, a proxy)", () => {
   for (const s of [200, 201, 204]) assert.equal(mapClaimResponse(s, { ok: true }).outcome, "error");
@@ -99,6 +101,20 @@ test("credentials in the API's answer are never stored or shown to staff", () =>
   assert.match(stored, /"code":"SIGNEDUP"/);
   assert.match(stored, /"username":"jane"/);
   assert.ok(!(mapClaimResponse(401, { code: "INVALID_CREDENTIALS", access_token: "tok-secret" }).detail ?? "").includes("tok-secret"));
+});
+
+// A captain adds teammates on TestMu AI with their TestMu AI password, and organizers tell
+// captains that's their kaneclihack.sh password. So step 2 asks for that password, and a new
+// TestMu AI account is created with it.
+test("step 2 asks for the kaneclihack.sh password, so a new TestMu AI account gets the same one", () => {
+  const step2 = ACTIVATION_STEPS.find((s) => s.id === "testmu_plan")!;
+  assert.match(step2.body, /kaneclihack\.sh password/);
+  assert.match(step2.body, /already had a TestMu AI account/i);
+  const field = readFileSync("src/app/activate/parts.tsx", "utf8").match(/<input id="plan-pw"[^>]*>/)?.[0] ?? "";
+  assert.ok(field, "no #plan-pw field");
+  // The browser then offers the saved kaneclihack.sh password instead of suggesting a new one.
+  assert.match(field, /autoComplete="current-password"/);
+  assert.match(PLAN_MESSAGES.wrongPassword, /different password/);
 });
 
 test("claim error text flattens code, message and field errors", () => {

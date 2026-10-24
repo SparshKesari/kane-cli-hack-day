@@ -187,8 +187,9 @@ export const planClaimedMessage = (plan: PlanClaim) => claimedMessage(mapClaimRe
 
 /**
  * Claim the hack-day plan for the signed-in member's own email (read from the
- * member row, never from input) and the TestMu AI password they typed, which goes
- * to TestMu AI once and is never stored. Once claimed it never calls again. A failed
+ * member row, never from input) and the password they typed (their kaneclihack.sh
+ * one, or an existing TestMu AI account's), which goes to TestMu AI once and is
+ * never stored. Once claimed it never calls again. A failed
  * claim can be retried; attempts are rate-limited per member, and only one
  * runs at a time. Every attempt is audited (status and code, no email).
  */
