@@ -58,6 +58,9 @@ const optHttps = z
   .optional()
   .default("");
 
+const FULL_SHA = /^[0-9a-f]{40}$/i;
+const GITHUB_REPO = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i;
+
 export const proofSchema = z
   .object({
     claim: str(280).min(1, "Write the claim"),
@@ -104,11 +107,27 @@ export const storySchema = z
       .object({
         github: optHttps,
         demo: optHttps,
-        // A commit link is rendered as a public link, so it must be https like the others.
-        repo_commit: optHttps,
+        // A commit link is rendered as a public link, so it must be https like the others. The
+        // full SHA the field asks for becomes the commit link on the GitHub repository above.
+        repo_commit: z
+          .string()
+          .trim()
+          .max(500)
+          .refine((s) => s === "" || FULL_SHA.test(s) || /^https:\/\/[^\s]+$/.test(s), "Paste the full commit URL, or the full 40-character SHA")
+          .optional()
+          .default(""),
         ship_page: z.string().trim().max(300).optional().default(""),
       })
-      .strict(),
+      .strict()
+      .transform((l, ctx) => {
+        if (!FULL_SHA.test(l.repo_commit)) return l;
+        const repo = GITHUB_REPO.exec(l.github);
+        if (!repo) {
+          ctx.addIssue({ code: "custom", path: ["repo_commit"], message: "A commit SHA needs the GitHub repository link. Add it above, or paste the full commit URL." });
+          return z.NEVER;
+        }
+        return { ...l, repo_commit: `https://github.com/${repo[1]}/${repo[2]}/commit/${l.repo_commit.toLowerCase()}` };
+      }),
     team: z
       .array(
         z

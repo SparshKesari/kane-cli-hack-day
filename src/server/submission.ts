@@ -11,10 +11,12 @@ import {
   PROJECT_TYPES,
   buildStory,
   getProjectByTeam,
+  keepStudioStory,
   mediaPrefix,
   publishStoryTx,
   type CreditedMember,
   type ProjectRow,
+  type ProjectStory,
   type ShowcaseState,
 } from "./showcase";
 
@@ -689,7 +691,17 @@ export async function finalizeSubmission(slug: string, input: unknown, as?: Acti
       const projectSlug = project.slug;
       const nextState: ShowcaseState =
         project.showcase_state === "hidden_by_moderation" ? "hidden_by_moderation" : body.publish_showcase ? "public" : "draft";
-      const story = buildStory({ projectId: project.id, slug: projectSlug, draft, runs, credited, status: "published" });
+      const built = buildStory({ projectId: project.id, slug: projectSlug, draft, runs, credited, status: "published" });
+      // A story the team approved in the Ship Studio stays the public page; the submission only
+      // adds its screenshots, video and empty links. Finalize's own stories don't count.
+      const studio = await rowsOf<{ content: ProjectStory }>(
+        tx,
+        `select s.content from published_assets a join project_stories s on s.id = a.source_story_id
+          where a.project_id = $1 and a.kind = 'ship_page' and a.consent_receipt->>'basis' is distinct from 'finalize_confirmation'
+          order by a.version desc limit 1`,
+        [project.id],
+      );
+      const story = studio[0] ? keepStudioStory(studio[0].content, built) : built;
       const published = await publishStoryTx(tx, { projectId: project.id, story, memberId: member.id, credited, state: nextState });
 
       const code = await newReceiptCode(tx);

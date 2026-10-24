@@ -13,12 +13,12 @@ import {
   PROJECT_TYPE_LABEL,
   getPublishedStory,
   getShowcase,
-  mediaSrc,
   resolveShipSlug,
   type EvidenceRun,
   type ProjectType,
   type ShowcaseView,
   type SubmissionExtras,
+  visualSrc,
 } from "@/server/showcase";
 import { getPublishedDeck } from "@/server/deck";
 import { listMilestones } from "@/server/kane";
@@ -208,7 +208,12 @@ function ShipBody({ view, hasDeck, onePager }: { view: ShowcaseView; hasDeck: bo
   const { story: s, project, runs } = view;
   const slug = project.slug;
   const name = s.project_name;
-  const shots = s.visuals.filter((v) => v.kind === "screenshot" && v.approved).map((v) => ({ src: mediaSrc(slug, v.source), alt: v.alt_text || `${name} screenshot` }));
+  const shots = s.visuals
+    .filter((v) => v.kind === "screenshot" && v.approved)
+    .flatMap((v) => {
+      const src = visualSrc(slug, project.id, v.source);
+      return src ? [{ src, alt: v.alt_text || `${name} screenshot` }] : [];
+    });
   const video = videoOf(s.visuals.find((v) => v.kind === "video" && v.approved)?.source, `${name} demo video`);
   const verifiedRuns = runs.filter((r) => r.confidence === "verified");
   const detections = runs.filter((r) => r.confidence === "detected");

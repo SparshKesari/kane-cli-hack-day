@@ -58,7 +58,7 @@ async function StoryTab({ ctx }: { ctx: StudioCtx }) {
           title="Approve the public Ship Page"
           intro={
             <>
-              Publishing makes the <strong className="text-bright">last saved version</strong> public at /ship/{ctx.slug} and records who approved it and who consented. It doesn&apos;t change your official submission. Save first if you have unsaved edits.
+              Publishing makes the <strong className="text-bright">last saved version</strong> public at /ship/{ctx.slug} and records who approved it and who consented. It doesn&apos;t change your official submission, and finalizing keeps this story as your page, adding only the submission&apos;s screenshots and video. Save first if you have unsaved edits.
             </>
           }
         >

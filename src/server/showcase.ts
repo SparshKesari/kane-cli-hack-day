@@ -52,6 +52,17 @@ export const mediaPrefix = (projectId: number) => `showcase/p${projectId}/`;
 /** Browser URL for a private screenshot, served through /ship/{slug}/media. */
 export const mediaSrc = (slug: string, path: string) => `/ship/${slug}/media/${path.split("/").map(encodeURIComponent).join("/")}`;
 
+/**
+ * Where the browser loads a story visual. Only this project's private uploads go through
+ * /ship/{slug}/media (it serves nothing else); an https link or a site path is used as is.
+ * Anything else (http, protocol-relative, script, another project's upload) isn't shown.
+ */
+export const visualSrc = (slug: string, projectId: number, source: string): string | null => {
+  if (source.startsWith(mediaPrefix(projectId))) return mediaSrc(slug, source);
+  if (/^https:\/\/[^\s"'<>]+$/.test(source) || /^\/(?!\/)[\w./-]+$/.test(source)) return source;
+  return null;
+};
+
 // ── Story shape (templates/project-story.schema.json) ───────────────────────
 
 export type ProofConfidence = "verified" | "participant_reported" | "unverified";
@@ -161,6 +172,29 @@ export function buildStory(input: {
     visuals,
     consent_reviewed: true,
     status: input.status,
+  };
+}
+
+/**
+ * Finalize, for a team that already approved and published a story in the Ship Studio: that
+ * story stays the public page. Its text, proof and harness stand; the submission adds only the
+ * screenshots and video the story doesn't have yet, and the links it left empty. Credits come
+ * from the consent check finalize just ran, as for any finalize. Pure; no I/O.
+ */
+export function keepStudioStory(studio: ProjectStory, fromSubmission: ProjectStory): ProjectStory {
+  const have = new Set(studio.visuals.map((v) => v.source));
+  const links = { ...fromSubmission.links };
+  for (const [k, v] of Object.entries(studio.links) as [keyof ProjectStory["links"], string | undefined][]) if (v && k !== "ship_page") links[k] = v;
+  return {
+    ...studio,
+    schema_version: 1,
+    project_id: fromSubmission.project_id,
+    slug: fromSubmission.slug,
+    links,
+    team: fromSubmission.team,
+    visuals: [...studio.visuals, ...fromSubmission.visuals.filter((v) => !have.has(v.source))].slice(0, 12),
+    consent_reviewed: true,
+    status: fromSubmission.status,
   };
 }
 
@@ -434,7 +468,7 @@ export async function listGallery(type?: ProjectType | null): Promise<GalleryCar
       pitch: r.content.one_line_pitch,
       type: r.project_type,
       teamName: r.team_name,
-      cover: shot ? mediaSrc(r.slug, shot.source) : null,
+      cover: shot ? visualSrc(r.slug, Number(r.project_id), shot.source) : null,
       coverAlt: shot?.alt_text ?? "",
       verifiedRuns: vmap.get(Number(r.project_id)) ?? 0,
       publishedAt: r.published_at,

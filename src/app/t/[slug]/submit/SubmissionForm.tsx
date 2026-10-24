@@ -54,7 +54,7 @@ export default function SubmissionForm({
       aria-describedby="draft-status"
     >
       <fieldset disabled={disabled} className="space-y-12 disabled:opacity-80">
-        <Group n="01" title="The creation" note="What you made, in your own words. This is the top of your public showcase page.">
+        <Group n="01" title="The creation" note="What you made, in your own words. This is the top of your public showcase page, unless your team published a story in the Ship Studio: that story stays, and your screenshots and video are added to it.">
           <Field id="project_name" label="Project name" error={issueFor("project_name")}>
             {(id) => <input id={id} name="project_name" defaultValue={draft.project_name ?? ""} maxLength={80} required className={inputCls} />}
           </Field>
