@@ -214,7 +214,7 @@ const Verdict: React.FC<{ s: Scene; sb: Storyboard }> = ({ s, sb }) => {
         </FadeIn>
         <FadeIn delay={16}>
           <div style={{ fontSize: unit * 0.028, marginTop: 36, fontFamily: mono, color: "#9aa5b1" }}>
-            Sealed in one Kane CLI evidence pack. kane-cli evidence serve &lt;pack&gt;
+            Sealed in one Kane CLI evidence pack.
           </div>
         </FadeIn>
       </div>

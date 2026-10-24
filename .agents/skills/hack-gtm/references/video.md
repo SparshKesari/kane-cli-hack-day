@@ -7,19 +7,19 @@ Goal: a 60 to 90 second MP4 with voice-over that shows the app, then the real Ka
 A `.evidence` file is a zip:
 
 ```
-run.yaml                         # title, status, started/ended, totals
+run.yaml                         # title, status (running/finalized/aborted: the pack's state, not the verdict), started/ended, totals (tests/passed/failed/broken/skipped)
 failure.yaml                     # run-level failure rollup (failed runs)
 tests/<test-id>/
   test.md                        # the test definition
-  result.yaml                    # verdict, per-step outcomes, tags, environment
+  result.yaml                    # status (passed/failed/broken/skipped), steps[] (ordinal, id, status, kind, expected/actual), duration_ms
   logs/<n>-actions.ndjson        # step-by-step actions
   logs/<n>-console.ndjson
   logs/<n>-network.har
-  steps/<ordinal>-<step-id>/
-    screenshot.png               # page as the agent saw it
+  steps/<ordinal>-<step-id>/      # 1-, 2-, ... 10-: no zero padding, so order by the number
+    screenshot.png               # page as the agent saw it (.png or .jpg)
     annotated.png                # same with the acted-on element highlighted
-    step.json                    # kind, status, duration, url, action id, click coords, element rect
-    failure.yaml                 # only on failed/broken steps
+    step.json                    # producer details: action id, screenshot name, sometimes url and element rect
+    failure.yaml                 # only on failed/broken steps: title, error.message or expected/actual
   auteur/execution.json
 ```
 
@@ -52,7 +52,7 @@ This pipeline expects sealed packs (the ones `kane-cli run` writes when it finis
 }
 ```
 
-`evidence_to_storyboard.py` writes this with drafted narration. Edit the narration lines by hand (or with the brief) before TTS; each should be 12 to 22 words so it fits the scene length at a natural pace. The TTS script writes `audio/<scene-id>.mp3` and updates each scene's `seconds` to the audio length plus 0.6s padding, so narration length drives timing.
+`evidence_to_storyboard.py` writes this with drafted narration. Edit the narration lines by hand (or with the brief) before TTS; each should be 12 to 22 words so it fits the scene length at a natural pace. The TTS script writes `audio/NN.mp3` (NN is the scene's position) and updates each scene's `seconds` to the audio length plus 0.6s padding, with a floor so short lines don't rush a scene (demo 6s, title and verdict 4s, outro 5s, others 2.5s), so narration length drives timing.
 
 ## Scene plan: three acts
 
@@ -76,7 +76,7 @@ Shark Tank structure: hook, problem, customer, product, demo, why it matters. No
 ### Act 3: how effectively we used Kane CLI (25 to 35s)
 
 8. Objective (7s): "Then we told Kane CLI what to prove" with the real objective string from `test.md`.
-9. Failed run steps (3.5s each, failed step 6s): annotated screenshots with a zoom toward the element rect from `step.json`; the error line from `failure.yaml` on the failed step.
+9. Failed run steps (3.5s each, failed step 6s): annotated screenshots (Remotion zooms toward the element rect from `step.json` in the wide cut; the ffmpeg renderer doesn't zoom); the error line from `failure.yaml` on the failed step.
 10. The fix (6s): what changed, one sentence or one line of code.
 11. Passing run (3 steps at 3.5s): the same flow going green.
 12. Verdict (6s): totals from `run.yaml`, the evidence pack command.

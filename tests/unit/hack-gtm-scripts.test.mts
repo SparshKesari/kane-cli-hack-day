@@ -109,7 +109,7 @@ function storyboard(brief: string | null, extra: string[] = []) {
   return { ...r, sb, story: existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null };
 }
 
-type Scene = { id: string; body?: string; narration?: string; links?: string[] };
+type Scene = { id: string; body?: string; narration?: string; links?: string[]; seconds?: number };
 const scene = (story: { scenes: Scene[] }, id: string) => story.scenes.find((s) => s.id === id);
 
 test("a password in the run objective never reaches the storyboard or the pack summary", opts, () => {
@@ -210,4 +210,268 @@ test("the Remotion renderer refuses placeholders before it sets anything up", op
 
 test("the ffmpeg renderer never paints setup instructions into a frame", () => {
   assert.doesNotMatch(readFileSync(join(SCRIPTS, "render_ffmpeg.py"), "utf8"), /add demo screenshots/);
+});
+
+// ---- The GTM flow fixes: real Kane CLI pack format, voice, renderer audio and layout ----
+
+const PY = process.env.HACK_GTM_PYTHON ?? "python3";
+const pillow = spawnSync(PY, ["-c", "import PIL"]).status === 0;
+const ffmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
+const withFfmpeg = { skip: python && ffmpeg ? false : "python3 and ffmpeg are needed" };
+const withPillow = { skip: pillow && ffmpeg ? false : `set HACK_GTM_PYTHON to a Python with Pillow (and install ffmpeg)` };
+
+function run(cmd: string, args: string[], o: { cwd?: string; path?: string; input?: string } = {}) {
+  const env = { PATH: `${o.path ? o.path + ":" : ""}${process.env.PATH ?? ""}`, NODE_ENV: "test" as const };
+  const r = spawnSync(cmd, args, { cwd: o.cwd, input: o.input, encoding: "utf8", env });
+  return { code: r.status, out: r.stdout, err: r.stderr };
+}
+
+// The layout Kane CLI 0.10 writes and validates (evidence schema 0.1): run.yaml's status is the
+// pack's lifecycle (finalized/aborted) and the counts are in totals; result.yaml carries the
+// verdict and the steps; step folders are <ordinal>-<id> with no zero padding.
+type RealStep = { id: string; status: string; kind?: string; expected?: string; failure?: string };
+function makeRealPack(path: string, o: { status: "passed" | "failed"; runStatus?: string; steps: RealStep[] }) {
+  const failed = o.steps.filter((s) => s.status === "failed").length;
+  const r = py(["-c", `
+import json, sys, zipfile
+spec = json.load(sys.stdin)
+with zipfile.ZipFile(spec["path"], "w") as z:
+    z.writestr("run.yaml", "\\n".join([
+        'evidence: "0.1"', "run_id: run-7", "status: " + spec["runStatus"], "title: Listly smoke",
+        'started: "2026-10-24T17:00:00Z"', 'ended: "2026-10-24T17:00:41Z"', "totals:",
+        "  tests: 1", "  passed: %d" % (spec["status"] == "passed"), "  failed: %d" % (spec["status"] == "failed"),
+        "  broken: 0", "  skipped: 0", ""]))
+    z.writestr("tests/t1/test.md", "---\\nid: t1\\n---\\nOpen Listly and check Buy milk is in the list\\n")
+    lines = ['evidence: "0.1"', "test: t1", "status: " + spec["status"], "duration_ms: 41000", "steps:"]
+    for i, s in enumerate(spec["steps"], 1):
+        lines += ["  - id: " + s["id"], "    ordinal: %d" % i, "    status: " + s["status"]]
+        if s.get("kind"): lines.append("    kind: " + s["kind"])
+        if s.get("expected"): lines.append("    expected: " + json.dumps(s["expected"]))
+        folder = "tests/t1/steps/%d-%s/" % (i, s["id"])
+        z.writestr(folder + "step.json", json.dumps({"action_id": "a%d" % i, "screenshot": "screenshot.jpg"}))
+        z.writestr(folder + "screenshot.jpg", b"\\xff\\xd8\\xff\\xe0 not really a jpeg")
+        if s.get("failure"):
+            z.writestr(folder + "failure.yaml", "\\n".join([
+                "step: " + s["id"], "status: failed", "title: " + s["failure"], "error:",
+                "  message: |", "    Expected Buy milk in the task list", "    but the list was empty", ""]))
+    z.writestr("tests/t1/result.yaml", "\\n".join(lines) + "\\n")
+`], JSON.stringify({ path, status: o.status, runStatus: o.runStatus ?? "finalized", steps: o.steps }));
+  assert.equal(r.code, 0, r.err);
+  return failed;
+}
+
+const TEN: RealStep[] = Array.from({ length: 10 }, (_, i) => ({ id: `step-${i + 1}`, status: "passed", kind: "action" }));
+TEN[9] = { id: "check-list", status: "passed", kind: "assert", expected: "Buy milk is in the list" };
+
+function realStoryboard(pack: string, args: string[] = [], flags: string[] = []) {
+  const out = join(pack, "..", "video");
+  const r = run("python3", ["-B", ...flags, STORYBOARD, pack, "--brief", join(pack, "..", "brief.md"), ...args, "--out", out]);
+  const file = join(out, "storyboard.json");
+  return { ...r, out, story: existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null };
+}
+
+test("a real passing Kane CLI pack shows PASSED, its steps in order, a duration and readable labels", opts, () => {
+  const sb = sandbox();
+  writeFileSync(sb.brief, FULL_BRIEF);
+  makeRealPack(sb.pack, { status: "passed", steps: TEN });
+  const r = realStoryboard(sb.pack);
+  assert.equal(r.code, 0, r.err);
+  const verdict = scene(r.story, "verdict") as Scene & { status: string; totals: Record<string, unknown> };
+  assert.equal(verdict.status, "passed");
+  assert.deepEqual(verdict.totals, { steps: 10, passed: 10, failed: 0, duration: "41s", status: "passed" });
+  assert.match(verdict.narration!, /^The run passed\. 10 steps/);
+  const steps = r.story.scenes.filter((s: { kind: string }) => s.kind === "step").map((s: { step: number }) => s.step);
+  assert.deepEqual(steps, [1, 2, 9, 10]);
+  assert.equal(scene(r.story, "pass-step-10")!.narration, "Step 10, Check: Buy milk is in the list.");
+  assert.equal(scene(r.story, "pass-step-2")!.narration, "Step 2, Step 2.");
+  assert.equal(scene(r.story, "objective")!.body, "Open Listly and check Buy milk is in the list");
+});
+
+test("a real failed pack shows the failing step's own message, and an aborted run never shows PASSED", opts, () => {
+  const sb = sandbox();
+  writeFileSync(sb.brief, FULL_BRIEF);
+  const steps = [{ id: "open", status: "passed" }, { id: "add", status: "passed" }, { id: "check-list", status: "failed", failure: "Buy milk missing from the list" }];
+  makeRealPack(sb.pack, { status: "failed", steps });
+  const r = realStoryboard(sb.pack);
+  assert.equal(r.code, 0, r.err);
+  assert.equal((scene(r.story, "verdict") as { status?: string }).status, "failed");
+  const bad = scene(r.story, "pass-step-3") as Scene & { error?: string; status?: string };
+  assert.equal(bad.status, "failed");
+  assert.equal(bad.error, "Buy milk missing from the list");
+  const aborted = sandbox();
+  writeFileSync(aborted.brief, FULL_BRIEF);
+  makeRealPack(aborted.pack, { status: "passed", runStatus: "aborted", steps: TEN.slice(0, 3) });
+  assert.equal((scene(realStoryboard(aborted.pack).story, "verdict") as { status?: string }).status, "failed");
+});
+
+test("without PyYAML (python -S) a real pack reads the same as with it", opts, () => {
+  const sb = sandbox();
+  writeFileSync(sb.brief, FULL_BRIEF);
+  makeRealPack(sb.pack, { status: "failed", steps: [{ id: "open", status: "passed" }, { id: "check-list", status: "failed", failure: "Buy milk missing from the list" }] });
+  const a = realStoryboard(sb.pack);
+  const b = realStoryboard(sb.pack, [], ["-S"]);
+  assert.equal(b.code, 0, b.err);
+  assert.deepEqual(b.story, a.story);
+});
+
+test("screenshots in a real pack can be .jpg, and keep their type when copied", opts, () => {
+  const sb = sandbox();
+  writeFileSync(sb.brief, FULL_BRIEF);
+  makeRealPack(sb.pack, { status: "passed", steps: TEN.slice(0, 2) });
+  const r = realStoryboard(sb.pack, ["--include-screenshots"]);
+  assert.equal(r.code, 0, r.err);
+  const img = (scene(r.story, "pass-step-1") as { image?: string }).image!;
+  assert.match(img, /^steps\/pass-01-01\.jpg$/);
+  assert.ok(existsSync(join(r.out, img)));
+});
+
+test("long Ship Page slugs and file names are not mistaken for secrets; real tokens still are", opts, () => {
+  const keep = ["https://www.kaneclihack.sh/ship/kestrel-release-checklist-agent-v2", "assets/screenshot-dashboard-after-login-final.png",
+    "The suite should pass 100% of checks", "Use the code v2.0 branch"];
+  assert.deepEqual(redact(keep), keep);
+  const secret = ["3f8a9c0d1e2b4a5f6c7d8e9f0a1b2c3d4e5f6a7b", "sk-proj-Ab3dEf9hIjKlMn0pQrStUvWxYz12345678AbCdEfGh"];
+  assert.deepEqual(redact(secret), ["[redacted]", "[redacted]"]);
+});
+
+test("brief screenshots are copied into the video folder, and a missing one is named", opts, () => {
+  const sb = sandbox();
+  mkdirSync(join(sb.dir, "shots"));
+  writeFileSync(join(sb.dir, "shots", "home.png"), "png");
+  writeFileSync(sb.brief, FULL_BRIEF + "demo: shots/home.png, shots/missing.png\nhero: shots/home.png\n");
+  makePack(sb.pack, "Open the app", STEPS.slice(0, 1));
+  const r = run("python3", ["-B", STORYBOARD, sb.pack, "--brief", sb.brief, "--out", sb.out], { cwd: sb.dir });
+  assert.equal(r.code, 0, r.err);
+  const story = JSON.parse(readFileSync(join(sb.out, "storyboard.json"), "utf8"));
+  assert.deepEqual((scene(story, "demo") as { images?: string[] }).images, ["assets/demo-1.png"]);
+  assert.equal((scene(story, "open") as { image?: string }).image, "assets/hero.png");
+  assert.ok(existsSync(join(sb.out, "assets", "demo-1.png")) && existsSync(join(sb.out, "assets", "hero.png")));
+  assert.match(r.err, /shots\/missing\.png/);
+});
+
+test("the video folder keeps itself out of git, since it holds pack-derived files", opts, () => {
+  const r = storyboard(FULL_BRIEF);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(readFileSync(join(r.sb.out, ".gitignore"), "utf8").trim(), "*");
+});
+
+test("neither renderer points viewers at the private evidence pack", () => {
+  for (const f of ["render_ffmpeg.py", "remotion/src/Showcase.tsx"])
+    assert.doesNotMatch(readFileSync(join(SCRIPTS, f), "utf8"), /evidence serve/, f);
+});
+
+// A fake `say`: writes `seconds` of tone, or (like `say` inside Codex's sandbox) a valid but empty file.
+function fakeSay(dir: string, seconds: number) {
+  const bin = join(dir, "bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, "say"), `#!/bin/sh
+out=""; while [ $# -gt 0 ]; do [ "$1" = "-o" ] && { out="$2"; shift; }; shift; done
+exec ffmpeg -v error -y -f lavfi -i "sine=frequency=440:sample_rate=22050" -t ${seconds} -c:a pcm_s16be "$out"
+`, { mode: 0o755 });
+  return bin;
+}
+
+function ttsBoard(scenes: object[]) {
+  const sb = sandbox();
+  mkdirSync(sb.out, { recursive: true });
+  writeFileSync(join(sb.out, "storyboard.json"), JSON.stringify({ project: "Listly", fps: 30, captions: true, brand: BRAND, scenes }));
+  return sb;
+}
+
+const tts = (sb: { dir: string; out: string }, seconds: number, flags = ["-B"]) =>
+  run("python3", [...flags, join(SCRIPTS, "tts.py"), join(sb.out, "storyboard.json"), "--provider", "say", "--out", join(sb.out, "audio")], { path: fakeSay(sb.dir, seconds) });
+
+test("an empty voice file (say inside Codex's sandbox) stops with a clear message, not a traceback", withFfmpeg, () => {
+  const sb = ttsBoard([{ id: "problem", kind: "card", seconds: 7, narration: "Families forget half the list." }]);
+  const r = tts(sb, 0);
+  assert.notEqual(r.code, 0);
+  assert.match(r.err + r.out, /no audio[\s\S]*sandbox/i);
+  assert.doesNotMatch(r.err, /Traceback/);
+});
+
+test("narration that mentions a todo app is voiced; a drafted placeholder is skipped and loses stale audio", withFfmpeg, () => {
+  const sb = ttsBoard([
+    { id: "pass-step-2", kind: "step", seconds: 3.5, narration: "Step 2, Add a TODO item." },
+    { id: "who", kind: "card", seconds: 6, audio: "audio/old.mp3", narration: "TODO narration: who it is for." },
+  ]);
+  const r = tts(sb, 1);
+  assert.equal(r.code, 0, r.err);
+  const story = JSON.parse(readFileSync(join(sb.out, "storyboard.json"), "utf8"));
+  assert.ok((scene(story, "pass-step-2") as { audio?: string }).audio);
+  assert.equal((scene(story, "who") as { audio?: string }).audio, undefined);
+});
+
+test("short narration doesn't squeeze the demo, verdict or outro below a watchable length", withFfmpeg, () => {
+  const sb = ttsBoard([
+    { id: "demo", kind: "demo", seconds: 10, images: ["a.png", "b.png"], narration: "You add a task." },
+    { id: "outro", kind: "outro", seconds: 7, narration: "Listly." },
+  ]);
+  const r = tts(sb, 1);
+  assert.equal(r.code, 0, r.err);
+  const story = JSON.parse(readFileSync(join(sb.out, "storyboard.json"), "utf8"));
+  assert.ok(scene(story, "demo")!.seconds! >= 6);
+  assert.ok(scene(story, "outro")!.seconds! >= 5);
+});
+
+test("narration that would say 'redacted' aloud is flagged", withFfmpeg, () => {
+  const sb = ttsBoard([{ id: "objective", kind: "card", seconds: 7, narration: "Sign in with password [redacted] and add a task." }]);
+  const r = tts(sb, 1);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out + r.err, /redacted[\s\S]*objective/i);
+});
+
+test("running the voice step leaves no bytecode in the installed skill", withFfmpeg, () => {
+  const cache = join(SCRIPTS, "__pycache__");
+  const sb = ttsBoard([{ id: "problem", kind: "card", seconds: 7, narration: "Families forget half the list." }]);
+  try {
+    const r = tts(sb, 1, []);
+    assert.equal(r.code, 0, r.err);
+    assert.equal(existsSync(cache), false);
+  } finally {
+    if (existsSync(cache)) spawnSync("rm", ["-r", cache]);
+  }
+});
+
+test("the ffmpeg renderer keeps one audio format, so a silent scene doesn't garble the voice after it", withPillow, () => {
+  const sb = videoDir("Families text lists and forget half of them");
+  const story = JSON.parse(readFileSync(join(sb.out, "storyboard.json"), "utf8"));
+  mkdirSync(join(sb.out, "audio"));
+  assert.equal(spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000", "-t", "1", "-ac", "1", join(sb.out, "audio", "02.mp3")]).status, 0);
+  story.width = 640;
+  story.height = 360;
+  story.scenes = [{ ...story.scenes[0], id: "silent", seconds: 1 }, { ...story.scenes[0], id: "voiced", seconds: 1.2, audio: "audio/02.mp3" }];
+  writeFileSync(join(sb.out, "storyboard.json"), JSON.stringify(story));
+  const mp4 = join(sb.out, "showcase.mp4");
+  const r = run(PY, ["-B", join(SCRIPTS, "render_ffmpeg.py"), join(sb.out, "storyboard.json"), "--out", mp4]);
+  assert.equal(r.code, 0, r.err);
+  const probe = run("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels", "-of", "csv=p=0", mp4]);
+  assert.equal(probe.out.trim(), "48000,1");
+});
+
+test("the ffmpeg renderer never drops caption words, even in the vertical cut", withPillow, () => {
+  const words = "Step 3 failed: the banner never showed the new task, because the list re-rendered before the save finished, so Kane caught a race that our own unit tests had missed for two days straight.";
+  const r = run(PY, ["-B", "-c", `
+import sys; sys.path.insert(0, sys.argv[1])
+import render_ffmpeg as rf
+from PIL import Image, ImageDraw, ImageFont
+rf.Image, rf.ImageDraw, rf.ImageFont = Image, ImageDraw, ImageFont
+sb = {"brand": {"bg": "#0B0F14", "accent": "#7CF2C4", "credit": "c"}, "captions": True}
+p = rf.Painter(sb, rf.Path("."), vertical=True)
+im, d = p.new()
+font, lines = p.caption_lines(d, sys.argv[2])
+print(" ".join(lines))
+`, SCRIPTS, words]);
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.out.trim(), words);
+});
+
+test("the brief's key: value line wins over prose further down that starts with the same word", opts, () => {
+  const sb = sandbox();
+  writeFileSync(sb.brief, FULL_BRIEF + "fix: The list re-rendered before the save finished.\n\n## How we used Kane CLI\nFix: we tried three things first.\n");
+  makePack(sb.pack, "Open the app", STEPS.slice(0, 2));
+  const fail = join(sb.dir, "fail.evidence");
+  makePack(fail, "Open the app", [{ title: "Open the todo app", status: "failed" }]);
+  const r = py([STORYBOARD, sb.pack, "--fail", fail, "--brief", sb.brief, "--out", sb.out]);
+  assert.equal(r.code, 0, r.err);
+  const story = JSON.parse(readFileSync(join(sb.out, "storyboard.json"), "utf8"));
+  assert.equal(scene(story, "fix")!.body, "The list re-rendered before the save finished.");
 });

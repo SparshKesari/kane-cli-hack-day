@@ -43,7 +43,7 @@ Before:
 > We're thrilled to announce Orbit, a game-changing release harness that leverages OpenAI's cutting-edge models and is rigorously verified by Kane CLI. It's not just a tool; it's a new way of shipping.
 
 After:
-> Orbit is a release harness we built in a day this Saturday. GPT-5 drafts the release notes from the diff, and Kane CLI runs the staging checklist in a real Chrome before anything goes out. The first four Kane runs failed. Post 3 explains why.
+> Orbit is a release harness we built in seven hours on Saturday. GPT-5 drafts the release notes from the diff, and Kane CLI runs the staging checklist in a real Chrome before anything goes out. The first four Kane runs failed. Post 3 explains why.
 
 Before:
 > Here's the thing: testing is hard. Kane CLI makes it seamless.

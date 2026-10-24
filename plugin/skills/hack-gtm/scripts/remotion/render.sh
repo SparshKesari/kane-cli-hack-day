@@ -37,9 +37,13 @@ while [ "$#" -gt 0 ]; do
 done
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 SRC_DIR="$(cd "$SRC_DIR" && pwd -P)"
+# On Windows `python3` is often the Microsoft Store stub, which exits without running anything.
+PY=python3
+if ! python3 -c "" >/dev/null 2>&1; then PY=python; fi
+if ! "$PY" -c "" >/dev/null 2>&1; then echo "render.sh needs Python 3 (python3 or python)" >&2; exit 2; fi
 
 # Resolve before any writes, including symlinks and nonexistent destinations.
-DEST_DIR="$(python3 -B - "$HERE" "$SRC_DIR" "$DEST_DIR" <<'PY'
+DEST_DIR="$("$PY" -B - "$HERE" "$SRC_DIR" "$DEST_DIR" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -66,7 +70,7 @@ PY
 )"
 
 # A drafted placeholder must never reach the video. Check before installing anything.
-python3 -B - "$HERE/.." "$SRC_DIR/storyboard.json" <<'PY'
+"$PY" -B - "$HERE/.." "$SRC_DIR/storyboard.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -96,7 +100,7 @@ mkdir -p public out
 printf 'node_modules/\npublic/\nout/\n.npm-cache/\n.cache/\n' > .gitignore
 cp "$HERE/package.json" "$HERE/tsconfig.json" .
 cp -R "$HERE/src" ./src
-python3 -B - "$HERE/.." "$SRC_DIR/storyboard.json" ./public/storyboard.json <<'PY'
+"$PY" -B - "$HERE/.." "$SRC_DIR/storyboard.json" ./public/storyboard.json <<'PY'
 import json
 import sys
 from pathlib import Path
