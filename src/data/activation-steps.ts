@@ -1,8 +1,7 @@
 // The /activate checklist: copy and links in one place.
 //
-// PLACEHOLDERS still to fill in before the event (search for "[" in this file):
-//   CODEX_REDEEM_INSTRUCTIONS    generic until the organizer sends the real steps
-//   [CODEX_REDEEM_URL]           where to redeem it
+// Step 3: the OpenAI Codex coupon is emailed to the address the person registered with;
+// the page says so and the person ticks it themselves.
 // The TestMu AI plan is claimed server-side (src/server/event-activation.ts) with the
 // password the person types; the same call creates the account, so it ticks step 1 too.
 // Step 2 asks for the kaneclihack.sh password, so a new TestMu AI account gets the same one:
@@ -12,9 +11,9 @@ export type ActivationStepId = "testmu_signup" | "testmu_plan" | "codex_credits"
 
 export const TESTMU_SIGNUP_URL = "https://www.testmuai.com";
 
-/** Shown under the Codex credit code once it is assigned. */
-export const CODEX_REDEEM_INSTRUCTIONS = "Copy your code, open the redemption page, sign in to OpenAI, and paste the code.";
-export const CODEX_REDEEM_URL = "[CODEX_REDEEM_URL]";
+/** Step 3 on /activate: where the coupon goes and what to do with it. */
+export const CODEX_BY_EMAIL = (email: string) =>
+  `Your OpenAI Codex coupon comes by email to ${email}. Open that email, redeem the coupon on OpenAI, then tick Credits enabled. Nothing after a while? Check spam, then ask at the help desk.`;
 
 /** True while a value above is still a placeholder (the UI then hides a dead link). */
 export const isPlaceholder = (s: string) => /^\[[A-Z_]+\]/.test(s);
@@ -36,7 +35,7 @@ export const ACTIVATION_STEPS: { id: ActivationStepId; n: string; title: string;
     id: "codex_credits",
     n: "03",
     title: "Enable your OpenAI Codex credits ($250)",
-    body: "Get your personal OpenAI Codex credit code, redeem it, then tick Done. One code per person; keep it to yourself.",
+    body: "Your personal OpenAI Codex coupon arrives by email at the address you registered with. Redeem it, then tick Credits enabled. One coupon per person; keep it to yourself.",
   },
 ];
 

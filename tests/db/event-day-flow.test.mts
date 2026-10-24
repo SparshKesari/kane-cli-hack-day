@@ -347,7 +347,9 @@ test("Codex codes: distinct under concurrency, re-shown, empty pool, upload dedu
   const [{ n }] = await m.db.query<{ n: number }>("select count(*)::int as n from codex_credit_codes where assigned_member_id = $1 and status = 'assigned'", [a.id]);
   assert.equal(n, 1);
   // Codex tick needs the code; with it, all three done → activated_at.
-  await assert.rejects(m.act.setTick(c, "codex_credits", true), /code first/);
+  // The coupon comes by email now, so step 3 ticks without a code from the pool.
+  await m.act.setTick(c, "codex_credits", true);
+  assert.ok((await m.act.getActivationView(c.id)).ticks.has("codex_credits"));
   await m.act.setTick(a, "codex_credits", true);
   // Revoked codes are never handed out again.
   const [row] = await m.db.query<{ id: number }>("select id from codex_credit_codes where code = $1", [cb.code]);

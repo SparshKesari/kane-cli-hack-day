@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.5
+# Version: 0.1.6
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
@@ -32,9 +32,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.5"
-KANEHACK_SHA256="2e6c64ca08a1380ac620e93d631dcc7f4b556fea9a0eb6ea4ee32e01f8f074a5"
-SKILLS_SHA256="d6a3f312962e0ec92cad7cd116d99bf67844376ef65ea28703bf777fe4c998f3"
+KANEHACK_VERSION="0.1.6"
+KANEHACK_SHA256="71f3f0265cf1a54a7c96079f51b5ecd253b2dd29d4e9c363c552c5f24df77ba3"
+SKILLS_SHA256="463d8a46f9701ccfab99f41db650b06e11804b02ad1a42efe8440e00d909a0ce"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -353,13 +353,12 @@ if [ -z "$NO_AGENTS" ]; then
 fi
 
 echo
-echo "Next:"
-echo "  1. ${KH} pair        link this machine to your passport"
-echo "     (from Codex, no terminal: ${KH} pair --start, approve the code in your browser, then ${KH} pair --wait)"
+echo "Next, in this terminal:"
+echo "  1. ${KH} pair        link this machine to your passport (approve the code it shows in your browser)"
 echo "  2. ${KH} doctor      re-check your setup"
 echo "  3. ${KH} report -- kane-cli run \"Open ${SITE} and find the schedule\" --agent"
 echo "     (your first Kane run, sent to your team's Proof tab)"
-if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-os'; fi
+if [ -n "$AGENTS_SHOWN" ]; then echo 'Then in Codex: start a new session and type $hack-os'; fi
 echo "Web: ${SITE}/passport"
 if [ "$NO_TTY_SKIPS" -gt 0 ]; then
   SITE_ARG=""; [ "$SITE" != "$DEFAULT_SITE" ] && SITE_ARG=" --site ${SITE}"

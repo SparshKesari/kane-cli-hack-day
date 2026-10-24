@@ -1,5 +1,5 @@
 # Kane CLI Hack Day installer for Windows: https://www.kaneclihack.sh/install.ps1
-# Version: 0.1.5
+# Version: 0.1.6
 #
 # Read me before you run me. This script checks Node, Git, Chrome, the OpenAI
 # Codex CLI, Kane CLI, Kane auth, the official Kane CLI skill, the hack skills
@@ -28,9 +28,9 @@ param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [stri
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-$KanehackVersion = "0.1.5"
-$KanehackSha256 = "2e6c64ca08a1380ac620e93d631dcc7f4b556fea9a0eb6ea4ee32e01f8f074a5"
-$SkillsSha256 = "d6a3f312962e0ec92cad7cd116d99bf67844376ef65ea28703bf777fe4c998f3"
+$KanehackVersion = "0.1.6"
+$KanehackSha256 = "71f3f0265cf1a54a7c96079f51b5ecd253b2dd29d4e9c363c552c5f24df77ba3"
+$SkillsSha256 = "463d8a46f9701ccfab99f41db650b06e11804b02ad1a42efe8440e00d909a0ce"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -290,13 +290,12 @@ if (-not $NoAgents) {
   }
 }
 
-Write-Host "`nNext:"
-Write-Host "  1. $kh pair        link this machine to your passport"
-Write-Host "     (from Codex, no terminal: $kh pair --start, approve the code in your browser, then $kh pair --wait)"
+Write-Host "`nNext, in this terminal:"
+Write-Host "  1. $kh pair        link this machine to your passport (approve the code it shows in your browser)"
 Write-Host "  2. $kh doctor      re-check your setup"
 Write-Host "  3. $kh report -- kane-cli run `"Open $Site and find the schedule`" --agent"
 Write-Host "     (your first Kane run, sent to your team's Proof tab)"
-if ($agentsShown) { Write-Host '  4. In a new Codex session type $hack-os' }
+if ($agentsShown) { Write-Host 'Then in Codex: start a new session and type $hack-os' }
 Write-Host "Web: $Site/passport"
 if ($script:NoTtySkips -gt 0) {
   $siteArg = if ($Site -ne $DefaultSite) { " -Site $Site" } else { "" }
