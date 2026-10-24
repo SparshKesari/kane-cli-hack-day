@@ -25,9 +25,10 @@ export async function tickAction(step: ActivationStepId, done: boolean): Promise
   return r.ok ? { ok: true } : { ok: false, message: r.error.message };
 }
 
-export async function claimPlanAction(): Promise<ActState> {
+export async function claimPlanAction(form: FormData): Promise<ActState> {
   const member = await requirePersonalMember();
-  const r = await runAction(async () => claimPlan(member));
+  const password = form.get("password");
+  const r = await runAction(async () => claimPlan(member, typeof password === "string" ? password : ""));
   if (r.ok && r.data.outcome === "claimed") await onToSetupIfDone(member.id);
   refresh();
   if (!r.ok) return { ok: false, message: r.error.message };

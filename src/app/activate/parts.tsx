@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { Label, inputCls } from "@/components/forms/fields";
 import type { ActivationStepId } from "@/data/activation-steps";
 import { claimPlanAction, codexCodeAction, tickAction, type ActState } from "./actions";
 
@@ -44,7 +45,11 @@ export function TickButton({ step, done, label = "Done" }: { step: ActivationSte
 export function ClaimPlanButton({ retry, label }: { retry: boolean; label?: string }) {
   const [state, setState] = useState<ActState>(null);
   return (
-    <form action={async () => setState(await claimPlanAction())} className="flex flex-wrap items-center gap-3">
+    <form action={async (form) => setState(await claimPlanAction(form))} className="flex flex-wrap items-end gap-3">
+      <div className="min-w-60 flex-1">
+        <Label htmlFor="plan-pw" hint="New to TestMu AI? Choose one, 8+ characters">TestMu AI password</Label>
+        <input id="plan-pw" name="password" type="password" required minLength={8} maxLength={255} autoComplete="current-password" className={`${inputCls} min-h-11`} />
+      </div>
       <Submit className={primary} pending="Activating…">
         {label ?? (retry ? "Try again" : "Activate my plan")}
       </Submit>

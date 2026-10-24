@@ -3,7 +3,7 @@
 // upload is parsed, deduped and masked.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { claimErrorText, mapClaimResponse } from "../../src/lib/testmu-claim.ts";
+import { claimErrorText, mapClaimResponse, redactClaimBody } from "../../src/lib/testmu-claim.ts";
 import { maskCode, parseCodexCodes, splitCsvLine } from "../../src/lib/codex-codes.ts";
 
 test("any 2xx is a claim", () => {
@@ -38,7 +38,53 @@ test("everything else is a plain error with a detail for staff", () => {
   assert.equal(mapClaimResponse(401, { message: "Unauthorized" }).outcome, "error");
   assert.equal(mapClaimResponse(429, {}).outcome, "error");
   const timeout = mapClaimResponse(null, undefined, "timeout");
-  assert.deepEqual(timeout, { outcome: "error", detail: "timeout" });
+  assert.deepEqual(timeout, { outcome: "error", detail: "timeout", reason: "retry" });
+});
+
+// The live API (Hack Day 2026 FE spec): POST {email, password, …}; several outcomes are HTTP 200.
+const live = (code: string, extra: Record<string, unknown> = {}) => ({ code, message: "m", user_id: 1, username: "jane", access_token: "tok-secret", organization_id: 7, ...extra });
+
+test("the live API's four success codes are a claim", () => {
+  for (const c of ["SIGNEDUP", "JOINED_TEAM", "ALREADY_CLAIMED", "ALREADY_ACTIVE"]) assert.equal(mapClaimResponse(200, live(c)).outcome, "claimed", c);
+});
+
+test("INELIGIBLE is not a claim, even with a 200", () => {
+  const r = mapClaimResponse(200, { code: "INELIGIBLE", message: "This account is not eligible for the Hack Day trial." });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "ineligible");
+});
+
+test("an unknown code with a 2xx is not a claim", () => {
+  assert.equal(mapClaimResponse(200, { code: "SOMETHING_NEW" }).outcome, "error");
+});
+
+test("a wrong password for an existing account says so", () => {
+  const r = mapClaimResponse(401, { code: "INVALID_CREDENTIALS", message: "Incorrect email or password." });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "wrong_password");
+});
+
+test("field errors come back to the person", () => {
+  const r = mapClaimResponse(422, { code: "INVALID_REQUEST", errors: { password: ["The password must be at least 8 characters."] } });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "invalid");
+  assert.deepEqual(r.fields, ["The password must be at least 8 characters."]);
+});
+
+test("region, campaign end, rate limit and FAILED each say what happened", () => {
+  assert.equal(mapClaimResponse(403, { code: "REGION_NOT_SUPPORTED", message: "US only" }).reason, "region");
+  assert.equal(mapClaimResponse(410, { code: "CAMPAIGN_ENDED" }).reason, "ended");
+  assert.equal(mapClaimResponse(429, { message: "Too Many Attempts." }).reason, "retry");
+  assert.equal(mapClaimResponse(502, { code: "FAILED" }).reason, "retry");
+  assert.equal(mapClaimResponse(null, undefined, "network error").reason, "retry");
+});
+
+test("credentials in the API's answer are never stored or shown to staff", () => {
+  const stored = JSON.stringify(redactClaimBody(live("SIGNEDUP", { nested: { password: "p", accessKey: "k" } })));
+  for (const s of ["tok-secret", "\"p\"", "\"k\""]) assert.ok(!stored.includes(s), `${s} in ${stored}`);
+  assert.match(stored, /"code":"SIGNEDUP"/);
+  assert.match(stored, /"username":"jane"/);
+  assert.ok(!(mapClaimResponse(401, { code: "INVALID_CREDENTIALS", access_token: "tok-secret" }).detail ?? "").includes("tok-secret"));
 });
 
 test("claim error text flattens code, message and field errors", () => {

@@ -4,7 +4,8 @@
 //     password or a desk code
 //   - joining a team by any route takes the person out of the matchmaking pool
 //   - activation ticks persist, the TestMu AI plan claim uses the member's own
-//     email, is stored once, and can be retried after a failure
+//     email, is stored once, and can be retried after a failure; the password
+//     goes to TestMu AI once and is never stored, nor are the credentials it returns
 //   - Codex credit codes: one per member under concurrency, re-shown, empty pool
 //     message, upload dedupe
 //
@@ -33,7 +34,7 @@ const ids = { staff: 0, codes: [] as string[] };
 let organizer: { id: number; name: string; email: string | null; role: "organizer" };
 let server: Server;
 let port = 0;
-const claimBodies: { email: string; source: string }[] = [];
+const claimBodies: { email: string; password?: string; source: string }[] = [];
 let claimStatus = 200;
 
 before(async () => {
@@ -48,7 +49,17 @@ before(async () => {
     req.on("end", () => {
       claimBodies.push(JSON.parse(body));
       res.writeHead(claimStatus, { "content-type": "application/json" });
-      res.end(JSON.stringify(claimStatus === 200 ? { status: "claimed" } : claimStatus === 404 ? { code: "USER_NOT_FOUND" } : { code: "UNAVAILABLE" }));
+      res.end(
+        JSON.stringify(
+          claimStatus === 200
+            ? { code: "SIGNEDUP", message: "Trial activated.", user_id: 1, username: "qa", access_token: "tok-secret-live", organization_id: 7 }
+            : claimStatus === 401
+              ? { code: "INVALID_CREDENTIALS", message: "Incorrect email or password." }
+              : claimStatus === 404
+                ? { code: "USER_NOT_FOUND" }
+                : { code: "UNAVAILABLE" },
+        ),
+      );
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
@@ -230,33 +241,57 @@ test("activation ticks persist and the plan claim uses the member's own email, o
   assert.ok((await m.act.getActivationView(me.id)).ticks.has("testmu_signup"));
   await assert.rejects(m.act.setTick(me, "testmu_plan", true), /ticked when your plan activates/);
 
+  // A password the API would refuse never leaves the site.
+  const PW = "correct-horse-9";
+  const before = claimBodies.length;
+  await assert.rejects(m.act.claimPlan(me, "short"), /at least 8 characters/);
+  assert.equal(claimBodies.length, before, "no call for a short password");
+
   // A failure is stored and can be retried.
   claimStatus = 503;
-  const before = claimBodies.length;
-  const fail = await m.act.claimPlan(me);
+  const fail = await m.act.claimPlan(me, PW);
   assert.equal(fail.outcome, "error");
   assert.equal(claimBodies.length, before + 1);
-  assert.equal(claimBodies.at(-1)!.email, email("act"), "email comes from the member row");
+  const sent = claimBodies.at(-1)!;
+  assert.equal(sent.email, email("act"), "email comes from the member row");
+  assert.equal(sent.password, PW, "the password goes to TestMu AI as typed");
+  assert.equal(sent.source, "website");
   let row = (await m.db.query<{ status: string; last_error: string; http_status: number }>("select status, last_error, http_status from testmu_plan_claims where member_id = $1", [me.id]))[0];
   assert.equal(row.status, "error");
   assert.equal(row.http_status, 503);
 
-  // Not registered un-ticks step 1.
+  // A wrong password for an existing account says so.
+  claimStatus = 401;
+  const wrong = await m.act.claimPlan(me, PW);
+  assert.equal(wrong.outcome, "error");
+  assert.match(wrong.message, /password/i);
+
+  // Not registered (the older API's answer) un-ticks step 1.
   claimStatus = 404;
-  const nr = await m.act.claimPlan(me);
+  const nr = await m.act.claimPlan(me, PW);
   assert.equal(nr.outcome, "not_registered");
   assert.match(nr.message, new RegExp(email("act").replace(/\./g, "\\.")));
   assert.ok(!(await m.act.getActivationView(me.id)).ticks.has("testmu_signup"));
 
-  // Success is stored once; a second press never calls the API again.
+  // Success is stored once and ticks steps 1 and 2; a second press never calls the API again.
   claimStatus = 200;
-  assert.equal((await m.act.claimPlan(me)).outcome, "claimed");
+  assert.equal((await m.act.claimPlan(me, PW)).outcome, "claimed");
   const calls = claimBodies.length;
-  assert.equal((await m.act.claimPlan(me)).outcome, "claimed");
+  assert.equal((await m.act.claimPlan(me, PW)).outcome, "claimed");
   assert.equal(claimBodies.length, calls, "no second call after success");
   row = (await m.db.query<{ status: string; last_error: string; http_status: number }>("select status, last_error, http_status from testmu_plan_claims where member_id = $1", [me.id]))[0];
   assert.equal(row.status, "claimed");
-  assert.ok((await m.act.getActivationView(me.id)).ticks.has("testmu_plan"));
+  const ticks = (await m.act.getActivationView(me.id)).ticks;
+  assert.ok(ticks.has("testmu_plan"), "step 2 ticked");
+  assert.ok(ticks.has("testmu_signup"), "a claim also means the TestMu AI account exists");
+
+  // Neither the password nor the returned credentials are kept anywhere.
+  const kept = await m.db.query<{ t: string }>(
+    "select row_to_json(c)::text as t from testmu_plan_claims c where member_id = $1 union all select row_to_json(a)::text from audit_events a where resource_type = 'testmu_plan_claim' and resource_id::text = $2",
+    [me.id, String(me.id)],
+  );
+  assert.ok(kept.length > 1, "the claim row and its audit entries were read");
+  for (const r of kept) for (const secret of [PW, "tok-secret-live"]) assert.ok(!r.t.includes(secret), `${secret} stored: ${r.t.slice(0, 120)}`);
 });
 
 test("the real claim API is never called outside production", { skip }, async () => {
