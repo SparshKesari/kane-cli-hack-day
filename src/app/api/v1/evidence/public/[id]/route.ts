@@ -4,7 +4,7 @@ import { getPublicEvidenceObject, objectEnvelope, removalEnvelope, removePublicE
 
 // GET|DELETE /api/v1/evidence/public/{PE-n}: read one public evidence object, or unpublish it.
 //   GET     the object and its status (the team, or judges, mentors and organizers).
-//   DELETE  { reason? }: a team member before the submission lock, an organizer at any time.
+//   DELETE  { reason? }: a team member or an organizer, at any time.
 //           Deletes the public object and sets status removed.
 
 export async function GET(req: Request, ctx: RouteContext<"/api/v1/evidence/public/[id]">) {

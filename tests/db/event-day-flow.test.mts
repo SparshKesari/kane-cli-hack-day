@@ -404,6 +404,20 @@ test("an idea still saves after the idea lock time, and nothing freezes it", { s
   }
 });
 
+// Ideas frozen at the idea lock before that was switched off still save, and come out of the freeze.
+test("a frozen idea still saves and is no longer frozen", { skip }, async () => {
+  const { saveIdea, getIdea } = await import("../../src/server/ideas.ts");
+  await register("ideaFrozen");
+  const me = (await viewer())!;
+  const { teamId } = await m.teams.createTeam(acting(me), { name: `${tag} Frozen Idea` });
+  await saveIdea(acting(me), teamId, { title: "Before noon", private_description: "First pass." });
+  await m.db.query("update ideas set status = 'frozen', frozen_at = now() where team_id = $1", [teamId]);
+  assert.equal((await getIdea(teamId))!.locked, false);
+  await saveIdea(acting(me), teamId, { title: "After noon", private_description: "Second pass." });
+  const idea = (await getIdea(teamId))!;
+  assert.deepEqual([idea.title, idea.status, idea.frozen_at, idea.locked], ["After noon", "draft", null, false]);
+});
+
 test("skills added on /match survive a later profile save", { skip }, async () => {
   await register("keepSkills", { skills: "", interests: "" });
   const me = (await viewer())!;
