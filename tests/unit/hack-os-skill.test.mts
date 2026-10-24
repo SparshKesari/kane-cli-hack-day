@@ -60,7 +60,10 @@ test("every MCP tool named in the skill is registered in src/server/mcp.ts", () 
 
 test("only official hosts appear", () => {
   // www.testmuai.com: the official Kane CLI agent docs, linked from the event's idea validator.
-  const allowed = new Set(["kaneclihack.sh", "www.kaneclihack.sh", "github.com", "www.testmuai.com"]);
+  // kaneai-api.lambdatest.com: the read-only Kane APIs in references/kane-apis.md and its two specs;
+  // www.lambdatest.com: the exploration spec's license and support links; example.com and
+  // storage.example.com: reserved example domains in the specs' sample answers.
+  const allowed = new Set(["kaneclihack.sh", "www.kaneclihack.sh", "github.com", "www.testmuai.com", "kaneai-api.lambdatest.com", "www.lambdatest.com", "example.com", "storage.example.com"]);
   for (const f of textFiles())
     for (const [u] of read(f).matchAll(/https?:\/\/[^\s)>"'`\]]+/g)) {
       const host = new URL(u.replace(/[.,;:]+$/, "").replace(/[{}<>]/g, "x")).hostname;

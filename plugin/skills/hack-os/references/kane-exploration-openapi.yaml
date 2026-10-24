@@ -1,0 +1,2259 @@
+openapi: 3.1.0
+info:
+  title: KaneAI Exploration API (read-only)
+  version: "12.0"
+  license:
+    name: Proprietary
+    url: https://www.lambdatest.com/legal/terms-of-service
+  contact:
+    name: LambdaTest KaneAI
+    url: https://www.lambdatest.com/support
+  summary: Read the maps, findings and evidence that KaneAI explorations recorded.
+  description: |
+    The read-only Kane AI exploration API. Every route here is a `GET`
+    that you call with **your own LambdaTest credentials**; none of them changes an exploration.
+    (One has a small side effect, stated in its description: `GET /exploration/labels`.)
+
+    `info.version` is the API's version (`12.0`).
+
+    ## Concepts
+
+    | Term | What it is | Id shape |
+    |---|---|---|
+    | **Project** | A LambdaTest project. It holds **at most one live exploration**. | opaque string |
+    | **Exploration** | The long-lived record of one site being explored: target URL, prompt, policy, and the **map** built so far. | UUIDv7, e.g. `0199f3a2-7c41-7d2e-9b1a-3f5c2e8d4a10` |
+    | **Run** (also called a **session**) | One execution of the explorer against an exploration. Runs add to the same map. States: `queued` → `running` → `stopped`. | UUIDv7 |
+    | **Junction** (a *screen*) | One distinct screen of the site, with its controls (*affordances*), versions and notes. | ULID (26 Crockford base32 chars, e.g. `01JAB3C4D5E6F7G8H9JKMNPQRS`) or 64 lowercase hex |
+    | **Flow** | A verified path between screens: an entry junction, an exit junction, and the steps between. | ULID |
+    | **Candidate** | A control on a screen that has not become a flow yet (the frontier). | 64 lowercase hex (content hash) |
+    | **Observation** | One walk of a flow in one run: its outcome and its recorded steps. | 64 lowercase hex |
+    | **Finding** | Something worth a person's attention (console error, broken link, slow page, accessibility issue, …), with one *occurrence* per run that saw it. | 64 lowercase hex |
+    | **Alias** | A junction id folded into another one (`from` → `to`). | – |
+    | **Feedback record** | A note, label, verdict, do-not-touch or resolve that a person or the agent attached to an item. | `fb-<uuidv7>` |
+    | **Label** | A project's tag that can be applied to findings, flows or junctions. | `label-<uuidv7>` |
+
+    ## Typical sequence for an agent
+
+    1. `GET /exploration?state=all` — list explorations in your org; pick an `exploration_id`.
+    2. `GET /exploration/{id}/view/summary` — counts, runs, labels, and a `change_cursor`.
+    3. `GET /exploration/{id}/view/findings` (then `?cursor=<next>` until `next` is `null`) —
+       every finding as a row. Do the same for `/view/flows` and `/view/junctions` if you need them.
+    4. `GET /exploration/{id}/view/findings/{finding_id}` — one finding with all its occurrences.
+    5. `GET /exploration/{id}/view/screenshot?finding=<id>&run=<run_id>` and
+       `GET /exploration/{id}/view/evidence?finding=<id>&run=<run_id>&file=network` — each answers
+       a **signed URL** (valid 10 minutes) that you fetch **without** an `Authorization` header.
+    6. Optional: `GET /exploration/{id}/sessions` for the runs, `GET /exploration/{id}/skill` for the
+       English "how this site works" skill the explorer keeps.
+
+    ## Reading a map
+
+    The `/view/*` routes split the map into paged rows and detail panels, and every string is passed
+    through a secret fence: text that looks like a credential, token, JWT or email address is replaced
+    by `REDACTED` or a placeholder such as `{email}` / `{key}`, and only allow-listed fields are
+    served. Screenshot and evidence storage paths never appear; you ask the server to sign one instead.
+
+    ## Pagination
+
+    * `GET /exploration` and `GET /exploration/{id}/sessions`: `limit` (1–100, default 20) and an
+      opaque `cursor`; the response's `next_cursor` is `null` on the last page.
+    * `/view/{junctions|flows|findings|aliases}` and the detail lists
+      (`/view/junctions/{item}/candidates`, `/view/flows/{item}/observations`): a fixed page of
+      **500** rows; pass the response's `next` back as `cursor`. `next` is `null` on the last page.
+      View cursors are signed and bound to one exploration and one list; a cursor from another list
+      is `400 INVALID_REQUEST "bad cursor"`.
+    * `/view/changes`: incremental reads from the summary's `change_cursor` (see that operation).
+
+    ## Past runs (`as_of_run`)
+
+    Every `/view/*` route and `skill` take `as_of_run=<run_id>`: the map as it was at
+    the end of that run. A past run's map never changes and is served from a cache for 10 minutes.
+
+    ## Limits and behaviour worth knowing
+
+    * Unknown query parameters are refused with `400 INVALID_REQUEST` on the list, sessions,
+      `assurance/head` and all `/view/*` routes.
+    * Explorations are **org-scoped**: an exploration of another org is `404 NOT_FOUND`, never `403`.
+    * An exploration recorded by an older explorer version is never served: `409 EXPLORATION_OUTDATED`.
+    * While the service is being updated, every route answers
+      `503 NOT_READY`.
+    * Signed screenshot/evidence URLs live 600 seconds (`expires_in`).
+    * The server-sent-event stream `/view/stream` ends after 30 minutes; reconnect.
+    * `/view/changes` answers `reset: true` (re-read the map) when more than 5000 rows changed.
+    * There is no rate limit; please poll politely. To follow a running exploration, open
+      `/view/stream` and call `/view/changes` on each event instead of re-reading the pages.
+
+    ## Errors
+
+    Exploration errors share one envelope: `{"code": "<CODE>", "error": "<readable line>", ...}`,
+    sometimes with `problems` (a list of strings) or other facts. The sign-in check that
+    runs before these routes answers `401` with `{"error": "..."}` and no `code`.
+servers:
+  - url: https://kaneai-api.lambdatest.com/v16-controller/v1
+    description: Production
+security:
+  - basicAuth: []
+  - bearerAuth: []
+tags:
+  - name: Explorations
+    description: List the explorations in your org.
+  - name: Sessions
+    description: The runs (sessions) of one exploration.
+  - name: Map view
+    description: |
+      The paged, fenced view of an exploration's map: summary, rows of screens (junctions), flows,
+      findings and aliases, and their detail panels. This is what the KaneAI explore viewer reads.
+  - name: Findings & evidence
+    description: Findings, their screenshots and evidence packs.
+  - name: Context
+    description: The exploration's skill and its assurance export cursor.
+  - name: Feedback
+    description: Feedback records people and the agent attached to items, and the project's labels.
+
+paths:
+  /exploration:
+    get:
+      tags: [Explorations]
+      operationId: listExplorations
+      summary: List explorations
+      description: |
+        The explorations of your org, newest first (by creation time). By default (`state=running`)
+        only explorations that have a queued or running session are listed; use `state=all` to list
+        every exploration that has not been deleted. Each row carries the current (queued/running)
+        session, the latest session, and, when explore context is set up, a one-line context status.
+
+        Start here to find an `exploration_id`.
+      parameters:
+        - name: state
+          in: query
+          description: "`running` (default): only explorations with a queued or running session. `all`: every live (not deleted) exploration."
+          schema:
+            type: string
+            enum: [running, all]
+            default: running
+        - name: project
+          in: query
+          description: Only the exploration of this project id.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/PageCursor"
+      responses:
+        "200":
+          description: One page of explorations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [explorations, next_cursor]
+                properties:
+                  explorations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ExplorationRow"
+                  next_cursor:
+                    type: [string, "null"]
+                    description: Pass as `cursor` for the next page; `null` on the last page.
+              example:
+                explorations:
+                  - exploration_id: 0199f3a2-7c41-7d2e-9b1a-3f5c2e8d4a10
+                    project_id: 01JAB2M3N4P5Q6R7S8T9V0W1X2
+                    name: Example storefront
+                    target_url: https://example.com/
+                    created_at: "2026-10-20T09:12:44.512Z"
+                    created_by_user_id: 100001
+                    running: false
+                    current_session: null
+                    last_session:
+                      run_id: 0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                      exploration_id: 0199f3a2-7c41-7d2e-9b1a-3f5c2e8d4a10
+                      version: 3
+                      state: stopped
+                      remark: { code: completed, message: "explored to the end of the frontier" }
+                      stop_reason: frontier_empty
+                      mode: local
+                      policy: read_only
+                      started_by_user_id: 100001
+                      started_at: "2026-10-21T08:00:03Z"
+                      claimed_at: null
+                      ended_at: "2026-10-21T08:41:57Z"
+                      stop_requested_at: null
+                      stopped_by_user_id: 100001
+                      hx_job_id: null
+                      hx_job_link: null
+                      requested: null
+                      leases: 42
+                      findings: 7
+                      credits: { total: 118.5, calls: 311, by_node: {}, by_phase: {} }
+                    context: { enabled: true, last_job_status: ok, running: false }
+                next_cursor: null
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/sessions:
+    get:
+      tags: [Sessions]
+      operationId: listSessions
+      summary: List an exploration's sessions
+      description: |
+        The exploration's runs ("sessions"), newest first (by run version). Use it to find run ids
+        for `as_of_run`, or to see how each run ended (`remark`), what it cost (`credits`), and how
+        many leases and findings it produced.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/PageCursor"
+      responses:
+        "200":
+          description: One page of sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exploration_id, sessions, next_cursor]
+                properties:
+                  exploration_id: { type: string }
+                  sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Session" }
+                  next_cursor:
+                    type: [string, "null"]
+                    description: Pass as `cursor` for the next page; `null` on the last page.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/sessions/{run}:
+    get:
+      tags: [Sessions]
+      operationId: getSession
+      summary: Get one session
+      description: One run of the exploration, the same shape as a row of `listSessions`.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/RunPath"
+      responses:
+        "200":
+          description: The session.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/summary:
+    get:
+      tags: [Map view]
+      operationId: getViewSummary
+      summary: Map summary
+      description: |
+        The map at a glance: counts of junctions, flows, findings, aliases and observations; the
+        exploration's runs; the project's labels; the owner's merge/split verdicts; and a
+        `change_cursor` to start incremental reads with `/view/changes`. Read this first.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The summary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ViewSummary" }
+              example:
+                view_version: "1.0"
+                exploration_id: 0199f3a2-7c41-7d2e-9b1a-3f5c2e8d4a10
+                project_id: 01JAB2M3N4P5Q6R7S8T9V0W1X2
+                as_of_run: null
+                entry: 01JAB3C4D5E6F7G8H9JKMNPQRS
+                runs:
+                  - run_id: 0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                    locale: en-US
+                    complete: true
+                    started_at: "2026-10-21T08:00:03Z"
+                labels: []
+                verdicts: []
+                rejected_pairs: []
+                last_seq: 57
+                attempt: null
+                counts: { junctions: 24, flows: 31, findings: 7, aliases: 2, observations: 66 }
+                change_cursor: eyJlIjoiMDE5OWYzYTIiLCJrIjoiY2hhbmdlcyIsImMiOjU3fQ.c2lnbmF0dXJlLWV4YW1wbGU
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/junctions:
+    get:
+      tags: [Map view]
+      operationId: listViewJunctions
+      summary: Page through screens (junctions)
+      description: |
+        Every junction (screen) as a row, ordered by id, 500 per page. A row is the fenced junction
+        without its affordances, versions, instances and description (fetch
+        `/view/junctions/{item}` for those), plus summaries: `control_groups`, `version_count`,
+        `instance_count`, `cand` (candidates and frontier), `load_blocked` and `arrive` (credits spent
+        reaching it). A junction folded into another (see aliases) has empty `cand` and `arrive`.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of junction rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/JunctionRow" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/flows:
+    get:
+      tags: [Map view]
+      operationId: listViewFlows
+      summary: Page through flows
+      description: |
+        Every flow as a row, ordered by id, 500 per page. A row is the fenced flow without its `plan`
+        and `description` (fetch `/view/flows/{item}`), plus `obs`: how many observations it has, the
+        latest outcome, what blocked loading, and its cost.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of flow rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlowRow" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/findings:
+    get:
+      tags: [Findings & evidence]
+      operationId: listViewFindings
+      summary: Page through findings
+      description: |
+        Every finding as a row, ordered by id, 500 per page. A row is the fenced finding without its
+        `occurrences`, plus `occ`: the number of occurrences, the runs that saw it, and the latest
+        run's screenshot facts (whether one exists, its size and overlay boxes). Fetch
+        `/view/findings/{item}` for the occurrences and their evidence.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of finding rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/FindingRow" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+              example:
+                rows:
+                  - id: 366edfacccb51ea7d04d09be9ea851db9b0f902255828947c274ed6951ce998f
+                    kind: broken_link
+                    severity: medium
+                    category: broken
+                    title: "Footer link to /careers answers 404"
+                    description: "The footer's Careers link leads to a page that answers 404."
+                    status: open
+                    confirmed: true
+                    feedback: []
+                    occ:
+                      count: 2
+                      runs: [0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f]
+                      latest_shot:
+                        screenshot: true
+                        screenshot_size: { w: 1280, h: 713 }
+                        annotations:
+                          - bbox: { x: 912, y: 640, w: 64, h: 18 }
+                            label: Careers
+                            kind: target
+                        run_id: 0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                next: null
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/aliases:
+    get:
+      tags: [Map view]
+      operationId: listViewAliases
+      summary: Page through junction aliases
+      description: |
+        The map's junction aliases (`from` was folded into `to`), ordered by `from`, 500 per page.
+        Use it to resolve a junction id you hold (say, from an occurrence) to the screen the map now
+        draws it as.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of aliases.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/AliasRow" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/changes:
+    get:
+      tags: [Map view]
+      operationId: getViewChanges
+      summary: Rows changed since a cursor
+      description: |
+        Incremental reads. Start with the summary's `change_cursor`; each answer lists the rows
+        (junctions, flows, findings, aliases) stamped since that cursor, with their new row (`row:
+        null` when the item left the map), the summary again, and `next`, the cursor for the next
+        read. Nothing new: `changes` is empty, `summary` is `null` and `next` is the cursor you sent.
+        `reset: true` means more than 5000 rows changed: re-read the map from the pages. With
+        `as_of_run` the answer is always empty (a past run's map never changes). `more` is always
+        `false`.
+
+        Pair it with `/view/stream`, which tells you when to call this.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: cursor
+          in: query
+          required: true
+          description: A change cursor (the summary's `change_cursor`, or a previous answer's `next`).
+          schema: { type: string }
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The changes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ViewChanges" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/stream:
+    get:
+      tags: [Map view]
+      operationId: streamViewChanges
+      summary: Server-sent events when the map moves
+      description: |
+        A `text/event-stream` that tells you when committed progress moved the map (or the project's
+        labels changed). It sends:
+
+        * `: open` once, then `: ping` comments every 15 seconds to keep the line open;
+        * `event: change` with `data: {"change": <n>, "labels": <n>}` whenever either counter moved.
+
+        On a `change` event, call `/view/changes` with your cursor. Your access is checked again before
+        each event; the stream simply ends if it was revoked. Every stream ends after 30 minutes;
+        open another. `as_of_run` is accepted but ignored.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The event stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE frames as described above.
+              example: |
+                : open
+
+                event: change
+                data: {"change":58,"labels":3}
+
+                : ping
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/junctions/{item}:
+    get:
+      tags: [Map view]
+      operationId: getViewJunction
+      summary: One screen (junction) in full
+      description: |
+        The fenced junction with everything its row leaves out (affordances, versions, instances,
+        description), and every match verdict on it, its versions, or a junction folded into it.
+        `item` is the junction's id as the map stores it (not resolved through aliases).
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Junction id (ULID or 64 lowercase hex).
+          schema: { type: string }
+          example: 01JAB3C4D5E6F7G8H9JKMNPQRS
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The junction.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [junction, verdicts]
+                properties:
+                  junction: { $ref: "#/components/schemas/Junction" }
+                  verdicts:
+                    type: array
+                    items: { $ref: "#/components/schemas/MatchVerdict" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/junctions/{item}/candidates:
+    get:
+      tags: [Map view]
+      operationId: listViewJunctionCandidates
+      summary: Candidates drawn at a screen
+      description: |
+        The candidates (controls not yet walked into flows) drawn at this junction, including those
+        recorded at junctions folded into it, ordered by id, 500 per page. `404` when the junction is
+        not on the map; an empty list when it has none.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Junction id.
+          schema: { type: string }
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of candidates.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/Candidate" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/flows/{item}:
+    get:
+      tags: [Map view]
+      operationId: getViewFlow
+      summary: One flow in full
+      description: |
+        The fenced flow (with its plan and description) and its current observation: the one named by
+        `current_observation`, else its newest; `null` when it has none. Each observation carries the
+        recorded steps (`record.action_instruction` is what the step did, masked).
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Flow id (ULID).
+          schema: { type: string }
+          example: 01JAB3D0F1W2X3Y4Z5A6B7C8D9
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The flow.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flow, current]
+                properties:
+                  flow: { $ref: "#/components/schemas/Flow" }
+                  current:
+                    oneOf:
+                      - $ref: "#/components/schemas/Observation"
+                      - type: "null"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/flows/{item}/observations:
+    get:
+      tags: [Map view]
+      operationId: listViewFlowObservations
+      summary: A flow's observations
+      description: Every observation (walk) of the flow, newest first, 500 per page.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Flow id.
+          schema: { type: string }
+        - $ref: "#/components/parameters/ViewCursor"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: One page of observations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rows, next]
+                properties:
+                  rows:
+                    type: array
+                    items: { $ref: "#/components/schemas/Observation" }
+                  next: { $ref: "#/components/schemas/NextCursor" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/findings/{item}:
+    get:
+      tags: [Findings & evidence]
+      operationId: getViewFinding
+      summary: One finding in full
+      description: |
+        The fenced finding with all its occurrences. Each occurrence says which run and lease saw it,
+        on which screen and step, whether a screenshot exists (fetch it with `/view/screenshot`), and
+        its evidence: `what_happened`, kind-specific `detail` (status code, timing, rule, …), the
+        evidence pack's available `files` (fetch each with `/view/evidence`), and any re-check result.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Finding id (64 lowercase hex).
+          schema: { type: string }
+          example: 366edfacccb51ea7d04d09be9ea851db9b0f902255828947c274ed6951ce998f
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The finding.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [finding]
+                properties:
+                  finding: { $ref: "#/components/schemas/Finding" }
+              example:
+                finding:
+                  id: 366edfacccb51ea7d04d09be9ea851db9b0f902255828947c274ed6951ce998f
+                  kind: broken_link
+                  severity: medium
+                  category: broken
+                  title: "Footer link to /careers answers 404"
+                  description: "The footer's Careers link leads to a page that answers 404."
+                  status: open
+                  confirmed: true
+                  feedback: []
+                  occurrences:
+                    - run_id: 0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                      lease_id: 01JAB3E1G2H3J4K5M6N7P8Q9R0
+                      junction_id: 01JAB3C4D5E6F7G8H9JKMNPQRS
+                      step_ordinal: 2
+                      flow_id: 01JAB3D0F1W2X3Y4Z5A6B7C8D9
+                      observation_id: 1c2a3194f6bfc3cfe287cd553091e9c30d6f66ae71d1ef358927d2cfe2b45777
+                      screenshot: true
+                      screenshot_size: { w: 1280, h: 713 }
+                      annotations: []
+                      pack: { files: [network, console, timeline] }
+                      what_happened:
+                        text: "Clicked Careers in the footer"
+                        expected: "a careers page"
+                        actual: "HTTP 404"
+                      detail: { status: 404, method: GET, url: "https://example.com/careers" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/candidates/{item}:
+    get:
+      tags: [Map view]
+      operationId: getViewCandidate
+      summary: One candidate
+      description: One candidate (an unwalked control) by id, wherever it is drawn.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: item
+          in: path
+          required: true
+          description: Candidate id (64 lowercase hex).
+          schema: { type: string }
+          example: eeee16bbad8c0aa7ce4695d89e57f2f9c152af3baf956122a1ac0aef3746bc96
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The candidate.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [candidate]
+                properties:
+                  candidate: { $ref: "#/components/schemas/Candidate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/feedback:
+    get:
+      tags: [Feedback]
+      operationId: getViewItemFeedback
+      summary: One item's feedback history (fenced)
+      description: |
+        Every feedback record on one item, retired ones included, fenced like the rest of the view:
+        your own records carry `mine: true`, the ones you retired `retired.me: true`. Authors are shown
+        by kind and display name only (no user ids).
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: target_kind
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/FeedbackTargetKind" }
+        - name: target_id
+          in: query
+          required: true
+          description: "The item's id: 1–128 characters of `A-Z a-z 0-9 . _ : -`."
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9._:-]{1,128}$"
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The records.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feedback]
+                properties:
+                  feedback:
+                    type: array
+                    items: { $ref: "#/components/schemas/ViewFeedbackRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/screenshot:
+    get:
+      tags: [Findings & evidence]
+      operationId: getViewScreenshotUrl
+      summary: Signed URL for a screenshot
+      description: |
+        A 10-minute, read-only URL for one JPEG. Name exactly one of:
+
+        * `junction` (optionally `version`, a version's `signature`): a screen's current screenshot,
+          or one version's;
+        * `finding` **and** `run`: a finding's screenshot in that run (when the occurrence says
+          `screenshot: true`);
+        * `observation` **and** `step`: one recorded step's screenshot.
+
+        Fetch the returned `url` directly, with no `Authorization` header. `404` when no such
+        screenshot was stored.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: junction
+          in: query
+          description: Junction id.
+          schema: { type: string }
+        - name: version
+          in: query
+          description: With `junction`, a version's `signature` (64 lowercase hex).
+          schema: { type: string }
+        - name: finding
+          in: query
+          description: Finding id; requires `run`.
+          schema: { type: string }
+        - name: run
+          in: query
+          description: With `finding`, the run id of the occurrence.
+          schema: { type: string }
+        - name: observation
+          in: query
+          description: Observation id; requires `step`.
+          schema: { type: string }
+        - name: step
+          in: query
+          description: With `observation`, the step's `ordinal` (a whole number).
+          schema: { type: string }
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The signed URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedURL" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/view/evidence:
+    get:
+      tags: [Findings & evidence]
+      operationId: getViewEvidenceUrl
+      summary: Signed URL for an evidence-pack file
+      description: |
+        A 10-minute, read-only URL for one file of a finding's evidence pack in one run. Which files
+        exist is listed in the occurrence's `pack.files`. The files are:
+
+        | `file` | Stored as | Content |
+        |---|---|---|
+        | `clip` | `clip.bin`, `application/octet-stream` | JPEG frames back to back (the pack's `frames`, `fps`, `width`, `height`, `window_ms` describe them) |
+        | `timeline` | `timeline.json` | the steps and events around the finding |
+        | `network` | `network.json` | network traffic around the finding |
+        | `console` | `console.json` | console messages around the finding |
+        | `element` | `element.json` | the element the finding is about |
+
+        Fetch the `url` directly, with no `Authorization` header. Unlike the view, these files are
+        served as recorded (they are not passed through the view's secret fence).
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: finding
+          in: query
+          required: true
+          description: Finding id (64 lowercase hex).
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+        - name: run
+          in: query
+          required: true
+          description: Run id of the occurrence.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9-]{1,64}$"
+        - name: file
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [clip, timeline, network, console, element]
+        - $ref: "#/components/parameters/AsOfRun"
+      responses:
+        "200":
+          description: The signed URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedURL" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/screenshot:
+    get:
+      tags: [Findings & evidence]
+      operationId: getScreenshotUrlByRef
+      summary: Signed URL for a stored screenshot ref
+      description: |
+        Turns a stored screenshot path (`ref`) into a 10-minute read URL. `ref` must be a screenshot
+        or evidence-pack path of **this** exploration exactly as stored (a junction version's, a
+        finding occurrence's, a step's, or a pack file's); anything else is `404`. The view never
+        exposes these paths, so most readers should use `/view/screenshot` and `/view/evidence`.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: ref
+          in: query
+          required: true
+          description: A stored screenshot or evidence-pack path of this exploration.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The signed URL.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SignedURL" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/skill:
+    get:
+      tags: [Context]
+      operationId: getSkill
+      summary: The exploration skill (markdown)
+      description: |
+        The explorer's own short English write-up of how the site works (format `exploration/2`: a
+        tiny header, then the text), stored once per run. Without parameters: the newest stored file.
+        With `as_of_run`: the newest file as of that run. With `as_of_run` **and** `name`: that one
+        file of that run (`skill.md` is a run's final file, `checkpoint-<n>.md` an update mid-run).
+        At most 16 KB.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - $ref: "#/components/parameters/AsOfRun"
+        - name: name
+          in: query
+          description: "Needs `as_of_run`. `skill.md` or `checkpoint-<n>.md` (n: 1–6 digits)."
+          schema:
+            type: string
+            pattern: "^(?:skill|checkpoint-[0-9]{1,6})\\.md$"
+      responses:
+        "200":
+          description: The skill file.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, name, markdown]
+                properties:
+                  run_id: { type: string, description: "The run that stored the file." }
+                  name: { type: string, description: "`skill.md` or `checkpoint-<n>.md`." }
+                  markdown: { type: string, description: "The file's text." }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`SKILL_NONE`: no skill stored yet (or that run stored no such file); `NOT_FOUND`: no such exploration or run."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { code: SKILL_NONE, error: the exploration has no stored skill yet }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "422":
+          description: "`SKILL_INVALID`: `name` without `as_of_run`, or a name that is not `skill.md` / `checkpoint-<n>.md`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/assurance/head:
+    get:
+      tags: [Context]
+      operationId: getAssuranceHead
+      summary: Assurance export cursor
+      description: |
+        The cursor an assurance export of this exploration would carry now: which run, its version and
+        how many deltas it covers. Without `cut`: the latest ended run (or `run`), as
+        `exploration-export/2`. With `cut=end`: the end cut of that run. With `cut=<n>`: the stored
+        cut `n` of the run. Useful to tell whether anything changed since an export you already have.
+        (The export itself is not part of this read-only API.)
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: run
+          in: query
+          description: A run id; default the latest ended run.
+          schema: { type: string }
+        - name: cut
+          in: query
+          description: "`end`, or a whole number ≥ 0."
+          schema:
+            type: string
+            pattern: "^(end|0|[1-9][0-9]*)$"
+      responses:
+        "200":
+          description: The cursor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cursor]
+                properties:
+                  cursor:
+                    oneOf:
+                      - $ref: "#/components/schemas/AssuranceCursor"
+                      - $ref: "#/components/schemas/CutCursor"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "`NO_ENDED_RUN`: no run has ended yet; `CUT_NOT_FOUND`: no such cut; `NOT_FOUND`: no such exploration or run."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: "`EXPLORATION_OUTDATED`, or `CUT_SUPERSEDED`: the cut was replaced by a newer one."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/{id}/feedback:
+    get:
+      tags: [Feedback]
+      operationId: listFeedback
+      summary: Feedback records (raw)
+      description: |
+        The exploration's feedback records as stored: notes, labels applied, verdicts, do-not-touch
+        marks and resolves, by people and by the agent. By default only live records; filter by item
+        with `target_kind` and `target_id`. `mine` is `true` on your own records. Unlike
+        `/view/feedback` this is not fenced, and authors carry their `user_id`.
+      parameters:
+        - $ref: "#/components/parameters/ExplorationId"
+        - name: target_kind
+          in: query
+          description: Only records on items of this kind.
+          schema: { $ref: "#/components/schemas/FeedbackTargetKind" }
+        - name: target_id
+          in: query
+          description: Only records on this item id.
+          schema: { type: string }
+        - name: include_retired
+          in: query
+          description: "`1` or `true`: include retired records."
+          schema:
+            type: string
+            enum: ["1", "true"]
+      responses:
+        "200":
+          description: The records.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feedback]
+                properties:
+                  feedback:
+                    type: array
+                    items: { $ref: "#/components/schemas/FeedbackRecord" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Outdated" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+  /exploration/labels:
+    get:
+      tags: [Feedback]
+      operationId: listLabels
+      summary: A project's labels
+      description: |
+        The labels people can apply to findings, flows and junctions in a project. By default only
+        live labels; `include_retired=1` adds the retired ones.
+
+        **Side effect:** the first read for a project seeds its default (system) labels.
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          description: The project id (an exploration's `project_id`).
+          schema: { type: string }
+        - name: include_retired
+          in: query
+          description: "`1` or `true`: include retired labels."
+          schema:
+            type: string
+            enum: ["1", "true"]
+      responses:
+        "200":
+          description: The labels.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [labels]
+                properties:
+                  labels:
+                    type: array
+                    items: { $ref: "#/components/schemas/Label" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "501": { $ref: "#/components/responses/NotConfigured" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+        "503": { $ref: "#/components/responses/NotReady" }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: |
+        Recommended. HTTP Basic with your **LambdaTest username** as the user and your **LambdaTest
+        access key** as the password: `Authorization: Basic base64(<username>:<access_key>)`. Both are
+        shown in your LambdaTest account (your profile / account settings, or the "Access Key" panel of
+        the LambdaTest web app). This is what kane-cli sends. Keep the key secret; never commit it.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Alternative. A LambdaTest OAuth access token (`Authorization: Bearer <token>`). The API
+        validates it with LambdaTest's token introspection and then resolves your account. Most
+        clients should use `basicAuth`.
+
+  parameters:
+    ExplorationId:
+      name: id
+      in: path
+      required: true
+      description: The exploration id (UUIDv7).
+      schema: { type: string }
+      example: 0199f3a2-7c41-7d2e-9b1a-3f5c2e8d4a10
+    RunPath:
+      name: run
+      in: path
+      required: true
+      description: The run id (UUIDv7).
+      schema: { type: string }
+      example: 0199f3b0-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+    Limit:
+      name: limit
+      in: query
+      description: Page size.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PageCursor:
+      name: cursor
+      in: query
+      description: The previous page's `next_cursor` (opaque).
+      schema: { type: string }
+    ViewCursor:
+      name: cursor
+      in: query
+      description: The previous page's `next` (signed, opaque; bound to this exploration and list).
+      schema: { type: string }
+    AsOfRun:
+      name: as_of_run
+      in: query
+      description: A run id of this exploration; read the map as it was at the end of that run.
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: "`INVALID_REQUEST`: an unknown query parameter, a bad value, or a bad cursor."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: INVALID_REQUEST, error: "limit: an integer from 1 to 100" }
+    Unauthorized:
+      description: |
+        Missing or invalid credentials. The authentication middleware answers `{"error": ...}` with
+        one of `Missing or invalid Authorization header`, `authentication failed`,
+        `invalid or expired token` (no `code`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: Missing or invalid Authorization header }
+    Forbidden:
+      description: |
+        `ORG_REQUIRED`: your identity carries no organization. `PROJECT_NOT_ALLOWED`: the project is
+        not available to your org.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: ORG_REQUIRED, error: "the authenticated identity carries no org; explorations are org-scoped" }
+    NotFound:
+      description: |
+        `NOT_FOUND`: no such exploration in your org (or deleted), no such run, or no such item /
+        screenshot / evidence on the map.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: NOT_FOUND, error: exploration or run not found }
+    Outdated:
+      description: |
+        `EXPLORATION_OUTDATED`: the exploration was recorded by an older explorer version; it is kept but
+        cannot be read. Start a new exploration.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: "`INTERNAL`: the exploration store failed."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { code: INTERNAL, error: exploration store failure }
+    NotConfigured:
+      description: |
+        A part of the service this route needs isn't set up: `{"error": "not_configured"}` (storage
+        for screenshots/evidence/skill, or the feedback/context store), or
+        `{"code": "NOT_CONFIGURED", ...}` (a store that serves no view).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: not_configured }
+    BadGateway:
+      description: "`PROJECT_CHECK_FAILED` (the project could not be verified) or `SIGN_FAILED` (a URL could not be signed)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotReady:
+      description: "`NOT_READY`: the service is being updated; try again later."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      description: |
+        The error envelope. Exploration errors always carry `code`; the authentication middleware's
+        `401` carries only `error`. Other members appear only when they apply.
+      required: [error]
+      properties:
+        code:
+          type: string
+          description: Machine-readable code, e.g. `INVALID_REQUEST`, `NOT_FOUND`, `ORG_REQUIRED`, `PROJECT_NOT_ALLOWED`, `EXPLORATION_OUTDATED`, `NOT_READY`, `INTERNAL`, `SIGN_FAILED`, `PROJECT_CHECK_FAILED`, `NOT_CONFIGURED`, `SKILL_NONE`, `SKILL_INVALID`, `NO_ENDED_RUN`, `CUT_NOT_FOUND`, `CUT_SUPERSEDED`, `LIVE_OFF`, `UNAUTHENTICATED`.
+        error: { type: string, description: "One readable line." }
+        problems:
+          type: array
+          items: { type: string }
+          description: Every problem found, when there are several.
+        active_run: { type: string }
+        exploration_id: { type: string }
+        expected: { type: integer }
+        received: { type: integer }
+        status: { type: string }
+        retry_after_s: { type: integer }
+        commit_refused: { type: boolean }
+
+    NextCursor:
+      type: [string, "null"]
+      description: Pass as `cursor` for the next page; `null` on the last page.
+
+    SignedURL:
+      type: object
+      required: [url, expires_in]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Read-only signed URL for exactly one file. Fetch it without an `Authorization` header.
+        expires_in:
+          type: integer
+          description: Seconds the URL stays valid (600).
+      example:
+        url: https://storage.example.com/exploration/0199f3a2/findings/366edfac/0199f3b0.jpg?sig=example
+        expires_in: 600
+
+    Remark:
+      type: object
+      description: How a stopped run ended.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: |
+            One of `completed`, `budget`, `user_stop`, `stopped_before_start`, `timeout`,
+            `heartbeat_lost`, or `failed:<reason>` where reason is one of `secrets_missing`,
+            `no_browsers`, `commit_refused`, `commit_failed`, `runner_error`, `recon_failed`,
+            `setup_failed`, `unexpected_event`, `focus_unknown`, `focus_unreachable`,
+            `controller_outdated`, `vm_never_started`.
+        message: { type: string }
+
+    CreditReport:
+      type: object
+      description: |
+        What a piece of the exploration cost in KaneAI credits. `by_node` (the model node that made the
+        call) and `by_phase` (the worker phase, e.g. `walk`, `verify`, `setup`, `reach`, `recon`) each
+        sum to `total`. Stored as the run reported it; keys of the maps are dynamic.
+      properties:
+        total: { type: number }
+        calls: { type: integer }
+        by_node:
+          type: object
+          additionalProperties: { type: number }
+        by_phase:
+          type: object
+          additionalProperties: { type: number }
+        request_ids:
+          type: array
+          items: { type: string }
+
+    Session:
+      type: object
+      description: One run as people list it.
+      required: [run_id, exploration_id, version, state, remark, stop_reason, mode, policy, started_at, leases, findings]
+      properties:
+        run_id: { type: string, description: "UUIDv7." }
+        exploration_id: { type: string }
+        version: { type: integer, description: "The run's number within the exploration (1, 2, …)." }
+        state:
+          type: string
+          enum: [queued, running, stopped]
+          description: "`queued`: a remote launch waiting for its VM; `running`; `stopped` (final; see `remark`)."
+        remark:
+          oneOf:
+            - $ref: "#/components/schemas/Remark"
+            - type: "null"
+          description: "`null` until the run stopped."
+        stop_reason: { type: string, description: "The explorer's own stop reason (free text, e.g. `frontier_empty`); empty while running." }
+        mode:
+          type: string
+          enum: [local, remote]
+          description: Where the explorer ran (your machine, or a HyperExecute VM).
+        policy:
+          type: string
+          enum: [read_only, mutating]
+          description: Whether the run could submit forms / change data on the site.
+        started_by_user_id: { type: [integer, "null"] }
+        started_at: { type: string, format: date-time }
+        claimed_at: { type: [string, "null"], format: date-time, description: "When a remote run's VM claimed it." }
+        ended_at: { type: [string, "null"], format: date-time }
+        stop_requested_at: { type: [string, "null"], format: date-time }
+        stopped_by_user_id: { type: [integer, "null"] }
+        hx_job_id: { type: [string, "null"], description: "The HyperExecute job of a remote run." }
+        hx_job_link: { type: [string, "null"], format: uri }
+        requested:
+          type: [object, "null"]
+          description: |
+            What the run was asked for, names only (never a variable's value). Dynamic; known keys:
+            `url`, `prompt`, `policy`, `variables` (`[{name, secret}]`), `max_parallel`, `max_leases`,
+            `args` (other `kane-cli explore run` flags), `kane_version`, `dev`.
+        leases: { type: integer, description: "Leases (units of explorer work) the run reported." }
+        findings: { type: integer, description: "Findings with an occurrence in this run." }
+        credits:
+          oneOf:
+            - $ref: "#/components/schemas/CreditReport"
+            - type: "null"
+
+    ContextSummary:
+      type: object
+      required: [enabled, last_job_status, running]
+      properties:
+        enabled: { type: boolean }
+        last_job_status: { type: [string, "null"], enum: [ok, noop, partial, failed, null], description: "The latest ended context job's outcome status; null when none ended." }
+        running: { type: boolean, description: "A context job is running." }
+
+    ExplorationRow:
+      type: object
+      required: [exploration_id, project_id, name, target_url, created_at, created_by_user_id, running, current_session, last_session]
+      properties:
+        exploration_id: { type: string, description: "UUIDv7." }
+        project_id: { type: string }
+        name: { type: string }
+        target_url: { type: string, format: uri }
+        created_at: { type: string, format: date-time }
+        created_by_user_id: { type: [integer, "null"] }
+        running: { type: boolean, description: "A session is queued or running." }
+        current_session:
+          oneOf:
+            - $ref: "#/components/schemas/Session"
+            - type: "null"
+          description: The queued or running session.
+        last_session:
+          oneOf:
+            - $ref: "#/components/schemas/Session"
+            - type: "null"
+          description: The latest session.
+        context:
+          $ref: "#/components/schemas/ContextSummary"
+
+    # ---- the view (fenced)
+
+    Figure:
+      type: object
+      description: A summed figure. `value` is `null` when nothing was known; `partial` when some parts were unknown (`unknown` counts them).
+      required: [value, partial, unknown]
+      properties:
+        value: { type: [number, "null"] }
+        partial: { type: boolean }
+        unknown: { type: number }
+
+    RunRecord:
+      type: object
+      description: One run as the map lists it.
+      properties:
+        run_id: { type: string }
+        locale: { type: string, example: en-US }
+        complete: { type: boolean, description: "The run explored to its end." }
+        started_at: { type: string }
+        credits: { $ref: "#/components/schemas/CreditReport" }
+        audit_notes:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [telemetry_blocked, post_allowed] }
+              count: { type: number }
+              first_lease: { type: [string, "null"] }
+              text: { type: string }
+
+    ViewLabel:
+      type: object
+      description: A project label as the view serves it (fenced).
+      properties:
+        id: { type: string }
+        name: { type: string }
+        color: { type: [string, "null"], description: "`#rrggbb`." }
+        applies_to:
+          type: array
+          items: { type: string, enum: [finding, flow, junction] }
+        group: { type: [string, "null"] }
+        meaning: { type: string }
+        system: { type: boolean }
+        requires_reasoning: { type: boolean }
+        requires_ref: { type: boolean }
+        retired: { type: boolean }
+
+    MatchVerdict:
+      type: object
+      description: Whether two versions or two junctions are one screen (fenced).
+      properties:
+        a: { type: [string, "null"] }
+        b: { type: [string, "null"] }
+        same: { type: boolean }
+        confidence: { type: number }
+        source: { type: string, enum: [rule, judge, owner] }
+        what_changed: { type: string }
+        run_id: { type: string }
+        relation: { type: string, enum: [version, state, different] }
+        cosine: { type: number }
+
+    ViewSummary:
+      type: object
+      required: [view_version, exploration_id, project_id, as_of_run, entry, runs, labels, verdicts, rejected_pairs, counts, change_cursor]
+      properties:
+        view_version: { type: string, example: "1.0" }
+        exploration_id: { type: [string, "null"] }
+        project_id: { type: [string, "null"] }
+        as_of_run: { type: [string, "null"] }
+        entry: { type: [string, "null"], description: "The entry junction id." }
+        runs:
+          type: array
+          items: { $ref: "#/components/schemas/RunRecord" }
+        labels:
+          type: array
+          items: { $ref: "#/components/schemas/ViewLabel" }
+        verdicts:
+          type: array
+          description: The owner's merge/split verdicts only.
+          items: { $ref: "#/components/schemas/MatchVerdict" }
+        rejected_pairs:
+          type: array
+          items:
+            type: array
+            items: { type: string }
+        last_seq: { type: [integer, "null"], description: "The last committed delta sequence." }
+        attempt: { type: [integer, "null"] }
+        counts:
+          type: object
+          required: [junctions, flows, findings, aliases, observations]
+          properties:
+            junctions: { type: number }
+            flows: { type: number }
+            findings: { type: number }
+            aliases: { type: number }
+            observations: { type: number }
+        change_cursor: { type: string, description: "Start of incremental reads (`/view/changes`)." }
+
+    ViewChanges:
+      type: object
+      required: [changes, summary, next, more, reset]
+      properties:
+        changes:
+          type: array
+          items:
+            type: object
+            required: [kind, id, row]
+            properties:
+              kind: { type: string, enum: [junctions, flows, findings, aliases] }
+              id: { type: string, description: "The item's id (an alias's `from`)." }
+              row:
+                type: [object, "null"]
+                description: The item's new row (the shape of that list's rows); `null` when it left the map.
+        summary:
+          oneOf:
+            - $ref: "#/components/schemas/ViewSummary"
+            - type: "null"
+        next: { type: string, description: "The cursor for the next read." }
+        more: { type: boolean, description: "Always false." }
+        reset: { type: boolean, description: "Too many changes; re-read the map." }
+
+    FeedbackTargetKind:
+      type: string
+      enum: [finding, flow, junction, candidate, junction_note, skill_area, skill_journey]
+
+    FeedbackType:
+      type: string
+      enum: [label, note, verdict, do_not_touch, resolve]
+
+    ViewFeedbackAuthor:
+      type: object
+      properties:
+        kind: { type: string, enum: [user, agent] }
+        display_name: { type: string }
+        run_id: { type: [string, "null"], description: "The agent's run, for agent records." }
+
+    ViewFeedbackRecord:
+      type: object
+      description: A feedback record as the view serves it (fenced; no user ids).
+      properties:
+        id: { type: string, example: fb-0199f3c1-0a1b-7c2d-8e3f-4a5b6c7d8e9f }
+        type: { $ref: "#/components/schemas/FeedbackType" }
+        target:
+          type: object
+          properties:
+            kind: { $ref: "#/components/schemas/FeedbackTargetKind" }
+            id: { type: string }
+        ref:
+          type: [object, "null"]
+          description: A second item the record points at (same shape as `target`).
+        label_id: { type: [string, "null"] }
+        text: { type: string, description: "Masked, at most 2000 characters." }
+        verdict: { type: string, enum: [correct, incorrect] }
+        about_observation_id: { type: [string, "null"] }
+        created_by: { $ref: "#/components/schemas/ViewFeedbackAuthor" }
+        created_at: { type: [string, "null"] }
+        target_snapshot:
+          type: object
+          description: What the target was when the record was written.
+          properties:
+            title: { type: string }
+            url_pattern: { type: string }
+            junction_id: { type: [string, "null"] }
+            affordance_key: { type: [string, "null"] }
+            role: { type: string }
+        retired:
+          type: [object, "null"]
+          properties:
+            by: { $ref: "#/components/schemas/ViewFeedbackAuthor" }
+            at: { type: [string, "null"] }
+            me: { type: boolean, description: "You retired it." }
+        mine: { type: boolean, description: "You wrote it." }
+        superseded: { type: boolean, description: "A newer live label of the same group is on the item." }
+        applied:
+          type: array
+          description: Runs that read the record, and what came of it.
+          items:
+            type: object
+            properties:
+              run_id: { type: string }
+              how: { type: string }
+              at: { type: [string, "null"] }
+
+    Affordance:
+      type: object
+      description: One thing a user can do on a screen (a control).
+      properties:
+        key: { type: string, description: "Stable key of the control on its screen." }
+        role: { type: string, description: "ARIA-like role, e.g. `button`, `link`." }
+        name: { type: string }
+        container: { type: string }
+        scope: { type: string, enum: [in, out, policy_blocked] }
+        count: { type: integer }
+        walked: { type: boolean, description: "The explorer walked it." }
+        href_pattern: { type: [string, "null"] }
+        expands_collection: { type: boolean }
+        first_seen_run: { type: string }
+        last_seen_run: { type: string }
+        disabled: { type: boolean }
+        gated: { type: boolean }
+        region: { type: string }
+        hint: { type: string }
+        choice: { type: string }
+        instance: { type: string }
+        revealed_by: { type: [string, "null"] }
+
+    JunctionVersion:
+      type: object
+      description: One structural signature seen for a junction.
+      properties:
+        signature: { type: [string, "null"], description: "64 lowercase hex; use as `version` in `/view/screenshot`." }
+        first_seen_run: { type: string }
+        last_seen_run: { type: string }
+        matched_by: { type: string, enum: [new, exact, alias, rule, grown, twin, fold, shortlist, embedding, judge, owner] }
+        score: { type: [number, "null"] }
+        added: { type: array, items: { type: string }, description: "Control names added against the previous version." }
+        removed: { type: array, items: { type: string } }
+        screenshot: { type: boolean, description: "A screenshot of this version exists." }
+
+    JunctionNote:
+      type: object
+      description: One thing discovered on a screen (e.g. a toggle, pagination, a slow load).
+      properties:
+        id: { type: [string, "null"] }
+        kind: { type: string, enum: [toggle, revert, could_not_revert, storage_restored, gating, pagination, chrome, confirm, slow, how_it_works] }
+        subject: { type: string }
+        text: { type: string }
+        first_run: { type: [string, "null"] }
+        first_at: { type: [string, "null"] }
+        last_run: { type: [string, "null"] }
+        last_at: { type: [string, "null"] }
+        count: { type: number }
+        ms: { type: number, description: "`slow` notes only: the latest sighting's load time." }
+        budget_ms: { type: number, description: "`slow` notes only." }
+        worst_ms: { type: number, description: "`slow` notes only." }
+
+    JunctionCommon:
+      type: object
+      description: Fields a junction has both as a row and in full (fenced).
+      properties:
+        id: { type: string }
+        origin: { type: string, enum: [observed, user_defined] }
+        name: { type: string }
+        url_pattern: { type: string, description: "The URL with its variable parts generalized, e.g. `example.com/products/{id}`." }
+        url: { type: string, description: "A concrete URL it was seen at." }
+        kind: { type: string, enum: [normal, error, blank, auto_boundary] }
+        variants: { type: array, items: { type: string } }
+        bound_to: { type: [string, "null"] }
+        first_seen_run: { type: string }
+        last_verified_run: { type: [string, "null"] }
+        sighting_runs: { type: array, items: { type: string } }
+        heading: { type: [string, "null"] }
+        finding_ids: { type: array, items: { type: string } }
+        screenshot: { type: boolean, description: "A screenshot of the screen exists (`/view/screenshot?junction=`)." }
+        current_version: { type: [string, "null"] }
+        reach:
+          type: [object, "null"]
+          description: How the screen is reached.
+          properties:
+            kind: { type: string, enum: [direct, flow, held, instance] }
+            run: { type: [string, "null"] }
+            after: { type: [string, "null"] }
+            sightings: { type: number }
+        held_by: { type: [string, "null"] }
+        notes:
+          type: array
+          items: { $ref: "#/components/schemas/JunctionNote" }
+        feedback:
+          type: array
+          items: { $ref: "#/components/schemas/ViewFeedbackRecord" }
+
+    Junction:
+      description: A screen in full (`/view/junctions/{item}`).
+      allOf:
+        - $ref: "#/components/schemas/JunctionCommon"
+        - type: object
+          properties:
+            description: { type: [string, "null"] }
+            instances: { type: array, items: { type: string } }
+            affordances:
+              type: array
+              items: { $ref: "#/components/schemas/Affordance" }
+            versions:
+              type: array
+              items: { $ref: "#/components/schemas/JunctionVersion" }
+
+    JunctionRow:
+      description: A screen as a row of `/view/junctions`.
+      allOf:
+        - $ref: "#/components/schemas/JunctionCommon"
+        - type: object
+          required: [id, control_groups, version_count, instance_count, cand, load_blocked, arrive]
+          properties:
+            control_groups:
+              type: array
+              description: Up to 4 groups of the screen's controls (by region or container), up to 6 names each.
+              items:
+                type: object
+                properties:
+                  group: { type: string }
+                  names: { type: array, items: { type: string } }
+                  more: { type: number, description: "Names not shown." }
+            version_count: { type: number }
+            instance_count: { type: number }
+            cand:
+              type: object
+              properties:
+                count: { type: number, description: "Candidates drawn at this screen." }
+                frontier: { type: number, description: "In-scope candidates not walked yet." }
+            load_blocked: { type: array, items: { type: string }, description: "What blocked loading the screen." }
+            arrive:
+              type: object
+              description: Credits spent arriving at this screen (the observations of flows that exit here).
+              properties:
+                total: { $ref: "#/components/schemas/Figure" }
+                author: { $ref: "#/components/schemas/Figure" }
+                replay: { $ref: "#/components/schemas/Figure" }
+                other: { $ref: "#/components/schemas/Figure" }
+
+    FlowCommon:
+      type: object
+      description: Fields a flow has both as a row and in full (fenced).
+      properties:
+        id: { type: string }
+        name: { type: string }
+        entry: { type: string, description: "Entry junction id." }
+        exit: { type: [string, "null"], description: "Exit junction id." }
+        status: { type: string, enum: [unverified, verified, stale, changed, broken, gone, superseded, verified_to_edge] }
+        origin: { type: string, enum: [agent, user, skill] }
+        parent_id: { type: [string, "null"] }
+        current_observation: { type: [string, "null"] }
+        priority: { type: integer }
+        supersedes: { type: [string, "null"] }
+        superseded_by: { type: [string, "null"] }
+        annotations:
+          type: object
+          additionalProperties: { type: string }
+          description: Dynamic string map, e.g. `setup`.
+        stateful:
+          type: [object, "null"]
+          properties:
+            type: { type: string, enum: [session, one_shot, pending] }
+            role: { type: string, enum: [start, end] }
+            kind: { type: string }
+            pairs_with: { type: [string, "null"] }
+        finding_ids: { type: array, items: { type: string } }
+        feedback:
+          type: array
+          items: { $ref: "#/components/schemas/ViewFeedbackRecord" }
+        after_flow: { type: string, description: "Present only when set." }
+        in_state: { type: string, description: "Present only when set." }
+        state: { type: boolean, description: "Present (true) only for a loop flow that is a state of its junction." }
+        changes:
+          type: array
+          description: What adaptive heal changed.
+          items:
+            type: object
+            properties:
+              run_id: { type: [string, "null"] }
+              observation_id: { type: string }
+              kind: { type: string, enum: [adapted, exit_moved] }
+              adapted_at: { type: number }
+              from_exit: { type: [string, "null"] }
+              to_exit: { type: [string, "null"] }
+
+    Flow:
+      description: A flow in full (`/view/flows/{item}`).
+      allOf:
+        - $ref: "#/components/schemas/FlowCommon"
+        - type: object
+          properties:
+            description: { type: string }
+            plan:
+              type: [object, "null"]
+              properties:
+                revision: { type: [number, "null"] }
+                run_id: { type: [string, "null"] }
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      label: { type: string }
+                      kind: { type: string }
+                      controls: { type: array, items: { type: string } }
+                      options: { type: array, items: { type: string } }
+
+    FlowRow:
+      description: A flow as a row of `/view/flows`.
+      allOf:
+        - $ref: "#/components/schemas/FlowCommon"
+        - type: object
+          required: [id, obs]
+          properties:
+            obs:
+              type: object
+              properties:
+                count: { type: number }
+                last_outcome: { type: [string, "null"] }
+                load_blocked: { type: array, items: { type: string } }
+                cost:
+                  type: object
+                  properties:
+                    author: { $ref: "#/components/schemas/Figure" }
+                    replay: { $ref: "#/components/schemas/Figure" }
+                    spent: { $ref: "#/components/schemas/Figure" }
+
+    Step:
+      type: object
+      description: |
+        One recorded step of a walk. Either a normal step (`record` present) or a conditional block
+        (`conditional: true`; `kind: popup_dismissed` and `name` when it dismissed a pop-up).
+      properties:
+        ordinal: { type: integer }
+        url_after: { type: string }
+        in_place: { type: boolean }
+        record:
+          type: object
+          properties:
+            action_type: { type: string }
+            action_instruction: { type: string, description: "What the step did, in words (masked)." }
+            step: { type: string }
+            output_variable: { type: string }
+        box:
+          type: object
+          description: The control's box on the step's screenshot (whole pixels).
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+            w: { type: integer }
+            h: { type: integer }
+        shot_size:
+          type: object
+          properties:
+            w: { type: integer }
+            h: { type: integer }
+        conditional: { type: boolean }
+        kind: { type: string, enum: [popup_dismissed] }
+        name: { type: string }
+
+    Observation:
+      type: object
+      description: One walk of a flow in one run (fenced).
+      properties:
+        id: { type: string }
+        flow_id: { type: string }
+        run_id: { type: string }
+        lease_id: { type: string }
+        outcome: { type: string, enum: [verified, verified_healed, assert_failed, diverged, blocked, unsettled, partial, unreachable, verified_to_edge, start_failed, end_failed, verified_adapted, adapted] }
+        reason: { type: [string, "null"] }
+        reached_via: { type: string, enum: [jump, replay, continued] }
+        reached: { type: [string, "null"], description: "Junction reached." }
+        diverged_at: { type: [integer, "null"] }
+        version: { type: [string, "null"] }
+        adapted_at: { type: integer }
+        replaces: { type: [string, "null"] }
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/Step" }
+        load_blocked: { type: array, items: { type: string } }
+        reveals:
+          type: array
+          items: { $ref: "#/components/schemas/Affordance" }
+        credits: { $ref: "#/components/schemas/CreditReport" }
+
+    Candidate:
+      type: object
+      description: A control not yet walked into a flow (fenced).
+      properties:
+        id: { type: string }
+        at: { type: string, description: "The junction it is drawn at." }
+        label: { type: string }
+        scope: { type: string, enum: [in, out, policy_blocked] }
+        seen_runs: { type: array, items: { type: string } }
+        affordance: { $ref: "#/components/schemas/Affordance" }
+        note: { type: string, description: "Why it was not pressed (`not pressed: …`), when known." }
+        feedback:
+          type: array
+          items: { $ref: "#/components/schemas/ViewFeedbackRecord" }
+
+    Annotation:
+      type: object
+      description: One overlay box on a finding screenshot.
+      properties:
+        bbox:
+          type: object
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+            w: { type: integer }
+            h: { type: integer }
+        label: { type: string, description: "Masked, at most 120 characters." }
+        kind: { type: string, enum: [target, blocker, field, write] }
+
+    ShotSize:
+      type: [object, "null"]
+      properties:
+        w: { type: integer }
+        h: { type: integer }
+
+    StatusChange:
+      type: object
+      properties:
+        at: { type: [string, "null"] }
+        by: { $ref: "#/components/schemas/ViewFeedbackAuthor" }
+        transition: { type: string, enum: [opened, promoted, discarded, marked_resolving, resolved_verified, recheck_inconclusive, resolved_by_person, reopened_seen, resolved_reached, restored] }
+        record_id: { type: [string, "null"] }
+        run_id: { type: [string, "null"] }
+
+    Occurrence:
+      type: object
+      description: One sighting of a finding (fenced).
+      properties:
+        run_id: { type: string }
+        lease_id: { type: string }
+        junction_id: { type: [string, "null"] }
+        step_ordinal: { type: [integer, "null"] }
+        flow_id: { type: [string, "null"], description: "The map flow it happened on, when that flow is on the map." }
+        observation_id: { type: [string, "null"] }
+        screenshot: { type: boolean, description: "A screenshot exists: `/view/screenshot?finding=&run=`." }
+        screenshot_size: { $ref: "#/components/schemas/ShotSize" }
+        annotations:
+          type: array
+          items: { $ref: "#/components/schemas/Annotation" }
+        pack:
+          type: object
+          description: The evidence pack (files listed; fetch each with `/view/evidence`).
+          properties:
+            files:
+              type: array
+              items: { type: string, enum: [clip, timeline, network, console, element] }
+            frames: { type: number }
+            fps: { type: number }
+            width: { type: number }
+            height: { type: number }
+            bytes: { type: number }
+            window_ms:
+              type: array
+              items: { type: number }
+              minItems: 2
+              maxItems: 2
+        what_happened:
+          type: object
+          properties:
+            text: { type: string }
+            expected: { type: string }
+            actual: { type: string }
+        detail:
+          type: object
+          description: The facts the finding's kind is about. All keys optional.
+          properties:
+            status: { type: number, description: "e.g. an HTTP status." }
+            count: { type: number }
+            ms: { type: number }
+            budget_ms: { type: number }
+            elements: { type: number }
+            method: { type: string }
+            measure: { type: string }
+            impact: { type: string }
+            rule: { type: string }
+            url: { type: string }
+            href: { type: string }
+            failure: { type: string }
+            message: { type: string }
+            step: { type: string }
+            source: { type: string }
+            name: { type: string }
+            help: { type: string }
+            wcag: { type: array, items: { type: string } }
+        compare:
+          type: object
+          description: "`screen_changed` findings: the two versions compared."
+          properties:
+            before: { type: string }
+            after: { type: string }
+        recheck:
+          type: object
+          properties:
+            lease_id: { type: [string, "null"] }
+            result: { type: string, enum: [reproduced, not_reproduced, inconclusive] }
+
+    FindingCommon:
+      type: object
+      description: Fields a finding has both as a row and in full (fenced).
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [console, network, flow_break, ux, policy, screen_changed, session, coverage, app_error, broken_link, slow, accessibility] }
+        severity: { type: string, enum: [info, low, medium, high] }
+        category: { type: string, enum: [broken, ux, coverage, changed, safety, performance, accessibility] }
+        title: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [open, bug, discarded, resolving, resolved]
+          description: User-owned lifecycle status.
+        confirmed: { type: boolean }
+        blocked_by: { type: string, enum: [needs_sign_in, needs_value, read_only, state, off_site, path_broken, budget] }
+        unblock: { type: string, description: "What would unblock it." }
+        candidate_id: { type: [string, "null"] }
+        feedback:
+          type: array
+          items: { $ref: "#/components/schemas/ViewFeedbackRecord" }
+        likely_not_a_bug:
+          type: object
+          properties:
+            finding_id: { type: string }
+            label: { type: string }
+        similar:
+          type: array
+          items:
+            type: object
+            properties:
+              finding_id: { type: string }
+              by: { type: string, enum: [subject, screen] }
+              closeness: { type: number }
+        status_change: { $ref: "#/components/schemas/StatusChange" }
+        status_history:
+          type: array
+          description: Every status change, oldest first.
+          items: { $ref: "#/components/schemas/StatusChange" }
+        duplicate_seen_after_resolve:
+          type: object
+          properties:
+            finding_id: { type: string }
+            run_id: { type: [string, "null"] }
+
+    Finding:
+      description: A finding in full (`/view/findings/{item}`).
+      allOf:
+        - $ref: "#/components/schemas/FindingCommon"
+        - type: object
+          properties:
+            occurrences:
+              type: array
+              items: { $ref: "#/components/schemas/Occurrence" }
+
+    FindingRow:
+      description: A finding as a row of `/view/findings`.
+      allOf:
+        - $ref: "#/components/schemas/FindingCommon"
+        - type: object
+          required: [id, occ]
+          properties:
+            occ:
+              type: object
+              properties:
+                count: { type: number }
+                runs: { type: array, items: { type: string } }
+                latest_shot:
+                  type: [object, "null"]
+                  description: The latest run's screenshot facts (an occurrence with annotations preferred).
+                  properties:
+                    screenshot: { type: boolean }
+                    screenshot_size: { $ref: "#/components/schemas/ShotSize" }
+                    annotations:
+                      type: array
+                      items: { $ref: "#/components/schemas/Annotation" }
+                    run_id: { type: string }
+
+    AliasRow:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, description: "The folded junction id." }
+        to: { type: string, description: "The junction it was folded into." }
+
+    # ---- raw (unfenced) shapes
+
+    FeedbackAuthor:
+      type: object
+      required: [kind, display_name]
+      properties:
+        kind: { type: string, enum: [user, agent] }
+        user_id: { type: integer }
+        run_id: { type: string }
+        display_name: { type: string }
+
+    FeedbackTombstone:
+      type: object
+      properties:
+        by: { $ref: "#/components/schemas/FeedbackAuthor" }
+        at: { type: string }
+
+    FeedbackRecord:
+      type: object
+      description: A feedback record as stored. Append-only; retired, never edited or deleted.
+      required: [id, exploration_id, target, type, created_by, created_at, target_snapshot, text, applied, mine, superseded]
+      properties:
+        id: { type: string, example: fb-0199f3c1-0a1b-7c2d-8e3f-4a5b6c7d8e9f }
+        exploration_id: { type: string }
+        target:
+          type: object
+          required: [kind, id]
+          properties:
+            kind: { $ref: "#/components/schemas/FeedbackTargetKind" }
+            id: { type: string }
+        type: { $ref: "#/components/schemas/FeedbackType" }
+        created_by: { $ref: "#/components/schemas/FeedbackAuthor" }
+        created_at: { type: string }
+        target_snapshot:
+          type: object
+          properties:
+            title: { type: string }
+            url_pattern: { type: string }
+            junction_id: { type: string }
+            affordance_key: { type: string }
+            role: { type: string }
+        label_id: { type: string }
+        text: { type: string }
+        verdict: { type: string, enum: [correct, incorrect] }
+        ref:
+          type: object
+          properties:
+            kind: { $ref: "#/components/schemas/FeedbackTargetKind" }
+            id: { type: string }
+        about_observation_id: { type: string }
+        retired: { $ref: "#/components/schemas/FeedbackTombstone" }
+        applied:
+          type: [array, "null"]
+          items:
+            type: object
+            properties:
+              feedback_id: { type: string }
+              run_id: { type: string }
+              how: { type: string }
+              at: { type: string }
+        mine: { type: boolean }
+        superseded: { type: boolean }
+
+    Label:
+      type: object
+      description: A project's label. Never edited; retired.
+      required: [id, project_id, name, applies_to, created_by, created_at, color, meaning, system, requires_reasoning, requires_ref]
+      properties:
+        id: { type: string, example: label-0199f3c2-1b2c-7d3e-8f4a-5b6c7d8e9f0a }
+        project_id: { type: string }
+        name: { type: string, maxLength: 60 }
+        applies_to:
+          type: array
+          items: { type: string, enum: [finding, flow, junction] }
+        created_by: { $ref: "#/components/schemas/FeedbackAuthor" }
+        created_at: { type: string }
+        color: { type: string }
+        group: { type: string, description: "One label of a group counts on an item (e.g. the default `priority` group)." }
+        meaning: { type: string }
+        system: { type: boolean, description: "A default label." }
+        requires_reasoning: { type: boolean }
+        requires_ref: { type: boolean }
+        retired: { $ref: "#/components/schemas/FeedbackTombstone" }
+
+    # ---- assurance cursors
+
+    AssuranceCursor:
+      type: object
+      required: [export_version, run, run_version, deltas]
+      properties:
+        export_version: { type: string, example: exploration-export/2 }
+        run: { type: string }
+        run_version: { type: integer }
+        deltas: { type: integer }
+
+    CutCursor:
+      type: object
+      required: [export_version, run, run_version, deltas, cut, provisional]
+      properties:
+        export_version: { type: string, example: exploration-export/2 }
+        run: { type: string }
+        run_version: { type: integer }
+        deltas: { type: integer }
+        cut:
+          oneOf:
+            - type: integer
+            - type: string
+              enum: [end]
+        provisional: { type: boolean }
