@@ -63,7 +63,8 @@ test("only official hosts appear", () => {
   // kaneai-api.lambdatest.com: the read-only Kane APIs in references/kane-apis.md and its two specs;
   // www.lambdatest.com: the exploration spec's license and support links; example.com and
   // storage.example.com: reserved example domains in the specs' sample answers.
-  const allowed = new Set(["kaneclihack.sh", "www.kaneclihack.sh", "github.com", "www.testmuai.com", "kaneai-api.lambdatest.com", "www.lambdatest.com", "example.com", "storage.example.com"]);
+  // accounts.lambdatest.com: TestMu AI's own sign-in, for its password reset in references/activate.md.
+  const allowed = new Set(["kaneclihack.sh", "www.kaneclihack.sh", "github.com", "www.testmuai.com", "kaneai-api.lambdatest.com", "www.lambdatest.com", "accounts.lambdatest.com", "example.com", "storage.example.com"]);
   for (const f of textFiles())
     for (const [u] of read(f).matchAll(/https?:\/\/[^\s)>"'`\]]+/g)) {
       const host = new URL(u.replace(/[.,;:]+$/, "").replace(/[{}<>]/g, "x")).hostname;

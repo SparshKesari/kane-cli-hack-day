@@ -176,6 +176,7 @@ try {
     check("pair --start still gives a browser code when a password is saved", r.code === 0 && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(r.json?.user_code ?? ""), r.show);
     r = kh(["claim", "--json"]);
     check("claim uses the separate TestMu AI password when one is saved", r.code === 2 && r.json?.outcome === "error", r.show);
+    check("a refused separate TestMu AI password points at TestMu AI's password reset", /accounts\.lambdatest\.com\/password\/reset/.test(r.err) && /kanehack password --testmu/.test(r.err), r.show);
     r = kh(["password", "--forget", "--testmu", "--json"]);
     const left = existsSync(creds) ? JSON.parse(readFileSync(creds, "utf8")) : {};
     check("password --forget --testmu keeps the main password", r.code === 0 && left.password === PW && !("testmu_password" in left), r.show);

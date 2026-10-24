@@ -39,11 +39,14 @@ export const ACTIVATION_STEPS: { id: ActivationStepId; n: string; title: string;
   },
 ];
 
+/** TestMu AI's own password reset (accounts.lambdatest.com is TestMu AI's sign-in). Also how a Google or GitHub sign-up gets a password. */
+export const TESTMU_PASSWORD_RESET_URL = "https://accounts.lambdatest.com/password/reset";
+
 export const PLAN_MESSAGES = {
   claimed: "Plan activated.",
   notRegistered: (email: string) => `You’re not signed up on TestMu AI yet. Sign up with ${email}: your hack-day plan is saved and switches on as soon as you do. Then press Check again.`,
   error: "Something went wrong activating your plan. Please reach out to the support staff at the help desk (or /help).",
-  wrongPassword: "That email already has a TestMu AI account with a different password. Enter that account’s password (forgot it? reset it on testmuai.com) and try again.",
+  wrongPassword: `That email already has a TestMu AI account with a different password. Use that account’s password. Signed up there with Google or GitHub (no password yet), or don’t remember it? Set a new one at ${TESTMU_PASSWORD_RESET_URL} with the same email, then try again with it.`,
   invalid: (fields: string[]) => (fields.length ? `TestMu AI didn’t accept that: ${fields.join(" ")}` : "TestMu AI didn’t accept that. Check your password and try again."),
   ineligible: "TestMu AI says this account can’t take the hack-day plan (it may be suspended, or the email matches another account). Please ask at the help desk.",
   region: "TestMu AI couldn’t activate the plan from this region. Please ask at the help desk.",
