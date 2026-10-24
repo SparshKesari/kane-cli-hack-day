@@ -34,6 +34,8 @@ const STUB_STATUS: Record<string, number> = {
   TEAM_FULL: 409,
   RATE_LIMITED: 429,
 };
+/** Stored before a stub's code, so a preview on the shared database never marks a live teammate done. */
+const STUB_PREFIX = "STUB_";
 
 const isProduction = () => process.env.VERCEL_ENV === "production" || process.env.HACKOS_ENV === "production";
 
@@ -57,7 +59,10 @@ export async function teamSyncStatus(teamId: number): Promise<TeamSyncStatus[]> 
       order by tm.joined_at`,
     [teamId],
   );
-  return rows.map((r) => ({ ...r, done: !!r.code && INVITE_DONE_CODES.includes(r.code) }));
+  return rows.map((r) => {
+    const code = visibleCode(r.code);
+    return { ...r, code, done: !!code && INVITE_DONE_CODES.includes(code) };
+  });
 }
 
 /** After a successful step-2 claim: a captain of a locked team syncs it with the same password. Never throws. */
@@ -106,13 +111,14 @@ async function inviteTeammates(member: MemberRow, teamId: number, password: stri
     (await query<{ id: number; email: string }>("select id, email from members where id = any($1::bigint[])", [pending.map((p) => p.member_id)])).map((r) => [r.id, r.email]),
   );
   const results: { member_id: number; code: string }[] = [];
+  const stub = inviteTarget().kind === "stub";
   let stopped: string | null = null;
   for (const p of pending) {
     const r = await inviteHonouringRetry({ email: lead.email, password, member_email: emails.get(p.member_id) ?? "" });
     await query(
       `insert into testmu_team_sync (team_id, member_id, code, message, organization_id, attempted_at) values ($1, $2, $3, $4, $5, now())
        on conflict (team_id, member_id) do update set code = $3, message = $4, organization_id = coalesce($5, testmu_team_sync.organization_id), attempted_at = now()`,
-      [teamId, p.member_id, r.code, r.message, r.organizationId],
+      [teamId, p.member_id, stub ? `${STUB_PREFIX}${r.code}` : r.code, r.message, r.organizationId],
     );
     results.push({ member_id: p.member_id, code: r.code });
     if (!syncContinues(r.code)) {
@@ -157,6 +163,12 @@ function stubInvite(req: InviteRequest, fallback: string): InviteResult {
   const code = STUB_TAG.exec(req.member_email)?.[1]?.toUpperCase().replace(/-/g, "_") ?? fallback;
   const body = code === RATE_LIMITED ? { message: "Too Many Attempts." } : { code, message: `${code} (stub)`, member_email: req.member_email, organization_id: 7_000_000 };
   return inviteResultFrom(STUB_STATUS[code] ?? 200, body, code === RATE_LIMITED ? "30" : null);
+}
+
+/** A stub's answer reads as itself outside production and as not tried yet in production. */
+function visibleCode(code: string | null) {
+  if (!code?.startsWith(STUB_PREFIX)) return code;
+  return isProduction() ? null : code.slice(STUB_PREFIX.length);
 }
 
 export type TeamSyncStatus = { member_id: number; name: string; code: string | null; message: string | null; attempted_at: Date | null; done: boolean };

@@ -1,4 +1,4 @@
--- TestMu AI Hack Day team sync (branch testmu-team-sync). Additive and idempotent.
+-- TestMu AI Hack Day team sync. Additive and idempotent.
 -- The captain's step-2 claim moves teammates into one TestMu AI org: the last team/invite answer per teammate. Never a password.
 create table if not exists testmu_team_sync (
   team_id         bigint not null references teams(id) on delete cascade,

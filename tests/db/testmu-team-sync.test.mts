@@ -294,6 +294,24 @@ test("a solo team makes no calls, and outside production with no invite URL the 
   }
   assert.equal(invites().length, n0);
   assert.equal((await m.sync.teamSyncStatus(t.teamId))[0].code, "TEAM_FULL");
+  // A stub's done answer, written by a preview on the shared database, never counts in production.
+  const [cap7, mo7] = [await register("cap7"), await register("mo7")];
+  const t7 = await teamOf(cap7, [mo7], "Sync Seven");
+  delete process.env.TESTMU_TEAM_INVITE_URL;
+  try {
+    assert.equal((await claim(cap7)).outcome, "claimed");
+  } finally {
+    process.env.TESTMU_TEAM_INVITE_URL = url;
+  }
+  assert.equal((await m.sync.teamSyncStatus(t7.teamId))[0].done, true);
+  process.env.HACKOS_ENV = "production";
+  try {
+    const [s] = await m.sync.teamSyncStatus(t7.teamId);
+    assert.equal(s.code, null);
+    assert.equal(s.done, false);
+  } finally {
+    delete process.env.HACKOS_ENV;
+  }
 });
 
 test("no password is in any table, the audit log or a redirect", { skip }, async () => {
