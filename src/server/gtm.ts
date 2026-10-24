@@ -127,7 +127,16 @@ export function guardCopy(draft: KitDraft, story: PublicStory, shipPublished: bo
 // ── Fallback templates (GTM_COPY_TEMPLATES.md) ────────────────────────────────
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
-const lc = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+// Names stay capitalized when a phrase continues a sentence: these, the project's own name, and
+// words with a capital or digit after the first letter (AI, OpenAI, GitHub, 3D).
+const NAMES = new Set(["Kane", "Codex", "OpenAI", "ChatGPT", "GitHub", "TestMu", "LambdaTest", "Chrome", "Slack"]);
+const lc = (s: string, keep: string[] = []) => {
+  const word = s.match(/^[A-Za-z0-9]+/)?.[0] ?? "";
+  return !s || NAMES.has(word) || keep.includes(word) || /[A-Z0-9]/.test(word.slice(1)) ? s : s[0].toLowerCase() + s.slice(1);
+};
+// Team text usually ends a sentence already; the templates add exactly one mark, never a second.
+const sentence = (s: string) => (/[.!?…]$/.test(s.trimEnd()) ? s.trimEnd() : `${s.trimEnd()}.`);
+const bare = (s: string) => s.trimEnd().replace(/[.!?]+$/, "");
 
 export function templateKit(story: PublicStory, shipPublished: boolean): KitDraft {
   const link = shipPublished ? story.links.shipPage : PLACEHOLDER_LINK;
@@ -137,18 +146,19 @@ export function templateKit(story: PublicStory, shipPublished: boolean): KitDraf
   const gap = story.limitations[0] ?? "[LIMITATION]";
   const handles = story.team.map((t) => t.handle).filter(Boolean).map((h) => `@${h}`).join(" ");
   const isHarness = story.creationType === "validation_harness";
+  const lower = (s: string) => lc(s, [story.name]);
 
   const x_post = isHarness
-    ? `We didn't build another app. We built the validation layer around one.\n\n${story.name} uses Kane CLI to ${lc(story.harness.summary || "verify every change")}. Demo, evidence and code: ${link}${handles ? `\n\n${handles}` : ""}`
-    : `We built ${story.name}: ${lc(pitch)}\n\nThe interesting part is the Kane-powered validation loop${verified ? ` that ${lc(verified.claim)}` : ""}.\n\nSee the creation, the harness and the actual proof: ${link}${handles ? `\n\n${handles}` : ""}`;
+    ? `We didn't build another app. We built the validation layer around one.\n\n${story.name} uses Kane CLI${story.harness.summary ? `: ${sentence(story.harness.summary)}` : " to verify every change."} Demo, evidence and code: ${link}${handles ? `\n\n${handles}` : ""}`
+    : `We built ${story.name}: ${sentence(lower(pitch))}\n\nThe interesting part is the Kane-powered validation loop${verified ? ` that ${lower(bare(verified.claim))}` : ""}.\n\nSee the creation, the harness and the actual proof: ${link}${handles ? `\n\n${handles}` : ""}`;
 
   const thread: KitDraft["thread"] = [
-    `The problem: ${clip(story.problem || "agents can build fast, but knowing what actually works is harder", 200)}. Our hackathon project ${story.name} attacks that gap.`,
-    `What we created: ${clip(story.whatWeBuilt || pitch, 200)}. Short demo: ${link}`,
-    `How the harness works: ${clip(harness, 200)}.`,
+    `The problem: ${sentence(clip(story.problem || "agents can build fast, but knowing what actually works is harder", 200))} Our hackathon project ${story.name} attacks that gap.`,
+    `What we created: ${sentence(clip(story.whatWeBuilt || pitch, 200))} Short demo: ${link}`,
+    `How the harness works: ${sentence(clip(harness, 200))}`,
     verified
-      ? `What we proved: ${clip(verified.claim, 140)} (${verified.run_id ? `Kane run ${verified.run_id}` : `evidence ${verified.evidence_id}`}). Not verified yet: ${clip(gap, 80)}.${story.links.github ? ` Source: ${story.links.github}` : ""}`
-      : `What we learned: nothing here is claimed as verified yet. Still open: ${clip(gap, 120)}.${story.links.github ? ` Source: ${story.links.github}` : ""}`,
+      ? `What we proved: ${clip(bare(verified.claim), 140)} (${verified.run_id ? `Kane run ${verified.run_id}` : `evidence ${verified.evidence_id}`}). Not verified yet: ${sentence(clip(gap, 80))}${story.links.github ? ` Source: ${story.links.github}` : ""}`
+      : `What we learned: nothing here is claimed as verified yet. Still open: ${sentence(clip(gap, 120))}${story.links.github ? ` Source: ${story.links.github}` : ""}`,
   ];
 
   const evidenceLines = story.proof.length
@@ -179,10 +189,10 @@ ${evidenceLines}
     x_post,
     thread,
     readme,
-    alt_text: visual ? `Image of ${visual.alt} for ${story.name}.` : `Title card for ${story.name}: “${clip(pitch, 90)}” on a black background.`,
+    alt_text: visual ? `Image of ${bare(visual.alt)} for ${story.name}.` : `Title card for ${story.name}: “${clip(pitch, 90)}” on a black background.`,
     og_title: clip(`${story.name} | Shipped with Kane`, 60),
-    og_description: clip(`${story.name} is ${lc(pitch)} Explore the creation, Kane-powered validation workflow and evidence.`, 200),
-    pitch: `We built ${story.name} to ${lc(pitch).replace(/\.$/, "")}. What makes it different is ${lc(story.harness.summary || "its Kane validation loop")}.`,
+    og_description: clip(`${story.name}: ${sentence(lower(pitch))} Explore the creation, Kane-powered validation workflow and evidence.`, 200),
+    pitch: `We built ${story.name}: ${sentence(lower(pitch))} What makes it different: ${sentence(story.harness.summary || "its Kane validation loop")}`,
   };
 }
 
