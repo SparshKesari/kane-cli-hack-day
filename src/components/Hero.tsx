@@ -3,8 +3,8 @@ import HalftoneHand from "./hero/HalftoneHand";
 import DissolveWordmark from "./hero/DissolveWordmark";
 import HeroLens from "./hero/HeroLens";
 import LensText from "./hero/LensText";
-import Button from "./ui/Button";
-import { ctas, event } from "@/data/hackday";
+import StartCommand from "./home/StartCommand";
+import { event } from "@/data/hackday";
 
 const WORDMARK = ["Kane CLI", "Hack Day"];
 
@@ -50,12 +50,7 @@ export default function Hero() {
         </div>
 
         <p className="mt-8 max-w-md font-plex text-sm leading-relaxed text-lightgray">{event.tagline}</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Button href={ctas.register.href}>{ctas.register.label}</Button>
-          <Button href={ctas.login.href} variant="secondary">
-            {ctas.login.label}
-          </Button>
-        </div>
+        <StartCommand id="start" className="mt-6" />
       </div>
     </HeroLens>
   );

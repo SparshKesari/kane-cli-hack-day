@@ -8,7 +8,7 @@ import { Avatar } from "./ui/Avatar";
 
 export { Avatar };
 
-// Navbar's right-hand side: Sign in / Start here, or (signed in as yourself)
+// Navbar's right-hand side: Start here (the install command on the homepage), or (signed in as yourself)
 // a "continue" link to wherever you are in the flow and your avatar (the
 // photo from /register, else your initials), which opens your profile.
 // Reads the session cookie, so it streams in behind a Suspense boundary.
@@ -41,10 +41,7 @@ export default async function Account() {
 export function SignedOut() {
   return (
     <span className="flex items-center gap-4">
-      <Link href="/passport/login" className="font-plex text-sm text-bright transition-colors hover:text-lime">
-        Sign in
-      </Link>
-      <Link href="/register" className="bg-bright px-3 py-1.5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+      <Link href="/#start" className="bg-bright px-3 py-1.5 font-plex text-sm text-ink transition-colors hover:bg-lime">
         Start here
       </Link>
     </span>

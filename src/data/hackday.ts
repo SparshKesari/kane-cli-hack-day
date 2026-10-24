@@ -14,10 +14,17 @@ export const event = {
   hashtag: "#KaneCLIHackDay",
 };
 
+// People start from the terminal and Codex, not a web sign-in: "Start here" goes to the
+// install command on the homepage (#start).
 export const ctas = {
-  register: { label: "Start here →", href: "/register" },
-  login: { label: "Sign in", href: "/passport/login" },
+  register: { label: "Start here →", href: "/#start" },
 } satisfies Record<string, Link>;
+
+/** The install command shown on the homepage; then $hack-os in a new Codex session. */
+export const startCommands = {
+  unix: "curl -fsSL https://kaneclihack.sh/install.sh | sh",
+  windows: "irm https://www.kaneclihack.sh/install.ps1 | iex",
+};
 
 // ── Do this first ────────────────────────────────────────────────────────────
 
@@ -35,8 +42,8 @@ export const setup: { id: string; title: string; body: string; value?: string; l
   {
     id: "install",
     title: "Set up your agent",
-    body: "Install the kanehack helper and the hack-day skills, pair it with your passport, then connect Codex.",
-    value: "curl -fsSL https://kaneclihack.sh/install.sh | sh\nkanehack pair",
+    body: "Install the kanehack helper and the hack-day skills, then start a new Codex session and type $hack-os.",
+    value: startCommands.unix,
     link: { label: "All steps, incl. Windows", href: "/setup" },
   },
   {
