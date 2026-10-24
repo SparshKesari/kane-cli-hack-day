@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // kanehack: the Kane CLI Hack Day helper. No dependencies, Node >= 18.17.
 //
+//   kanehack login [--username U --access-key K]  save your TestMu AI username + access key (mandatory sign-in)
 //   kanehack pair [--token khk_…]          pair this machine with your account (token in ~/.kanehack/config.json, mode 600)
 //   kanehack pair --start | --wait         the same, in two steps, for Codex and scripts (no terminal needed)
 //   kanehack doctor [--json] [--report]    check Node, Git, Chrome, Kane CLI, auth, skills, API; optionally send the result
@@ -9,9 +10,13 @@
 //   kanehack help "<what's wrong>"         open a mentor ticket   (kanehack help --status H-0042)
 //   kanehack submit --preflight            what's missing before you can submit
 //   kanehack consent yes|no                allow / stop sending run summaries
-//   kanehack hook status|enable|disable    the optional lifecycle hook (off; see plugin/hooks/README.md)
+//   kanehack hook status|enable|disable|emit  the optional Codex status hook (off until enabled; plugin/hooks/README.md)
 //   kanehack connect codex                 add the event MCP server to Codex (no token stored)
-//   kanehack mcp-headers                   print {"Authorization":"Bearer …"} for Codex's headers helper
+//   kanehack mcp-headers                   print the auth headers (TestMu key + token) as JSON for Codex's headers helper
+//
+// Every request carries the TestMu AI access key (X-TestMu-Username / X-TestMu-Access-Key),
+// the site's mandatory sign-in. From `kanehack login`, TESTMU_USERNAME / TESTMU_ACCESS_KEY,
+// or Kane CLI's LT_USERNAME / LT_ACCESS_KEY. The pairing token, when present, rides along.
 //
 // Every command takes --json (one JSON document on stdout) and works without a
 // terminal. Exit codes: see usage() and README.md.
@@ -29,7 +34,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.3";
+const VERSION = "0.1.4";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -50,10 +55,23 @@ function loadConfig() {
   return {
     api: (process.env.KANEHACK_API || c.api || "https://kaneclihack.sh").replace(/\/$/, ""),
     token: process.env.KANEHACK_TOKEN || c.token || null,
+    testmu: testmuFrom(c),
     consent: c.consent ?? null,
     raw: c,
   };
 }
+
+/** TestMu AI credentials: env first (ours, then Kane CLI's), then the saved ones. */
+function testmuFrom(c) {
+  const pick = (u, k, source) => (u && k ? { username: String(u).trim(), access_key: String(k).trim(), source } : null);
+  return (
+    pick(process.env.TESTMU_USERNAME, process.env.TESTMU_ACCESS_KEY, "env") ||
+    pick(process.env.LT_USERNAME, process.env.LT_ACCESS_KEY, "kane-env") ||
+    pick(c.testmu?.username, c.testmu?.access_key, "config")
+  );
+}
+
+const testmuHeaders = (cfg) => (cfg.testmu ? { "X-TestMu-Username": cfg.testmu.username, "X-TestMu-Access-Key": cfg.testmu.access_key } : {});
 
 function writePrivate(file, obj) {
   mkdirSync(DIR, { recursive: true, mode: 0o700 });
@@ -132,6 +150,7 @@ const site = (h) => h.replace(/^www\./, "");
 async function api(cfg, path, init = {}) {
   const headers = { "user-agent": `kanehack/${VERSION} (${platform()} ${arch()})`, ...(init.headers || {}) };
   if (cfg.token) headers.authorization = `Bearer ${cfg.token}`;
+  Object.assign(headers, testmuHeaders(cfg));
   let res;
   let url = `${cfg.api}${path}`;
   try {
@@ -158,7 +177,10 @@ async function api(cfg, path, init = {}) {
 function ensure(r, what = "That request") {
   if (r.status === 0) fail(`${r.error} Check your network, or the server address (KANEHACK_API).`, EXIT.UNREACHABLE, "UNREACHABLE");
   if (r.redirect) fail(`${r.error} If that's the right server, run: kanehack pair --api ${new URL(r.redirect).origin}`, EXIT.UNREACHABLE, "REDIRECT");
-  if (r.status === 401) fail("Not paired (or the token was revoked or expired). Run: kanehack pair", EXIT.ACTION, "UNAUTHENTICATED");
+  if (r.status === 401 && r.env?.error?.code === "TESTMU_KEY_REQUIRED")
+    fail(testmuHint(), EXIT.ACTION, "TESTMU_KEY_REQUIRED");
+  if (r.status === 401) fail("Not signed in (or the token was revoked or expired). Run: kanehack login (TestMu AI key) or kanehack pair", EXIT.ACTION, "UNAUTHENTICATED");
+  if (r.status === 503 && r.env?.error?.code === "TESTMU_UNAVAILABLE") fail("The server couldn't check your TestMu AI key right now. Try again in a minute.", EXIT.UNREACHABLE, "TESTMU_UNAVAILABLE");
   if (!r.env) fail(`${what} failed: ${r.error}`, EXIT.FAIL, "BAD_RESPONSE");
   return r;
 }
@@ -196,8 +218,52 @@ function printEnvelope(env) {
 /** The parts of a server envelope worth handing to a script. */
 const envJson = (env) => ({ status: env.status, message: env.message, text: env.fallback?.text ?? env.message, data: env.data ?? null, links: env.links ?? [], warnings: env.warnings ?? [], error: env.error ?? null, request_id: env.request_id });
 
+function testmuHint() {
+  return loadConfig().testmu
+    ? "Your TestMu AI access key wasn't accepted. Run kanehack login again with the username + key from your profile page (kaneclihack.sh/register)."
+    : "This needs your TestMu AI access key. Run: kanehack login (your username + key are shown on kaneclihack.sh/register after your profile is saved).";
+}
+
+/** Signed in: a pairing token or a TestMu AI key (the key alone identifies you). */
 function needToken(cfg) {
-  if (!cfg.token) fail("This machine isn't paired yet. Run: kanehack pair", EXIT.ACTION, "NOT_PAIRED");
+  if (!cfg.token && !cfg.testmu) fail("This machine isn't signed in yet. Run: kanehack login (TestMu AI key), or kanehack pair", EXIT.ACTION, "NOT_PAIRED");
+}
+
+// ── login (TestMu AI access key) ────────────────────────────────────────────
+
+async function login(a) {
+  const cfg = loadConfig();
+  let username = a.flags.username ? String(a.flags.username) : process.env.TESTMU_USERNAME || process.env.LT_USERNAME || "";
+  let key = a.flags["access-key"] ? String(a.flags["access-key"]) : process.env.TESTMU_ACCESS_KEY || process.env.LT_ACCESS_KEY || "";
+  if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
+  if ((!username || !key) && interactive()) {
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    try {
+      say(dim("Your TestMu AI username and access key are shown on kaneclihack.sh/register once your profile is saved."));
+      if (!username) username = (await rl.question("TestMu AI username: ")).trim();
+      if (!key) key = (await rl.question("TestMu AI access key: ")).trim();
+    } finally {
+      rl.close();
+    }
+  }
+  if (!username || !key) fail("Usage: kanehack login --username <TestMu username> --access-key <key>   (or set TESTMU_USERNAME / TESTMU_ACCESS_KEY)", EXIT.ACTION, "USAGE");
+  // Check it with the server before saving: a wrong key fails here, not on the next command.
+  const r = await api({ ...cfg, token: null, testmu: { username, access_key: key } }, "/api/v1/auth/testmu/status", { timeout: 15_000 });
+  ensure(r, "Checking your TestMu AI key");
+  const d = r.env.data ?? {};
+  if (!d.connected) fail("The server didn't accept that TestMu AI username + access key.", EXIT.ACTION, "TESTMU_KEY_REQUIRED");
+  saveConfig({ testmu: { username, access_key: key }, ...(a.flags.api ? { api: cfg.api } : {}) });
+  say(ok(`Signed in with TestMu AI as ${username}${d.member?.name ? ` (${d.member.name})` : ""}.`), dim(`Saved in ${CONFIG} (mode 600).`));
+  if (!d.member) say(warn("! That key isn't linked to a Hack Day profile yet. Finish your profile at kaneclihack.sh/register."));
+  emit({ ok: true, exit_code: 0, status: "signed_in", testmu_username: username, member: d.member ?? null, key_required: d.key_required ?? null, api: cfg.api, config: CONFIG });
+}
+
+async function logout() {
+  const c = loadConfig().raw;
+  delete c.testmu;
+  writePrivate(CONFIG, c);
+  say("Forgot the saved TestMu AI key on this machine.", dim("(Env vars TESTMU_* / LT_* still apply if set.)"));
+  emit({ ok: true, exit_code: 0, status: "signed_out" });
 }
 
 // ── child processes (Windows needs a shell for .cmd shims, so quote for it) ──
@@ -400,11 +466,11 @@ const isOurUrl = (u, target) => {
 function mcpHeaders() {
   const cfg = loadConfig();
   // No --json document here: Codex reads stdout as the headers object, nothing else.
-  if (!cfg.token) {
-    say(bad("kanehack: not paired, so there is no token for the event MCP server. Run: kanehack pair"));
+  if (!cfg.token && !cfg.testmu) {
+    say(bad("kanehack: not signed in, so there are no headers for the event MCP server. Run: kanehack login"));
     exit(EXIT.ACTION);
   }
-  process.stdout.write(JSON.stringify({ Authorization: `Bearer ${cfg.token}` }) + "\n");
+  process.stdout.write(JSON.stringify({ ...(cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {}), ...testmuHeaders(cfg) }) + "\n");
 }
 
 const codexHome = () => process.env.CODEX_HOME || join(homedir(), ".codex");
@@ -624,6 +690,12 @@ async function doctor(a) {
   const reinstall = WIN ? "irm https://www.kaneclihack.sh/install.ps1 | iex" : "curl -fsSL https://kaneclihack.sh/install.sh | sh";
   add("plugin", pluginDirs.some((d) => existsSync(join(d, "SKILL.md"))) ? "pass" : "warn", null, null, `Re-run the installer to add the hack-* skills: ${reinstall}`);
   agentChecks(cfg, add, reinstall);
+  if (!cfg.testmu) add("testmu_key", "fail", null, "no TestMu AI key saved", "kanehack login");
+  else {
+    const t = await api(cfg, "/api/v1/auth/testmu/status", { timeout: 10_000 });
+    const connected = t.env?.data?.connected === true;
+    add("testmu_key", connected ? "pass" : "fail", null, connected ? `as ${cfg.testmu.username}` : t.status === 0 ? "server unreachable" : "key not accepted", "kanehack login");
+  }
   const r = await api(cfg, "/api/v1/kane/runs?limit=1", { timeout: 10_000 });
   if (!cfg.token) add("api", r.status === 401 ? "warn" : "fail", null, r.status === 401 ? "reachable, not paired" : r.status === 0 ? "unreachable" : `HTTP ${r.status}`, r.status === 401 ? "kanehack pair" : `Check your network; the server is ${cfg.api}`);
   else add("api", r.status === 200 || r.status === 403 ? "pass" : "fail", null, r.status === 0 ? "unreachable" : r.status === 403 ? "paired, not on a team yet" : `HTTP ${r.status}`, r.status === 401 ? "kanehack pair (token rejected)" : `Check your network; the server is ${cfg.api}`);
@@ -861,22 +933,63 @@ function consent(a) {
   emit({ ok: true, exit_code: 0, consent: v === "yes" });
 }
 
-function hook(a) {
+// The opt-in Codex status hook (plugin/hooks/README.md): metadata-only pings to
+// POST /api/v1/teams/{team}/status. `emit` never blocks Codex: short timeout,
+// errors swallowed, always exit 0.
+const HOOK_EVENTS = new Set(["session_start", "heartbeat", "tool_use", "kane_run_started", "kane_run_finished", "waiting_for_human", "error", "stop", "session_end"]);
+
+async function teamSlugOf(cfg) {
+  const r = await api(cfg, "/api/v1/me/flow", { timeout: 10_000 });
+  const url = r.env?.ideaUrl ?? null;
+  return (typeof url === "string" && /^\/t\/([\w-]+)\//.exec(url)?.[1]) || null;
+}
+
+async function hook(a) {
   const sub = a._[1] || "status";
-  const off = (msg) => {
-    say(msg);
-    emit({ ok: true, exit_code: 0, hook: "off" });
-  };
-  if (sub === "status") return off("Lifecycle hook: off. (It's optional and not available yet; see plugin/hooks/README.md.)");
-  if (sub === "disable") return off("Lifecycle hook: off.");
-  if (sub === "enable") fail("The lifecycle hook isn't available yet: its endpoint must ship with the same redaction and consent checks first. Nothing was enabled.", EXIT.ACTION, "NOT_AVAILABLE", { hook: "off" });
-  if (sub === "emit") return; // no-op until the endpoint exists
-  fail("Usage: kanehack hook status|enable|disable", EXIT.ACTION, "USAGE");
+  const cfg = loadConfig();
+  const h = cfg.raw.hook ?? null;
+  if (sub === "status") {
+    say(h?.enabled ? `Codex status hook: on (team ${h.team}).` : "Codex status hook: off.");
+    return emit({ ok: true, exit_code: 0, hook: h?.enabled ? "on" : "off", team: h?.team ?? null });
+  }
+  if (sub === "disable") {
+    saveConfig({ hook: { enabled: false } });
+    say("Codex status hook: off.");
+    return emit({ ok: true, exit_code: 0, hook: "off" });
+  }
+  if (sub === "enable") {
+    needToken(cfg);
+    const team = a.flags.team ? String(a.flags.team) : await teamSlugOf(cfg);
+    if (!team) fail("Couldn't find your team. Join one first, or pass --team <team-slug>.", EXIT.ACTION, "NO_TEAM");
+    saveConfig({ hook: { enabled: true, team } });
+    say(ok(`Codex status hook: on for team ${team}.`), dim("Sends only: event, a hashed session id, Codex version, model. Turn off: kanehack hook disable"));
+    return emit({ ok: true, exit_code: 0, hook: "on", team });
+  }
+  if (sub === "emit") {
+    const event = a._[2];
+    if (!h?.enabled || !HOOK_EVENTS.has(event) || (!cfg.token && !cfg.testmu)) return;
+    const session = String(a.flags.session || process.env.CODEX_SESSION_ID || process.env.CODEX_THREAD_ID || `${hostname()}-${new Date().toISOString().slice(0, 10)}`);
+    const body = {
+      event,
+      session_id: createHash("sha256").update(`kanehack:${session}`).digest("hex"),
+      host: "codex",
+      ...(a.flags["codex-version"] ? { codex_version: String(a.flags["codex-version"]) } : {}),
+      ...(a.flags.model ? { model: String(a.flags.model) } : {}),
+      ...(a.flags.run ? { kane_run_id: String(a.flags.run) } : {}),
+    };
+    try {
+      await api(cfg, `/api/v1/teams/${encodeURIComponent(h.team)}/status`, { ...json(body), timeout: 3_000 });
+    } catch {}
+    return;
+  }
+  fail("Usage: kanehack hook status|enable [--team SLUG]|disable|emit <event>", EXIT.ACTION, "USAGE");
 }
 
 function usage() {
   console.log(`kanehack ${VERSION}: Kane CLI Hack Day helper
 
+  kanehack login [--username U --access-key K]  save your TestMu AI key (required sign-in; shown on /register)
+  kanehack logout                             forget the saved TestMu AI key
   kanehack pair [--token khk_…] [--api URL]   pair this machine (device code, or a token)
   kanehack pair --start                       Codex/scripts: print the approve URL + code and exit
   kanehack pair --wait [--timeout SECONDS]    Codex/scripts: wait for that code's approval (default 90 s)
@@ -890,9 +1003,10 @@ function usage() {
   kanehack help --status H-0042
   kanehack submit --preflight                 what's missing before you can submit
   kanehack consent yes|no|status              allow / stop / show sending run summaries
-  kanehack hook status|enable|disable         optional lifecycle hook (off)
+  kanehack hook status|enable|disable         optional Codex status hook (off until enabled)
+  kanehack hook emit <event> [--model M]      send one status ping (Codex hooks call this; never fails)
   kanehack connect codex [--check]            add the event MCP server to Codex (no token stored)
-  kanehack mcp-headers                        print the Authorization header as JSON (Codex's headers helper runs it)
+  kanehack mcp-headers                        print the auth headers as JSON (Codex's headers helper runs it)
   kanehack version
 
   Every command takes --json: one JSON document on stdout (report: one extra NDJSON line).
@@ -906,7 +1020,7 @@ Kane CLI syntax: the official skill, npx @testmuai/kane-cli-skill`);
 const a = args(process.argv.slice(2));
 JSON_MODE = Boolean(a.flags.json);
 const cmd = a._[0];
-const commands = { pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
+const commands = { login, logout, pair, token, doctor, report, status, help, submit, consent, hook, connect, "mcp-headers": mcpHeaders };
 const run = Object.hasOwn(commands, cmd) ? commands[cmd] : null;
 
 Promise.resolve()

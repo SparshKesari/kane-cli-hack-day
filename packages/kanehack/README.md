@@ -5,28 +5,33 @@ The Kane CLI Hack Day helper. No dependencies; Node 18.17+.
 ```sh
 curl -fsSL https://kaneclihack.sh/install.sh | sh     # macOS / Linux
 irm https://www.kaneclihack.sh/install.ps1 | iex      # Windows PowerShell (5.1 needs the www host)
-kanehack pair
+kanehack login      # your TestMu AI username + access key (shown on kaneclihack.sh/register)
 kanehack doctor
 kanehack report -- kane-cli run "Sign up and reach the dashboard" --agent
 ```
 
 The installer links `kanehack` into a folder that is already on your PATH and writable without sudo (npm's global bin, else `~/.local/bin` or `~/bin`; on Windows a `kanehack.cmd` shim in `npm prefix -g`), so it works in the same terminal right away. It asks first, never replaces a different `kanehack`, and falls back to offering a shell-profile line (Windows: the user PATH) with full-path next steps.
 
+**Sign-in is your TestMu AI access key.** Every request sends `X-TestMu-Username` and `X-TestMu-Access-Key`, taken from (first match wins) `TESTMU_USERNAME` / `TESTMU_ACCESS_KEY`, Kane CLI's `LT_USERNAME` / `LT_ACCESS_KEY`, or what `kanehack login` saved. The key alone identifies you; a pairing token, if you have one, is sent too. A `401 TESTMU_KEY_REQUIRED` exits 2 and tells you to run `kanehack login`.
+
 | Command | What it does |
 |---|---|
+| `login [--username U --access-key K] [--api URL]` | Checks the TestMu AI key with the server (`/api/v1/auth/testmu/status`), then saves it in `~/.kanehack/config.json` (mode 600). Prompts in a terminal; without one, pass the flags or env vars. Exit 2 if the key isn't accepted. |
+| `logout` | Forgets the saved key (env vars still apply). |
 | `pair [--token khk_…] [--api URL]` | Device-code pairing with your account (or a token). Saves `~/.kanehack/config.json`, mode 600. In a terminal it waits until the code expires; without one it waits 90 s, then exits 4. |
 | `pair --start` | Starts pairing, prints the approve URL and code, exits. The secret device code stays in `~/.kanehack/pending-pair.json` (mode 600). |
 | `pair --wait [--timeout SECONDS]` | Waits for that code (default 90 s). 0 paired, 4 still pending (run it again), 1 expired or denied. |
 | `token` | Prints the saved token on stdout, for `export KANEHACK_TOKEN="$(kanehack token)"` (only for a setup that can't run a headers helper; prefer `kanehack connect codex`). Pairing never prints it. |
-| `doctor [--report]` | Checks OS, Node, Git, Chrome, Kane CLI, `kane-cli whoami`, the official Kane skill, the hack skills and the API; with Codex installed (or `~/.codex` present) also `codex`, `codex_skills` and `codex_mcp`,, each with its fix. `--report` sends statuses and versions only. Exit 1 if any check fails (Codex checks only warn). |
+| `doctor [--report]` | Checks OS, Node, Git, Chrome, Kane CLI, `kane-cli whoami`, the official Kane skill, the hack skills and the API; with Codex installed (or `~/.codex` present) also `codex`, `codex_skills` and `codex_mcp`, plus `testmu_key`, each with its fix. `--report` sends statuses and versions only. Exit 1 if any check fails (Codex checks only warn). |
 | `connect codex [--check] [--url URL]` | Adds the event MCP server `kane-hack-event` (`https://www.kaneclihack.sh/mcp`) to Codex (`~/.codex/config.toml`, or `$CODEX_HOME`; backed up first, checked with `codex mcp get`). The config holds the URL and `kanehack mcp-headers` as the headers helper, never the token. Idempotent; a different server with that name is left alone (exit 2). `--check`: 0 connected, 1 not (yet), 2 name taken. |
-| `mcp-headers` | Prints `{"Authorization":"Bearer …"}` for Codex's headers helper (`http_headers_helper`). Exit 2 with a message on stderr if not paired. You don't run this yourself. |
+| `mcp-headers` | Prints the auth headers (`X-TestMu-Username`, `X-TestMu-Access-Key`, and `Authorization: Bearer …` when paired) for Codex's headers helper (`http_headers_helper`). Exit 2 with a message on stderr if not signed in. You don't run this yourself. |
 | `report [--evidence FILE] [--objective TEXT] [--commit SHA] [--no-upload] -- <kane-cli …>` | Runs the Kane command as given, streams its stdout through untouched, keeps the **exit code**, then sends a redacted copy of the NDJSON to `POST /api/v1/kane/runs`. Exits with Kane's exit code (127 if the command doesn't exist). |
 | `status` | Your team's latest runs, with VERIFIED / unverified. |
 | `help "<what's wrong>"` / `help --status H-0042` | Mentor ticket through the event MCP server. |
 | `submit --preflight` | What's missing before you can submit (exit 0 ready, 1 not yet). Finalizing needs your confirmation, so it happens on the Submit tab or through Codex. |
 | `consent yes\|no\|status` | Allow, stop or show sending run summaries. Asked once on first `report` in a terminal; without a terminal nothing is sent until you run `kanehack consent yes`. |
-| `hook status\|enable\|disable` | The optional lifecycle hook. Off; `enable` refuses (exit 2) until its endpoint exists. |
+| `hook status\|enable [--team SLUG]\|disable` | The optional Codex status hook. `enable` finds your team (or takes `--team`) and turns it on. |
+| `hook emit <event> [--model M] [--codex-version V] [--run ID]` | One metadata-only ping to `POST /api/v1/teams/{team}/status` (Codex hooks call this). Silent, 3 s timeout, always exit 0, nothing sent when the hook is off. Events: `session_start` `heartbeat` `tool_use` `kane_run_started` `kane_run_finished` `waiting_for_human` `error` `stop` `session_end`. |
 | `version` | Prints the version. |
 
 ## Scripts and Codex (no terminal)

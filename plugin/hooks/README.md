@@ -10,7 +10,7 @@ Only metadata, after the person runs `kanehack hook enable`:
 { "event": "session_start", "session_id": "<opaque>", "host": "codex", "codex_version": "0.48.0", "model": "gpt-5-codex", "at": "<ISO time>" }
 ```
 
-This is not a run report and never creates evidence, so it does not go to `/api/v1/kane/runs`. Its metadata-only endpoint is `POST /{team-slug}/status` (the same as `/api/v1/teams/{team-slug}/status`). The schema there is strict: a ping with any field outside the list below is refused (400), not trimmed. Teammates and staff read the result with `GET` on the same path. `kanehack hook enable` still refuses until the CLI side is wired to this endpoint.
+This is not a run report and never creates evidence, so it does not go to `/api/v1/kane/runs`. Its metadata-only endpoint is `POST /{team-slug}/status` (the same as `/api/v1/teams/{team-slug}/status`). The schema there is strict: a ping with any field outside the list below is refused (400), not trimmed. Teammates and staff read the result with `GET` on the same path. Turn it on with `kanehack hook enable`; Codex hooks then call `kanehack hook emit <event>`, which sends the ping below.
 
 ```bash
 curl -X POST https://www.kaneclihack.sh/orbit/status \

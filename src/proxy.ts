@@ -41,6 +41,10 @@ async function checkKey(c: { username: string; accessKey: string }): Promise<Che
   } catch {
     return { ok: false, reason: "unavailable", detail: "key store unreachable" };
   }
+  // Keys from activation are always in the store. With no verify endpoint configured
+  // in production there is nobody else to ask, so an unknown key is simply not accepted.
+  const prod = process.env.VERCEL_ENV === "production" || process.env.HACKOS_ENV === "production";
+  if (prod && !process.env.TESTMU_VERIFY_URL?.trim()) return { ok: false, reason: "invalid", detail: "unknown key" };
   return checkAccessKey(c);
 }
 
