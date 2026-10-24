@@ -27,7 +27,7 @@ import {
   type MemberRow,
   type Staff,
 } from "./auth";
-import { EVIDENCE_KINDS, MAX_DIRECT_BYTES, MAX_SIGNED_BYTES, inspectEvidence, type EvidenceKind } from "./kane-evidence";
+import { EVIDENCE_KINDS, MAX_DIRECT_BYTES, MAX_SIGNED_BYTES, evidenceKindFor, inspectEvidence, type EvidenceKind } from "./kane-evidence";
 import {
   decideStatus,
   defectSignature,
@@ -691,8 +691,9 @@ export async function storeEvidence(
   if (c.kind === "staff") throw new AppError("FORBIDDEN");
   const project = await projectFor(c, m.project_id);
   const member = callerMember(c)!;
+  const kind = evidenceKindFor(m.kind, file.name);
 
-  const v = inspectEvidence({ kind: m.kind, name: file.name, claimedType: file.type, bytes: file.bytes, maxBytes: opts.signed ? MAX_SIGNED_BYTES : MAX_DIRECT_BYTES });
+  const v = inspectEvidence({ kind, name: file.name, claimedType: file.type, bytes: file.bytes, maxBytes: opts.signed ? MAX_SIGNED_BYTES : MAX_DIRECT_BYTES });
   if (v.verdict === "reject") throw new AppError("VALIDATION_FAILED", { userMessage: v.reason });
   const digest = sha256(file.bytes);
   if (m.sha256 && m.sha256 !== digest) throw new AppError("VALIDATION_FAILED", { userMessage: "The file's sha256 doesn't match the one you sent. Re-upload it." });
@@ -737,7 +738,7 @@ export async function storeEvidence(
           project.id,
           key,
           digest,
-          m.kind,
+          kind,
           v.contentType,
           file.bytes.length,
           quarantined ? "private" : m.visibility,
@@ -753,7 +754,7 @@ export async function storeEvidence(
       if (!quarantined) {
         await tx.query("update kane_runs set evidence_artifact_id = $2 where project_id = $1 and evidence_hash = $3 and evidence_artifact_id is null", [project.id, rows[0].id, digest]);
       }
-      return { result: rows[0], resourceId: rows[0].id, after: { sha256: digest, kind: m.kind, quarantined }, reason: quarantined ? v.reason : null };
+      return { result: rows[0], resourceId: rows[0].id, after: { sha256: digest, kind, quarantined }, reason: quarantined ? v.reason : null };
     },
     { requestId: opts.requestId },
   );
