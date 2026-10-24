@@ -2,19 +2,18 @@
 // The hack-os skill's private notes on this machine: whether the person is building,
 // and the help issues they filed. The event server stays the source of progress.
 //
-//   node state.mjs get
+//   node state.mjs get                  (also says whether the idea was checked here: idea_check)
 //   node state.mjs set-build building|ready
 //   node state.mjs add-issue https://github.com/LambdaTest/kane-cli/issues/123
 //   node state.mjs check-version [--site https://kaneclihack.sh]
 //   node state.mjs key-required [--site https://www.kaneclihack.sh]
 //
 // JSON on stdout; exit 0, or 2 for a usage error. Never store secrets here.
-import { mkdirSync, readFileSync, renameSync, writeFileSync, chmodSync } from "node:fs";
-import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { STATE_NAME, readNote, writeNote } from "./os-dir.mjs";
 
-const STATE = process.env.KANEHACK_OS_STATE || join(homedir(), ".kanehack", "os", "state.json");
 const BUNDLE_VERSION = join(dirname(fileURLToPath(import.meta.url)), "..", ".bundle-version");
 const ISSUE_URL = /^https:\/\/github\.com\/LambdaTest\/kane-cli\/issues\/\d+$/;
 const OFFICIAL = new Set(["kaneclihack.sh", "www.kaneclihack.sh"]);
@@ -26,23 +25,22 @@ const usage = (msg) => {
 };
 
 function load() {
-  try {
-    const s = JSON.parse(readFileSync(STATE, "utf8"));
-    if (s && s.version === 1) return { build: null, help_issues: [], updated_at: null, ...s };
-  } catch {}
+  const s = readNote(STATE_NAME);
+  if (s && s.version === 1) return { build: null, help_issues: [], updated_at: null, ...s };
   return { version: 1, build: null, help_issues: [], updated_at: null };
 }
 
+/** Saved in ~/.kanehack/os, or the temp folder when Codex's sandbox blocks that; never throws. */
 function save(s) {
   const next = { ...s, version: 1, updated_at: new Date().toISOString() };
-  const dir = dirname(STATE);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  chmodSync(dir, 0o700);
-  const tmp = `${STATE}.tmp-${process.pid}`;
-  writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
-  renameSync(tmp, STATE);
-  chmodSync(STATE, 0o600);
+  writeNote(STATE_NAME, next);
   return next;
+}
+
+/** Whether this machine has checked the team's idea (scripts/idea-check.mjs), and the routing verdict. */
+function ideaCheck() {
+  const r = readNote("idea-check.json");
+  return r && typeof r.verdict === "string" ? { verdict: r.verdict, checked_at: r.checked_at ?? null } : null;
 }
 
 const parts = (v) => v.split(".").map((n) => parseInt(n, 10) || 0);
@@ -89,7 +87,7 @@ async function keyRequired(args) {
 }
 
 const [cmd, ...args] = process.argv.slice(2);
-if (cmd === "get") out(load());
+if (cmd === "get") out({ ...load(), idea_check: ideaCheck() });
 else if (cmd === "set-build") {
   if (!["building", "ready"].includes(args[0])) usage("set-build takes building or ready");
   out(save({ ...load(), build: args[0] }));

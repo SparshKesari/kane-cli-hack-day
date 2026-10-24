@@ -5,13 +5,12 @@ Three steps, after the team is locked. `participant_get_status` returns activati
 1. **TestMu AI sign-up** (`testmu_signup`): step 2's claim creates the TestMu AI account and ticks it. Only if the claim can't run and they tell you they signed up themselves: ask "Mark the TestMu AI sign-up done?", then `activation_tick` with `step: "testmu_signup"` and `explicit_confirmation: true`.
 2. **TestMu AI plan** (`testmu_plan`): `kanehack claim --json`. It uses the password saved with `kanehack password` (their kaneclihack.sh password is also their TestMu AI password).
    - 0 → claimed.
-   - 2 → show its message. Not registered: they sign up on TestMu AI with the same email, then `kanehack claim --json` again. They already had a TestMu AI account with a different password: they run `kanehack password --testmu` in their own terminal, then `kanehack claim --json`.
+   - 2 → show its message. Not registered: they sign up on TestMu AI with the same email ("Type **done** here when it's finished."), then `kanehack claim --json` again. They already had a TestMu AI account with a different password: they run `kanehack password --testmu` in their own terminal ("Type **done** here when it's finished."), then `kanehack claim --json`.
    - 4 → still activating: wait a few seconds and run it again.
 3. **Codex credits** (`codex_credits`): the OpenAI Codex coupon comes by email, to people on the participant list. Ask "Send your Codex coupon to <their signed-in email>?", then `codex_coupon_send` with `explicit_confirmation: true`. `data.outcome`:
-   - `sent` → it's in their inbox (spam too). They redeem it themselves. Asking again re-sends the same coupon.
+   - `sent` → it's in their inbox (spam too). Asking again re-sends the same coupon. They redeem it themselves: "Redeem the Codex coupon from your email. Type **done** here when it's finished, and I'll tick step 3." Their done is the yes for that tick: `activation_tick` with `step: "codex_credits"` and `explicit_confirmation: true`.
    - `not_on_list` → ask which email they registered for the event with. If it's another address, confirm it, then `codex_coupon_send` with that `email` and `explicit_confirmation: true`. Still not on the list → the help desk.
    - `out_of_codes` → the help desk.
-   When they say it's redeemed, ask "Mark the Codex credits step done?", then `activation_tick` with `step: "codex_credits"` and `explicit_confirmation: true`.
 
 Activation is done when `participant_get_status` shows activation_steps.done true; never report it from their word alone. The same steps show on `https://kaneclihack.sh/activate`.
 

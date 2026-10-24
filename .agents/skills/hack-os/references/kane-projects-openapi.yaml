@@ -1,0 +1,2534 @@
+openapi: 3.1.0
+info:
+  title: 'Kane AI shared projects API (read-only)'
+  version: '2026-10-24'
+  description: 'Every route checks your access to the project with Test Manager (kept 5 minutes), and fields may be null where
+    the item has no value yet. Read-only routes for building your own tools and reports on your team''s shared projects: coverage,
+    use cases, scenarios and their Test Manager cases, runs, sources and the traceability graph. Call them from your own server
+    or script with your LambdaTest username and access key. Never put the key in a browser page. Be kind to the service: cache,
+    and poll no faster than each route''s x-poll.'
+servers:
+- url: https://kaneai-api.lambdatest.com/v16-lattice
+  description: Production
+security:
+- basicAuth: []
+- bearerAuth: []
+tags:
+- name: Project
+- name: Use cases
+- name: Scenarios and runs
+- name: Sources
+- name: Graph
+paths:
+  /v1/projects:
+    get:
+      operationId: listProjects
+      summary: Your projects
+      description: 'The Test Manager projects your account can open, one page of 50, each with `marked`: true for a shared
+        project. `name` searches every page and adds `total`. Each listed project''s mark is checked with Test Manager, so
+        call it once when your app starts and cache it.'
+      tags:
+      - Project
+      parameters:
+      - name: page
+        in: query
+        description: 1 to 100 (default 1)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 1
+      - name: name
+        in: query
+        description: search project names (1 to 200 characters)
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      x-cost: medium (one Test Manager read per listed project)
+      x-poll: once at start; cache 1 hour
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+              example:
+                items:
+                - projectId: 01JEXAMPLE0000000000000001
+                  name: Checkout web app
+                  marked: true
+                - projectId: 01JEXAMPLE0000000000000002
+                  name: Mobile sign-in
+                  marked: true
+                next: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/assurance:
+    get:
+      operationId: getAssurance
+      summary: Project headline counts
+      description: Use cases, criteria, scenarios, tests, open questions, sources, sessions and the last session. Takes no
+        query parameters (extras are ignored).
+      tags:
+      - Project
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      x-cost: cheap
+      x-poll: every 60 s at most
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assurance'
+              example:
+                project: 01JEXAMPLE0000000000000000
+                updatedAt: '2026-10-23T20:47:26.975Z'
+                useCases:
+                  total: 2
+                  proposed: 0
+                  approved: 2
+                  archived: 0
+                  stale: 0
+                criteria:
+                  total: 2
+                  proposed: 0
+                  approved: 2
+                  archived: 0
+                scenarios: 3
+                tests: 3
+                openQuestions: 0
+                sources: 4
+                sessions:
+                  total: 3
+                  waitingOnYou: 0
+                  running: 0
+                lastSession:
+                  id: design-20261024T090000-a1b2c3
+                  kind: Design
+                  state: done
+                  startedAt: '2026-10-23T20:43:58.996Z'
+                capabilities:
+                - use-case-query
+                - source-query
+                - session-name
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/coverage:
+    get:
+      operationId: getCoverage
+      summary: Project coverage
+      description: 'The coverage document: the project''s percent, each use case''s state, and each criterion''s deciding
+        run. It is computed one project at a time and kept. A read waits up to 10 s for it, then may answer `state: computing`
+        with `doc: null`: ask again after a few seconds, with backoff. Kept about 5 minutes, and recomputed when the project
+        or its counted runs change; a recompute reads counted runs from Test Manager and its time varies (about 3 s on a small
+        project). Takes no query parameters (extras are ignored).'
+      tags:
+      - Project
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      x-cost: cheap when kept; a recompute reads Test Manager
+      x-poll: every 5 minutes at most
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coverage'
+              example:
+                state: ready
+                doc:
+                  coverage_version: 2
+                  scope: project
+                  config:
+                    rule: newest_counted_verdict
+                    weighting: risk
+                    weights:
+                      high: 1.25
+                      med: 1
+                      low: 0.75
+                      unknown: 1
+                  pct: 100
+                  usecases:
+                    total: 2
+                    proven: 2
+                    partial: 0
+                    failing: 0
+                    not_run: 0
+                    not_designed: 0
+                    no_criteria: 0
+                  criteria:
+                    total: 2
+                    proven: 2
+                  perUc:
+                  - id: uc-1
+                    title: Display a typed message
+                    risk: med
+                    weight: 1
+                    state: proven
+                    pct: 100
+                    criteria: 1
+                    proven: 1
+                    manual_runs: 0
+                    stale: false
+                  - id: uc-2
+                    title: Calculate the sum of two numbers
+                    risk: med
+                    weight: 1
+                    state: proven
+                    pct: 100
+                    criteria: 1
+                    proven: 1
+                    manual_runs: 0
+                    stale: false
+                  perAc:
+                    ac-1:
+                      state: proven
+                      uc: uc-1
+                      deciding_run: tm:1000001
+                    ac-2:
+                      state: proven
+                      uc: uc-2
+                      deciding_run: tm:1000001
+                  flags:
+                    stale_sources: 0
+                    sources_not_fully_extracted: []
+                    orphaned_usecases: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/use-cases:
+    get:
+      operationId: listUseCases
+      summary: Use cases, paged
+      description: One row per use case with its coverage. Filters narrow the list; `total` counts every matching row.
+      tags:
+      - Use cases
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: proposed, approved or archived
+        schema:
+          type: string
+          enum:
+          - proposed
+          - approved
+          - archived
+      - name: q
+        in: query
+        description: search the title and summary (1 to 100 characters, after trimming spaces)
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: sort
+        in: query
+        description: position (default), title or risk
+        schema:
+          type: string
+          enum:
+          - position
+          - title
+          - risk
+      - name: order
+        in: query
+        description: asc or desc
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      - name: stale
+        in: query
+        description: true or false
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
+      - name: designed
+        in: query
+        description: true or false
+        schema:
+          type: string
+          enum:
+          - 'true'
+          - 'false'
+      - name: risk
+        in: query
+        description: high, medium or low
+        schema:
+          type: string
+          enum:
+          - high
+          - medium
+          - low
+      - name: facets
+        in: query
+        description: true adds counts by status, risk and staleness
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - name: limit
+        in: query
+        description: Page size, 1 to 200 (default 50). Keep it at 50 or below.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: next
+        in: query
+        description: The previous page's `next`, passed back exactly as given (an opaque cursor).
+        schema:
+          type: string
+          minLength: 1
+      x-cost: medium (its coverage reads counted runs from Test Manager)
+      x-poll: every 5 minutes at most; limit 50 or less
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UseCaseList'
+              example:
+                total: 2
+                items:
+                - id: uc-1
+                  title: Display a typed message
+                  summary: See an entered message displayed.
+                  risk: medium
+                  status: approved
+                  stale: false
+                  staleReason: null
+                  designed: true
+                  changedSinceDesign: false
+                  scenarios: 2
+                  criteria: 1
+                  updatedBy: A teammate
+                  updatedAt: '2026-10-23T20:36:11.158Z'
+                  coverage:
+                    pct: 100
+                    status: proven
+                    manualRuns: 0
+                  coverageV2:
+                    pct: 100
+                    status: proven
+                    manualRuns: 0
+                - id: uc-2
+                  title: Calculate the sum of two numbers
+                  summary: See the sum of two entered numbers.
+                  risk: medium
+                  status: approved
+                  stale: false
+                  staleReason: null
+                  designed: true
+                  changedSinceDesign: false
+                  scenarios: 1
+                  criteria: 1
+                  updatedBy: A teammate
+                  updatedAt: '2026-10-23T20:36:11.158Z'
+                  coverage:
+                    pct: 100
+                    status: proven
+                    manualRuns: 0
+                  coverageV2:
+                    pct: 100
+                    status: proven
+                    manualRuns: 0
+                next: null
+                coverage:
+                  state: ready
+                  aspect: one-rule
+                  pct: 100
+                  acsProven: 2/2
+                coverageV2:
+                  state: ready
+                  pct: 100
+                  acsProven: 2/2
+                  note: null
+                  useCases:
+                    total: 2
+                    proven: 2
+                    partial: 0
+                    failing: 0
+                    notRun: 0
+                    notDesigned: 0
+                    noCriteria: 0
+                  flags:
+                    staleSources: 0
+                    sourcesNotFullyExtracted: []
+                    orphanedUseCases: 0
+                  weighting: risk
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/use-cases/{useCaseId}:
+    get:
+      operationId: getUseCase
+      summary: One use case, whole
+      description: 'Its criteria (with citations), scenarios (with their Test Manager case), open questions, sources, versions
+        and coverage. Reads Test Manager: open it when a person asks, cache it 5 minutes, and never loop it over every use
+        case on a timer.'
+      tags:
+      - Use cases
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: useCaseId
+        in: path
+        required: true
+        description: e.g. uc-1
+        schema:
+          type: string
+      x-cost: medium (calls Test Manager)
+      x-poll: on demand; cache 5 minutes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UseCase'
+              example:
+                id: uc-1
+                title: Display a typed message
+                description: A visitor enters a message in the "Enter Message" field, presses "Get Checked Value", and sees
+                  the text they typed un…
+                summary: See an entered message displayed.
+                actors:
+                - visitor
+                value: Allows visitors to verify that their message is displayed by the demo form.
+                risk: medium
+                status: approved
+                stale: false
+                staleReason: null
+                design:
+                  generation: 1
+                  changedSinceDesign: false
+                counts:
+                  criteria: 1
+                  scenarios: 2
+                  tests: 2
+                  openQuestions: 0
+                  gaps: 0
+                  sources: 1
+                coverage:
+                  state: ready
+                  pct: 100
+                  acsProven: 1/1
+                  status: proven
+                coverageV2:
+                  state: ready
+                  pct: 100
+                  acsProven: 1/1
+                  status: proven
+                citations:
+                - source: prd
+                  lines:
+                    from: 5
+                    to: 6
+                  quote: When the visitor types a message into "Enter Message" and presses "Get Checked Value", the message
+                    they typed appears…
+                  version: 1
+                  current: true
+                - source: prd
+                  lines:
+                    from: 6
+                    to: 6
+                  quote: When the visitor types a message into "Enter Message" and presses "Get Checked Value", the message
+                    they typed appears…
+                  claim: The message typed in "Enter Message" appears under "Your Message:" after "Get Checked Value" is pressed.
+                  version: 1
+                  current: true
+                criteria:
+                - id: ac-1
+                  text: After a visitor enters a message in “Enter Message” and presses “Get Checked Value”, the text under
+                    “Your Message:” e…
+                  kind: absolute
+                  expected:
+                    kind: absolute
+                    operand: 'the text entered in Enter Message under Your Message:'
+                    baseline: null
+                    operator: equals
+                  measurable: null
+                  scope: use-case
+                  risk: medium
+                  status: approved
+                  stale: false
+                  staleReason: null
+                  state: passed
+                  proof: proven
+                  decidingRun: null
+                  proofV2: proven
+                  decidingRunV2: null
+                  citations: []
+                scenarios:
+                - id: sc-1
+                  title: Replace a previous displayed message
+                  type: negative
+                  status: proposed
+                  stale: false
+                  staleReason: null
+                  state: passed
+                  criteria:
+                  - ac-1
+                  proven: 1/1
+                  provenV2: 1/1
+                  test:
+                    id: t-1
+                    lastRun:
+                      verdict: passed
+                      at: '2026-10-23T21:04:12Z'
+                      counted: true
+                      runId: 01JEXAMPLE0000000000000000
+                      instanceId: '1000001'
+                      type: Manual
+                      manual: false
+                      kaneCli: true
+                  testCase:
+                    caseId: 01JEXAMPLE0000000000000000
+                    internalId: TC-4508
+                    title: Replace a previous displayed message
+                    linkState: linked
+                    reason: null
+                    sync: automated
+                - id: sc-2
+                  title: Show the submitted message
+                  type: happy
+                  status: proposed
+                  stale: false
+                  staleReason: null
+                  state: passed
+                  criteria:
+                  - ac-1
+                  proven: 1/1
+                  provenV2: 1/1
+                  test:
+                    id: t-2
+                    lastRun:
+                      verdict: passed
+                      at: '2026-10-23T21:04:12Z'
+                      counted: true
+                      runId: 01JEXAMPLE0000000000000000
+                      instanceId: '1000001'
+                      type: Manual
+                      manual: false
+                      kaneCli: true
+                  testCase:
+                    caseId: 01JEXAMPLE0000000000000000
+                    internalId: TC-4509
+                    title: Show the submitted message
+                    linkState: linked
+                    reason: null
+                    sync: automated
+                openQuestions: []
+                gaps: []
+                sources:
+                - prd
+                versions:
+                - version: 1
+                  date: '2026-10-23T20:36:11.158Z'
+                  by: A teammate
+                  current: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/scenarios/{scenarioId}:
+    get:
+      operationId: getScenario
+      summary: One scenario, whole
+      description: 'The scenario as a test case: its test''s steps, criteria, Test Manager case, last run, first page of runs
+        and versions. Reads Test Manager: on demand, cache 5 minutes.'
+      tags:
+      - Scenarios and runs
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: scenarioId
+        in: path
+        required: true
+        description: e.g. sc-1
+        schema:
+          type: string
+      x-cost: medium (calls Test Manager)
+      x-poll: on demand; cache 5 minutes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scenario'
+              example:
+                id: sc-1
+                title: Replace a previous displayed message
+                intent: After displaying a nonempty message, enter a different nonempty message and press Get Checked Value;
+                  the displayed message equals the newly typed text, not the earlier text.
+                type: negative
+                description: null
+                tags: []
+                parameters:
+                  new_message: Goodbye
+                  previous_message: Hello
+                techniqueNotes: 'Negative/stale-result check from the promise that the message they typed appears after pressing
+                  the button; state-flow tests a repeat action, not undocumented persistence. EQP: distinct nonempty values.
+                  No numeric bounds, auth, persisted resource, API contract, concurrency, money, localization rule, accessibility
+                  rule, responsiveness rule, pagination, upload, or notification promise is stated, so BVA, auth, CRUD, API,
+                  concurrency, idempotency, i18n, a11y, responsiveness, empty-state, overflow, persistence, temporal, currency,
+                  pagination and media/notification paths are not inferred. No ceiling; both candidates retained. Covering
+                  strength risk-judged 2 (only user-reach); only one message input, so effective strength=1, degraded from
+                  2.'
+                status: proposed
+                stale: false
+                staleReason: null
+                state: passed
+                useCase:
+                  id: uc-1
+                  title: Display a typed message
+                criteria:
+                - id: ac-1
+                  text: After a visitor enters a message in “Enter Message” and presses “Get Checked Value”, the text under
+                    “Your Message:” e…
+                test:
+                  id: t-1
+                  title: New submission displays its own message
+                  steps:
+                  - n: 1
+                    text: Open the Simple Form Demo page at https://www.testmuai.com/selenium-playground/simple-form-demo/.
+                    verifies: []
+                  - n: 2
+                    text: On the Simple Form Demo page, enter “Hello” in “Enter Message” and submit it with “Get Checked Value”
+                      to display the …
+                    verifies: []
+                lastRun:
+                  executionId: tm:1000001
+                  verdict: passed
+                  startedAt: '2026-10-23T21:04:12Z'
+                  durationMs: null
+                  mode: testrun
+                  local: false
+                  driftFlag: false
+                  staleAtRun: false
+                  definitionId: tm-commit:1000001
+                  criteria: []
+                  manual: false
+                  kaneCli: true
+                  counted: true
+                  runId: 01JEXAMPLE0000000000000000
+                  instanceId: '1000001'
+                  type: Manual
+                runs:
+                  total: 1
+                  items:
+                  - executionId: tm:1000001
+                    verdict: passed
+                    startedAt: '2026-10-23T21:04:12Z'
+                    durationMs: null
+                    mode: testrun
+                    local: false
+                    driftFlag: false
+                    staleAtRun: false
+                    definitionId: tm-commit:1000001
+                    criteria: []
+                    manual: false
+                    kaneCli: true
+                    counted: true
+                    runId: 01JEXAMPLE0000000000000000
+                    instanceId: '1000001'
+                    type: Manual
+                  next: null
+                  unavailable: false
+                versions:
+                - version: 1
+                  date: '2026-10-23T20:42:21.338Z'
+                  by: A teammate
+                  current: true
+                testCase:
+                  caseId: 01JEXAMPLE0000000000000000
+                  internalId: TC-4508
+                  title: Replace a previous displayed message
+                  linkState: linked
+                  reason: null
+                  sync: automated
+                replacedBy: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/scenarios/{scenarioId}/runs:
+    get:
+      operationId: listScenarioRuns
+      summary: A scenario's runs, paged
+      description: 'Newest first. `unavailable: true` means Test Manager didn''t answer in time; ask again later. Reads Test
+        Manager: on demand, cache 5 minutes.'
+      tags:
+      - Scenarios and runs
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: scenarioId
+        in: path
+        required: true
+        description: e.g. sc-1
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Page size, 1 to 200 (default 50). Keep it at 50 or below.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: next
+        in: query
+        description: The previous page's `next`, passed back exactly as given (an opaque cursor).
+        schema:
+          type: string
+          minLength: 1
+      x-cost: medium (calls Test Manager)
+      x-poll: on demand; cache 5 minutes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunPage'
+              example:
+                total: 1
+                items:
+                - executionId: tm:1000001
+                  verdict: passed
+                  startedAt: '2026-10-23T21:04:12Z'
+                  durationMs: null
+                  mode: testrun
+                  local: false
+                  driftFlag: false
+                  staleAtRun: false
+                  definitionId: tm-commit:1000001
+                  criteria: []
+                  manual: false
+                  kaneCli: true
+                  counted: true
+                  runId: 01JEXAMPLE0000000000000000
+                  instanceId: '1000001'
+                  type: Manual
+                next: null
+                unavailable: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/sources:
+    get:
+      operationId: listSources
+      summary: Sources, paged
+      description: The requirement documents and saved conversations the project reads, with how many use cases cite each.
+      tags:
+      - Sources
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: q
+        in: query
+        description: search names (1 to 100 characters, after trimming spaces)
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+      - name: limit
+        in: query
+        description: Page size, 1 to 200 (default 50). Keep it at 50 or below.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: next
+        in: query
+        description: The previous page's `next`, passed back exactly as given (an opaque cursor).
+        schema:
+          type: string
+          minLength: 1
+      x-cost: cheap
+      x-poll: every 10 minutes at most
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceList'
+              example:
+                total: 4
+                items:
+                - id: prd
+                  format: markdown
+                  fingerprint: sha256:000000000000…
+                  versions: 1
+                  updatedAt: '2026-10-23T20:33:36.267Z'
+                  extraction: complete
+                  usedIn: 2
+                - id: su-conv-design-20261024T090000-a1b2c3
+                  format: conversation
+                  fingerprint: sha256:000000000000…
+                  versions: 3
+                  updatedAt: '2026-10-23T20:39:50.372Z'
+                  extraction: not extracted
+                  usedIn: 0
+                next: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/sources/{sourceId}:
+    get:
+      operationId: getSource
+      summary: One source
+      description: Its versions and the use cases that cite it.
+      tags:
+      - Sources
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: sourceId
+        in: path
+        required: true
+        description: the source's name, e.g. prd
+        schema:
+          type: string
+      x-cost: cheap
+      x-poll: on demand
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+              example:
+                id: prd
+                format: markdown
+                fingerprint: sha256:000000000000…
+                extraction: complete
+                updatedAt: '2026-10-23T20:33:36.267Z'
+                versions:
+                - version: 1
+                  date: '2026-10-23T20:33:36.267Z'
+                  by: null
+                  current: true
+                citedBy:
+                  useCases: 2
+                  items:
+                  - id: uc-1
+                    title: Display a typed message
+                    citations: 2
+                  - id: uc-2
+                    title: Calculate the sum of two numbers
+                    citations: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /v1/projects/{projectId}/graph:
+    get:
+      operationId: getGraph
+      summary: The traceability graph
+      description: 'Exactly one scope. The trace view (sources, use cases and test cases) is `project=1`, or `useCase=<id>`
+        with `types` naming `testCase` (or `relations` naming `holds`); it takes only types `source,useCase,testCase` and
+        relations `derives,holds`, and only those two scopes. The lineage view is `useCase=<id>` alone, `source=<name>`, or
+        `around=<id>` with `depth` 1 to 3, with the lineage types and relations. Mixing the two views'' values is refused
+        (400). Capped at `limit` nodes: when `truncated` is true, show that more exist (the trace view also gives `omitted`
+        counts; lineage views mark nodes with `data.more`). The heaviest read here: open it when a person asks, cache it 15
+        minutes, never poll it.'
+      tags:
+      - Graph
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Your Test Manager project's id (see 'Finding your project id').
+        schema:
+          type: string
+      - name: project
+        in: query
+        description: 1 for the whole project's trace view
+        schema:
+          type: string
+          enum:
+          - '1'
+      - name: useCase
+        in: query
+        description: a use case id, e.g. uc-1
+        schema:
+          type: string
+          minLength: 1
+      - name: source
+        in: query
+        description: a source's name
+        schema:
+          type: string
+          minLength: 1
+      - name: around
+        in: query
+        description: an item's id, with depth
+        schema:
+          type: string
+          minLength: 1
+      - name: depth
+        in: query
+        description: 1 to 3, with around
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 3
+      - name: types
+        in: query
+        description: 'comma-separated: source, useCase, testCase (trace view), or source, useCase, criterion, scenario, test,
+          question, evidence'
+        schema:
+          type: string
+      - name: relations
+        in: query
+        description: 'comma-separated: derives, holds (trace view), or derives, belongsTo, scopedTo, exercises, verifies,
+          automates, dependsOn, reuses, asks, ran'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: most nodes, 1 to 1000; default 1000 in the trace view, 200 otherwise
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+      x-cost: heavy (calls Test Manager for cases and coverage)
+      x-poll: never poll; on demand, cache 15 minutes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+              example:
+                scope:
+                  project: true
+                nodes:
+                - id: uc-1
+                  type: useCase
+                  data:
+                    label: Display a typed message
+                    status: approved
+                    stale: false
+                    staleReason: null
+                    risk: medium
+                    coverageV2:
+                      state: ready
+                      pct: 100
+                      status: proven
+                      manualRuns: 0
+                - id: prd
+                  type: source
+                  data:
+                    label: prd.md
+                    kind: file
+                - id: uc-2
+                  type: useCase
+                  data:
+                    label: Calculate the sum of two numbers
+                    status: approved
+                    stale: false
+                    staleReason: null
+                    risk: medium
+                    coverageV2:
+                      state: ready
+                      pct: 100
+                      status: proven
+                      manualRuns: 0
+                - id: sc-1
+                  type: testCase
+                  data:
+                    label: Replace a previous displayed message
+                    status: proposed
+                    stale: false
+                    staleReason: null
+                    kind: negative
+                    internalId: TC-4508
+                    caseId: 01JEXAMPLE0000000000000000
+                    tm: linked
+                    linkState: linked
+                    reason: null
+                edges:
+                - id: prd-derives-uc-1
+                  source: prd
+                  target: uc-1
+                  type: derives
+                  label: derives
+                  data:
+                    citations: 2
+                - id: prd-derives-uc-2
+                  source: prd
+                  target: uc-2
+                  type: derives
+                  label: derives
+                  data:
+                    citations: 2
+                - id: uc-1-holds-sc-1
+                  source: uc-1
+                  target: sc-1
+                  type: holds
+                  label: holds
+                truncated: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Importing'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Your LambdaTest username and access key. Server-side only.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: The LambdaTest web app's sign-in token. Short-lived; use Basic for a server or script.
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: a stable code, e.g. NOT_FOUND
+            message:
+              type: string
+              description: plain words
+          required:
+          - code
+          - message
+          additionalProperties: true
+      required:
+      - error
+      additionalProperties: true
+    ProjectList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              projectId:
+                type:
+                - string
+                - 'null'
+                description: the Test Manager project's id
+              name:
+                type:
+                - string
+                - 'null'
+              marked:
+                type:
+                - boolean
+                - 'null'
+                description: true when the project is a shared project (has assurance work or may start it)
+            additionalProperties: true
+        next:
+          anyOf:
+          - type: integer
+            description: the next page number, or null
+          - type: 'null'
+        total:
+          type: integer
+          description: how many match, given only with name
+      additionalProperties: true
+    Assurance:
+      type: object
+      description: The project's headline counts.
+      properties:
+        project:
+          type:
+          - string
+          - 'null'
+          description: the project id
+        updatedAt:
+          anyOf:
+          - type: string
+            description: when the project last changed (ISO 8601)
+          - type: 'null'
+        useCases:
+          type:
+          - object
+          - 'null'
+          properties:
+            total:
+              type: integer
+            proposed:
+              type:
+              - integer
+              - 'null'
+            approved:
+              type:
+              - integer
+              - 'null'
+            archived:
+              type:
+              - integer
+              - 'null'
+            stale:
+              type:
+              - integer
+              - 'null'
+          additionalProperties: true
+        criteria:
+          type:
+          - object
+          - 'null'
+          properties:
+            total:
+              type: integer
+            proposed:
+              type:
+              - integer
+              - 'null'
+            approved:
+              type:
+              - integer
+              - 'null'
+            archived:
+              type:
+              - integer
+              - 'null'
+          additionalProperties: true
+        scenarios:
+          type:
+          - integer
+          - 'null'
+          description: live scenarios
+        tests:
+          type:
+          - integer
+          - 'null'
+          description: live tests
+        openQuestions:
+          type:
+          - integer
+          - 'null'
+          description: questions still open
+        sources:
+          type:
+          - integer
+          - 'null'
+          description: requirement documents and saved conversations
+        sessions:
+          type:
+          - object
+          - 'null'
+          properties:
+            total:
+              type: integer
+            waitingOnYou:
+              type:
+              - integer
+              - 'null'
+              description: sessions waiting on the caller
+            running:
+              type:
+              - integer
+              - 'null'
+          additionalProperties: true
+        lastSession:
+          anyOf:
+          - type: object
+            properties:
+              id:
+                type: string
+              kind:
+                type:
+                - string
+                - 'null'
+                description: Extract, Design, …
+              state:
+                type:
+                - string
+                - 'null'
+                description: starting, running, waiting, paused, done, failed or cancelled
+              startedAt:
+                type:
+                - string
+                - 'null'
+            additionalProperties: true
+          - type: 'null'
+      additionalProperties: true
+    Coverage:
+      type: object
+      properties:
+        state:
+          type:
+          - string
+          - 'null'
+          description: ready (doc is set), computing (ask again after a few seconds) or unavailable
+          enum:
+          - ready
+          - computing
+          - unavailable
+          - null
+        doc:
+          anyOf:
+          - type: object
+            description: The coverage document.
+            properties:
+              coverage_version:
+                type:
+                - integer
+                - 'null'
+              scope:
+                type:
+                - string
+                - 'null'
+              pct:
+                type:
+                - number
+                - 'null'
+                description: the project's coverage, percent, risk-weighted
+              config:
+                type:
+                - object
+                - 'null'
+                properties:
+                  rule:
+                    type:
+                    - string
+                    - 'null'
+                    description: 'how a criterion is proven: the newest counted verdict'
+                  weighting:
+                    type:
+                    - string
+                    - 'null'
+                  weights:
+                    type:
+                    - object
+                    - 'null'
+                    properties: {}
+                    additionalProperties: true
+                additionalProperties: true
+              usecases:
+                type:
+                - object
+                - 'null'
+                properties:
+                  total:
+                    type: integer
+                  proven:
+                    type:
+                    - integer
+                    - 'null'
+                  partial:
+                    type:
+                    - integer
+                    - 'null'
+                  failing:
+                    type:
+                    - integer
+                    - 'null'
+                  not_run:
+                    type:
+                    - integer
+                    - 'null'
+                  not_designed:
+                    type:
+                    - integer
+                    - 'null'
+                  no_criteria:
+                    type:
+                    - integer
+                    - 'null'
+                additionalProperties: true
+              criteria:
+                type:
+                - object
+                - 'null'
+                properties:
+                  total:
+                    type: integer
+                  proven:
+                    type:
+                    - integer
+                    - 'null'
+                additionalProperties: true
+              perUc:
+                type:
+                - array
+                - 'null'
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: use case id, e.g. uc-1
+                    title:
+                      type:
+                      - string
+                      - 'null'
+                    risk:
+                      type:
+                      - string
+                      - 'null'
+                      description: high, med, low or unknown
+                    weight:
+                      type:
+                      - number
+                      - 'null'
+                    state:
+                      type:
+                      - string
+                      - 'null'
+                    pct:
+                      type:
+                      - number
+                      - 'null'
+                    criteria:
+                      type:
+                      - integer
+                      - 'null'
+                    proven:
+                      type:
+                      - integer
+                      - 'null'
+                    manual_runs:
+                      type:
+                      - integer
+                      - 'null'
+                    stale:
+                      type:
+                      - boolean
+                      - 'null'
+                  additionalProperties: true
+              perAc:
+                type:
+                - object
+                - 'null'
+                description: 'Each criterion by id: its state, its use case, and the run that decided it.'
+                properties: {}
+                additionalProperties: true
+              flags:
+                type:
+                - object
+                - 'null'
+                properties:
+                  stale_sources:
+                    type:
+                    - integer
+                    - 'null'
+                  sources_not_fully_extracted:
+                    type:
+                    - array
+                    - 'null'
+                    items:
+                      type: string
+                  orphaned_usecases:
+                    type:
+                    - integer
+                    - 'null'
+                additionalProperties: true
+            additionalProperties: true
+          - type: 'null'
+      additionalProperties: true
+    UseCaseRow:
+      type: object
+      properties:
+        id:
+          type: string
+          description: e.g. uc-1
+        title:
+          type:
+          - string
+          - 'null'
+        summary:
+          type:
+          - string
+          - 'null'
+        risk:
+          type:
+          - string
+          - 'null'
+          description: high, medium or low
+          enum:
+          - high
+          - medium
+          - low
+          - null
+        status:
+          type:
+          - string
+          - 'null'
+          description: proposed (the agent's, not yet reviewed), approved or archived
+          enum:
+          - proposed
+          - approved
+          - archived
+          - null
+        stale:
+          type:
+          - boolean
+          - 'null'
+          description: true when what it was made from has changed since
+        staleReason:
+          anyOf:
+          - type: string
+            description: why it is stale, in words
+          - type: 'null'
+        designed:
+          type:
+          - boolean
+          - 'null'
+          description: tests have been designed for it
+        changedSinceDesign:
+          type:
+          - boolean
+          - 'null'
+        scenarios:
+          type:
+          - integer
+          - 'null'
+        criteria:
+          type:
+          - integer
+          - 'null'
+        updatedBy:
+          anyOf:
+          - type: string
+            description: who last changed it
+          - type: 'null'
+        updatedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+        coverageV2:
+          type:
+          - object
+          - 'null'
+          description: A list row's coverage; null when coverage isn't ready.
+          properties:
+            pct:
+              type:
+              - number
+              - 'null'
+              description: percent covered
+            status:
+              type:
+              - string
+              - 'null'
+              description: proven, partial, failing, not_run, not_designed or no_criteria
+            manualRuns:
+              type:
+              - integer
+              - 'null'
+              description: manual runs counted
+          additionalProperties: true
+      additionalProperties: true
+    UseCaseList:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: all matching rows, not this page's
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UseCaseRow'
+        next:
+          anyOf:
+          - type: string
+            description: cursor for the next page, or null
+          - type: 'null'
+        coverageV2:
+          type:
+          - object
+          - 'null'
+          description: The project's coverage summary, as the list shows it.
+          properties: {}
+          additionalProperties: true
+        facets:
+          type:
+          - object
+          - 'null'
+          description: 'With facets=true: the chips'' counts. status and q choose the rows counted; stale, designed and risk
+            don''t narrow them.'
+          properties:
+            stale:
+              type:
+              - integer
+              - 'null'
+              description: stale rows
+            designed:
+              type:
+              - integer
+              - 'null'
+              description: fresh rows with tests designed
+            undesigned:
+              type:
+              - integer
+              - 'null'
+              description: fresh rows without
+            risk:
+              type:
+              - object
+              - 'null'
+              properties:
+                high:
+                  type:
+                  - integer
+                  - 'null'
+                medium:
+                  type:
+                  - integer
+                  - 'null'
+                low:
+                  type:
+                  - integer
+                  - 'null'
+              additionalProperties: true
+          additionalProperties: true
+      additionalProperties: true
+    UseCase:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type:
+          - string
+          - 'null'
+        summary:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        actors:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+        value:
+          type:
+          - string
+          - 'null'
+        risk:
+          type:
+          - string
+          - 'null'
+          description: high, medium or low
+          enum:
+          - high
+          - medium
+          - low
+          - null
+        status:
+          type:
+          - string
+          - 'null'
+          description: proposed (the agent's, not yet reviewed), approved or archived
+          enum:
+          - proposed
+          - approved
+          - archived
+          - null
+        stale:
+          type:
+          - boolean
+          - 'null'
+          description: true when what it was made from has changed since
+        staleReason:
+          anyOf:
+          - type: string
+            description: why it is stale, in words
+          - type: 'null'
+        counts:
+          type:
+          - object
+          - 'null'
+          properties:
+            criteria:
+              type:
+              - integer
+              - 'null'
+            scenarios:
+              type:
+              - integer
+              - 'null'
+            tests:
+              type:
+              - integer
+              - 'null'
+            openQuestions:
+              type:
+              - integer
+              - 'null'
+            gaps:
+              type:
+              - integer
+              - 'null'
+            sources:
+              type:
+              - integer
+              - 'null'
+          additionalProperties: true
+        design:
+          type:
+          - object
+          - 'null'
+          properties:
+            generation:
+              type:
+              - integer
+              - 'null'
+            changedSinceDesign:
+              type:
+              - boolean
+              - 'null'
+          additionalProperties: true
+        criteria:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: e.g. ac-1
+              text:
+                type:
+                - string
+                - 'null'
+              kind:
+                type:
+                - string
+                - 'null'
+              risk:
+                type:
+                - string
+                - 'null'
+                description: high, medium or low
+                enum:
+                - high
+                - medium
+                - low
+                - null
+              status:
+                type:
+                - string
+                - 'null'
+                description: proposed (the agent's, not yet reviewed), approved or archived
+                enum:
+                - proposed
+                - approved
+                - archived
+                - null
+              stale:
+                type:
+                - boolean
+                - 'null'
+                description: true when what it was made from has changed since
+              state:
+                type:
+                - string
+                - 'null'
+                description: 'the criterion''s result: passed, failing, not-run, not-asserted, source-changed, no-scenario
+                  or open-question'
+              proofV2:
+                type:
+                - string
+                - 'null'
+                description: its coverage proof (proven, failing, not_run, …); null until coverage is ready
+              decidingRunV2:
+                type:
+                - object
+                - 'null'
+                description: The newest counted failing run that decided a failing criterion; its other ids are null when
+                  this read didn't see that run. Null for any criterion that isn't failing.
+                properties:
+                  executionId:
+                    type:
+                    - string
+                    - 'null'
+                  runId:
+                    type:
+                    - string
+                    - 'null'
+                  instanceId:
+                    type:
+                    - string
+                    - 'null'
+                  type:
+                    type:
+                    - string
+                    - 'null'
+                  manual:
+                    type:
+                    - boolean
+                    - 'null'
+                  kaneCli:
+                    type:
+                    - boolean
+                    - 'null'
+                additionalProperties: true
+              citations:
+                type:
+                - array
+                - 'null'
+                items:
+                  type: object
+                  properties:
+                    source:
+                      type:
+                      - string
+                      - 'null'
+                    lines:
+                      type:
+                      - object
+                      - 'null'
+                      properties:
+                        from:
+                          type:
+                          - integer
+                          - 'null'
+                        to:
+                          type:
+                          - integer
+                          - 'null'
+                      additionalProperties: true
+                    quote:
+                      type:
+                      - string
+                      - 'null'
+                    version:
+                      anyOf:
+                      - type: integer
+                      - type: 'null'
+                    current:
+                      type:
+                      - boolean
+                      - 'null'
+                  additionalProperties: true
+            additionalProperties: true
+        scenarios:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: e.g. sc-1
+              title:
+                type:
+                - string
+                - 'null'
+              type:
+                type:
+                - string
+                - 'null'
+                description: happy, negative, edge, …
+              status:
+                type:
+                - string
+                - 'null'
+                description: proposed (the agent's, not yet reviewed), approved or archived
+                enum:
+                - proposed
+                - approved
+                - archived
+                - null
+              stale:
+                type:
+                - boolean
+                - 'null'
+                description: true when what it was made from has changed since
+              state:
+                type:
+                - string
+                - 'null'
+              test:
+                anyOf:
+                - type: object
+                  properties: {}
+                  additionalProperties: true
+                - type: 'null'
+              testCase:
+                anyOf:
+                - $ref: '#/components/schemas/TestCaseLink'
+                - type: 'null'
+              criteria:
+                type:
+                - array
+                - 'null'
+                items:
+                  type: string
+            additionalProperties: true
+        gaps:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties: {}
+            additionalProperties: true
+        openQuestions:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties: {}
+            additionalProperties: true
+        sources:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+          description: the names of the sources it cites
+        versions:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/Version'
+        coverageV2:
+          type:
+          - object
+          - 'null'
+          description: One use case's coverage.
+          properties:
+            state:
+              type:
+              - string
+              - 'null'
+              description: ready, computing or unavailable
+              enum:
+              - ready
+              - computing
+              - unavailable
+              - null
+            pct:
+              type:
+              - number
+              - 'null'
+              description: percent covered, null until ready
+            acsProven:
+              type:
+              - string
+              - 'null'
+              description: criteria proven / criteria, e.g. "3/4"
+            status:
+              type:
+              - string
+              - 'null'
+              description: proven, partial, failing, not_run, not_designed or no_criteria
+          additionalProperties: true
+      additionalProperties: true
+    TestCaseLink:
+      type: object
+      description: The scenario's Test Manager case.
+      properties:
+        caseId:
+          type:
+          - string
+          - 'null'
+          description: the Test Manager case's id
+        internalId:
+          anyOf:
+          - type: string
+            description: its display id, e.g. TC-4508
+          - type: 'null'
+        title:
+          type:
+          - string
+          - 'null'
+        linkState:
+          type:
+          - string
+          - 'null'
+          description: linked, or why not
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+        sync:
+          anyOf:
+          - type: string
+          - type: 'null'
+      additionalProperties: true
+    Version:
+      type: object
+      properties:
+        version:
+          type:
+          - integer
+          - 'null'
+        date:
+          type:
+          - string
+          - 'null'
+        by:
+          anyOf:
+          - type: string
+          - type: 'null'
+        current:
+          type:
+          - boolean
+          - 'null'
+      additionalProperties: true
+    Run:
+      type: object
+      properties:
+        executionId:
+          type:
+          - string
+          - 'null'
+        instanceId:
+          type:
+          - string
+          - 'null'
+        runId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        verdict:
+          type:
+          - string
+          - 'null'
+          description: passed, failed, …
+        startedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+        durationMs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+        mode:
+          type:
+          - string
+          - 'null'
+        local:
+          type:
+          - boolean
+          - 'null'
+        manual:
+          type:
+          - boolean
+          - 'null'
+        kaneCli:
+          type:
+          - boolean
+          - 'null'
+          description: run by kane-cli
+        counted:
+          type:
+          - boolean
+          - 'null'
+          description: counted in coverage
+        driftFlag:
+          type:
+          - boolean
+          - 'null'
+        staleAtRun:
+          type:
+          - boolean
+          - 'null'
+        definitionId:
+          anyOf:
+          - type: string
+          - type: 'null'
+        type:
+          type:
+          - string
+          - 'null'
+        criteria:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties: {}
+            additionalProperties: true
+      additionalProperties: true
+    Scenario:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type:
+          - string
+          - 'null'
+        description:
+          type:
+          - string
+          - 'null'
+        intent:
+          type:
+          - string
+          - 'null'
+        type:
+          type:
+          - string
+          - 'null'
+        status:
+          type:
+          - string
+          - 'null'
+          description: proposed (the agent's, not yet reviewed), approved or archived
+          enum:
+          - proposed
+          - approved
+          - archived
+          - null
+        stale:
+          type:
+          - boolean
+          - 'null'
+          description: true when what it was made from has changed since
+        staleReason:
+          anyOf:
+          - type: string
+            description: why it is stale, in words
+          - type: 'null'
+        state:
+          type:
+          - string
+          - 'null'
+        tags:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+        parameters:
+          description: the scenario's data parameters as designed (any shape), or null
+        techniqueNotes:
+          anyOf:
+          - type: string
+          - type: 'null'
+        useCase:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+            title:
+              type:
+              - string
+              - 'null'
+          additionalProperties: true
+        test:
+          anyOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                description: e.g. t-1
+              title:
+                type:
+                - string
+                - 'null'
+              steps:
+                type:
+                - array
+                - 'null'
+                items:
+                  type: object
+                  properties:
+                    n:
+                      type:
+                      - integer
+                      - 'null'
+                    text:
+                      type:
+                      - string
+                      - 'null'
+                    verifies:
+                      type:
+                      - array
+                      - 'null'
+                      items:
+                        type: string
+                  additionalProperties: true
+            additionalProperties: true
+          - type: 'null'
+        testCase:
+          anyOf:
+          - $ref: '#/components/schemas/TestCaseLink'
+          - type: 'null'
+        lastRun:
+          anyOf:
+          - $ref: '#/components/schemas/Run'
+          - type: 'null'
+        runs:
+          $ref: '#/components/schemas/RunPage'
+        criteria:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties: {}
+            additionalProperties: true
+        versions:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/Version'
+        replacedBy:
+          anyOf:
+          - type: string
+            description: the content id of the scenario that replaced this one
+          - type: 'null'
+      additionalProperties: true
+    RunPage:
+      type: object
+      description: A page of runs. For a scenario with a Test Manager case the first page holds up to 10 runs and later pages
+        up to 50, whatever limit asks, and runs with no outcome are left out, so a page can be shorter.
+      properties:
+        total:
+          type: integer
+          description: 'for a scenario with a Test Manager case: the runs shown so far, growing page by page'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Run'
+        next:
+          anyOf:
+          - type: string
+          - type: 'null'
+        unavailable:
+          type:
+          - boolean
+          - 'null'
+          description: Test Manager didn't answer in time; ask again later
+      additionalProperties: true
+    SourceRow:
+      type: object
+      properties:
+        id:
+          type: string
+          description: the source's name, e.g. prd
+        format:
+          type:
+          - string
+          - 'null'
+        fingerprint:
+          type:
+          - string
+          - 'null'
+          description: its current version's content hash
+        versions:
+          type:
+          - integer
+          - 'null'
+        updatedAt:
+          type:
+          - string
+          - 'null'
+        extraction:
+          type:
+          - string
+          - 'null'
+          description: complete, partial, …
+        usedIn:
+          type:
+          - integer
+          - 'null'
+          description: use cases citing it
+      additionalProperties: true
+    SourceList:
+      type: object
+      properties:
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRow'
+        next:
+          anyOf:
+          - type: string
+          - type: 'null'
+      additionalProperties: true
+    Source:
+      type: object
+      properties:
+        id:
+          type: string
+        format:
+          type:
+          - string
+          - 'null'
+        fingerprint:
+          type:
+          - string
+          - 'null'
+        extraction:
+          type:
+          - string
+          - 'null'
+        updatedAt:
+          type:
+          - string
+          - 'null'
+        versions:
+          type:
+          - array
+          - 'null'
+          items:
+            type: object
+            properties: {}
+            additionalProperties: true
+        citedBy:
+          type:
+          - object
+          - 'null'
+          properties:
+            useCases:
+              type:
+              - integer
+              - 'null'
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type:
+                    - string
+                    - 'null'
+                  citations:
+                    type:
+                    - integer
+                    - 'null'
+                additionalProperties: true
+          additionalProperties: true
+      additionalProperties: true
+    Graph:
+      type: object
+      description: Nodes and edges in the shape React Flow takes.
+      properties:
+        scope:
+          type:
+          - object
+          - 'null'
+          description: 'What was asked: {project: true}, {useCase: …}, {source: …} or {around: …, depth: …} (depth defaults
+            to 1).'
+          properties: {}
+          additionalProperties: true
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              type:
+                type:
+                - string
+                - 'null'
+                description: source, useCase or testCase (trace view); or source, useCase, criterion, scenario, test, question,
+                  evidence
+              data:
+                type:
+                - object
+                - 'null'
+                properties:
+                  label:
+                    type:
+                    - string
+                    - 'null'
+                  status:
+                    type:
+                    - string
+                    - 'null'
+                  stale:
+                    type:
+                    - boolean
+                    - 'null'
+                  risk:
+                    type:
+                    - string
+                    - 'null'
+                  coverageV2:
+                    type:
+                    - object
+                    - 'null'
+                    properties: {}
+                    additionalProperties: true
+                  caseId:
+                    type:
+                    - string
+                    - 'null'
+                  internalId:
+                    type:
+                    - string
+                    - 'null'
+                  linkState:
+                    type:
+                    - string
+                    - 'null'
+                  more:
+                    type:
+                    - boolean
+                    - 'null'
+                    description: 'lineage views: this node has more connections than were kept'
+                additionalProperties: true
+            additionalProperties: true
+        edges:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              source:
+                type:
+                - string
+                - 'null'
+              target:
+                type:
+                - string
+                - 'null'
+              type:
+                type:
+                - string
+                - 'null'
+            additionalProperties: true
+        truncated:
+          type:
+          - boolean
+          - 'null'
+          description: 'true when the graph was cut at the limit: show ''more'', don''t treat it as the whole project'
+        omitted:
+          type:
+          - object
+          - 'null'
+          description: 'Trace view only: how many were left out when truncated.'
+          properties:
+            useCases:
+              type:
+              - integer
+              - 'null'
+            sources:
+              type:
+              - integer
+              - 'null'
+            testCases:
+              type:
+              - integer
+              - 'null'
+          additionalProperties: true
+      additionalProperties: true
+  responses:
+    BadRequest:
+      description: 'A query that doesn''t match: an unknown parameter, a bad value, or a limit outside the route''s range
+        (lists 1 to 200, the graph 1 to 1000).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: 'the query does not match: limit: Too big: expected number to be <=200'
+    Unauthenticated:
+      description: No credential, a wrong one, or a passing failure of the sign-in check. Try once more after 30 s; if it
+        stays, check the username and access key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Missing or invalid Authorization header
+    Forbidden:
+      description: 'PROJECT_NOT_MARKED: the project''s shared-project mark was removed.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: PROJECT_NOT_MARKED
+              message: …
+    NotFound:
+      description: 'NOT_FOUND: no such item, or a project you can''t open (answered as if it didn''t exist; your right to
+        a project is kept for 5 minutes, so access granted just now can still answer this). NO_CONTEXT: the project has no
+        shared work yet.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: no use case uc-404 in this project
+    Importing:
+      description: 'CONTEXT_IMPORTING: an import is writing the project; ask again later.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: CONTEXT_IMPORTING
+              message: …
+    Unavailable:
+      description: 'A service behind it isn''t answering (FORGE_UNAVAILABLE: Test Manager; NOT_READY or HISTORY_BUILDING:
+        not ready yet). Back off and ask again later.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORGE_UNAVAILABLE
+              message: …

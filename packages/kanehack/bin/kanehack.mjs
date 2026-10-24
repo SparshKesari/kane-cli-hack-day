@@ -6,7 +6,7 @@
 //   kanehack signin [--email E]            sign this machine in with your email + the saved password (no browser)
 //   kanehack claim                         claim your TestMu AI hack-day plan (/activate step 2) with the saved password
 //   kanehack login [--username U --access-key K]  save your TestMu AI username + access key (mandatory sign-in)
-//   kanehack pair [--token khk_…]          pair this machine with your account (token in ~/.kanehack/config.json, mode 600)
+//   kanehack pair [--email E] [--token khk_…]  pair this machine: with a saved password it signs in with it, otherwise a browser code
 //   kanehack pair --start | --wait         the same, in two steps, for Codex and scripts (no terminal needed)
 //   kanehack doctor [--json] [--report]    check Node, Git, Chrome, Kane CLI, auth, skills, API; optionally send the result
 //   kanehack report [opts] -- <kane-cli …> run a Kane command, keep its exit code + NDJSON, send a redacted summary
@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.11";
+const VERSION = "0.1.12";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -336,7 +336,15 @@ async function register(a) {
   if (missing.length)
     fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> --x <handle> [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
   const pw = needPassword();
-  const r = ensure(await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/register", json({ ...body, password: pw, proof_password: pw, client: "kanehack", label: deviceLabel() })), "Registering");
+  const r = await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/register", json({ ...body, password: pw, proof_password: pw, client: "kanehack", label: deviceLabel() }));
+  // A 401 here is this email's account having another password, not a missing sign-in.
+  if (r.status === 401)
+    fail(
+      `${r.env?.message || "That password doesn't match this email's account."} Set a different password for ${body.email} before? Save that one in your own terminal (kanehack password), then: kanehack signin --email ${body.email}`,
+      EXIT.ACTION,
+      "WRONG_PASSWORD",
+    );
+  ensure(r, "Registering");
   const env = r.env;
   if (env.status === "error") {
     printEnvelope(env);
@@ -355,11 +363,11 @@ async function signin(a) {
   const cfg = loadConfig();
   if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
   const email = a.flags.email && a.flags.email !== true ? String(a.flags.email).trim() : cfg.raw.email;
-  if (!email) fail("Usage: kanehack signin --email you@example.com", EXIT.ACTION, "USAGE");
+  if (!email) fail(`Usage: kanehack ${a._[0] === "pair" ? "pair" : "signin"} --email you@example.com`, EXIT.ACTION, "USAGE");
   const pw = needPassword();
   const r = await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/token", json({ email, password: pw, label: deviceLabel() }));
   if (r.status === 401)
-    fail(`That email and the saved password don't match an account. Check the email, or save the right password in your own terminal (kanehack password). New here? kanehack register.`, EXIT.ACTION, "WRONG_PASSWORD");
+    fail(`That email and the saved password don't match an account. Check the email, or save the right password in your own terminal (kanehack password). No profile saved yet (checking in at the desk doesn't make one)? kanehack register.`, EXIT.ACTION, "WRONG_PASSWORD");
   ensure(r, "Signing in");
   if (r.env.status === "error") {
     printEnvelope(r.env);
@@ -464,6 +472,9 @@ async function pair(a) {
     if (!p?.device_code) fail("No pairing in progress on this machine. Start one: kanehack pair --start", EXIT.ACTION, "NO_PENDING_PAIRING");
     return pairWait(p, timeoutFrom(a, 90), { pollFirst: true });
   }
+  // The password saved with `kanehack password` signs this machine in: no browser code.
+  // --start keeps the browser code (the agent fallback).
+  if (!a.flags.start && loadCreds().password) return signin(a);
   const p = await pairStart(cfg);
   say(`Open ${c("1", p.verification_url)} and approve code ${c("1", p.user_code)}`);
   say(dim(`(sign in first if asked; the code expires ${p.expires_at})`));
@@ -1158,7 +1169,8 @@ function usage() {
   kanehack claim                              claim your TestMu AI hack-day plan (/activate step 2)
   kanehack login [--username U --access-key K]  save your TestMu AI key (required sign-in; shown on /register)
   kanehack logout                             forget the saved TestMu AI key
-  kanehack pair [--token khk_…] [--api URL]   pair this machine (device code, or a token)
+  kanehack pair [--email E] [--token khk_…]   pair this machine: signs in with the saved password if there is
+                                              one (same as signin), otherwise a browser code; or a token
   kanehack pair --start                       Codex/scripts: print the approve URL + code and exit
   kanehack pair --wait [--timeout SECONDS]    Codex/scripts: wait for that code's approval (default 90 s)
   kanehack token                              print the saved token (for: export KANEHACK_TOKEN="$(kanehack token)")

@@ -173,7 +173,9 @@ async function handle(req, res) {
     if (![b.name, b.email, b.linkedin, b.x].every((v) => typeof v === "string" && v.trim()) || typeof b.password !== "string" || b.password.length < 8) return send(res, ...errEnv("VALIDATION_FAILED"));
     const email = b.email.toLowerCase();
     const had = accounts.get(email);
-    if (had && b.proof_password !== had.password) return send(res, ...errEnv("CONFLICT", "That email already has an account. Send proof_password (its password) or proof_code (a one-time code from the desk)."));
+    // As the real server (src/server/flow.ts): no proof → 409; a wrong proof → 401.
+    if (had && !b.proof_password) return send(res, ...errEnv("CONFLICT", "That email already has an account. Send proof_password (its password) or proof_code (a one-time code from the desk)."));
+    if (had && b.proof_password !== had.password) return send(res, ...errEnv("UNAUTHENTICATED", "That password or code doesn’t match this email. Ask at the desk for a one-time code."));
     const acct = had ?? { password: b.password, member_id: accounts.size + 1 };
     accounts.set(email, acct);
     const t = b.client === "kanehack" ? issue(email) : {};

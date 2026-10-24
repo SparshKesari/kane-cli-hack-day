@@ -68,7 +68,7 @@ export async function participantStatus(m: MemberRow) {
     : !activated
       ? { id: "activate", label: "Finish activation", href: "/activate" }
       : !ideaSaved
-        ? { id: "idea", label: "Write your idea, check it with $hack-os, then save it on the Idea tab", href: `/t/${team.slug}/idea` }
+        ? { id: "idea", label: "Write your idea and check it with $hack-os (it prompts you on what to change), then save it", href: `/t/${team.slug}/idea` }
         : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
   return {
     member: { public_code: m.public_code, name: m.display_name ?? m.name, role: m.role, checked_in: !!m.checked_in_at, activated: !!m.activated_at },

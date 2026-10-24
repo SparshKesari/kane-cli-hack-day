@@ -9,9 +9,9 @@ Run `kanehack doctor --json` and read its checks. Fix only what failed, one at a
 - `kane_cli` missing, or a warning that it's older than the release candidate → `npm install -g @testmuai/kane-cli@rc`. The hackathon runs on the release candidate (0.10.0-rc or newer); the plain `@testmuai/kane-cli` is an older release without everything the event uses.
   - `EACCES` or another permission error: never `sudo`. `npm config set prefix ~/.npm-global`, add `~/.npm-global/bin` to `PATH` (in `~/.zshrc` or `~/.bashrc`), open a new terminal, run the install again.
   - Then `kane-cli --version` should show 0.10.0-rc or newer. Still the old one → another copy comes first on `PATH`: `which -a kane-cli` (Windows: `where kane-cli`) shows it; remove that one or reorder `PATH`.
-  - Then `kane-cli whoami`; if not signed in, the person runs `kane-cli login --oauth` and approves in their browser.
+  - Then `kane-cli whoami`; if not signed in, the person runs `kane-cli login --oauth` in their own terminal and approves in their browser. "Type **done** here when it's finished." Then `kane-cli whoami` again.
 - `kane_skill` missing → `npx @testmuai/kane-cli-skill`.
-- `codex` → `codex login status`; if not signed in, the person runs `codex login`.
+- `codex` → `codex login status`; if not signed in, the person runs `codex login` in their own terminal. "Type **done** here when it's finished." Then `codex login status` again.
 - `testmu_key` failed → step 2 decides whether it matters.
 - `api` failed → network problem; check Wi-Fi, then retry.
 
@@ -21,10 +21,11 @@ Intel Mac: Kane CLI doesn't support it. Send them to the help desk for a loaner 
 
 ## 2. Sign in (no browser)
 
-1. `kanehack password --check --json`. Exit 2 (nothing saved) → ask them to open **their own terminal window**, not this chat, and run `kanehack password`. It asks twice without showing what they type and keeps it in `~/.kanehack/credentials.json` (mode 600). New to the site: they choose one now (8+ characters); it is also their TestMu AI password. Already registered: the password they chose on the site. Wait until they say it's set. Never ask for it here.
+1. `kanehack password --check --json`. Exit 2 (nothing saved) → ask them to open **their own terminal window**, not this chat, and run `kanehack password`. It asks twice without showing what they type and keeps it in `~/.kanehack/credentials.json` (mode 600). New to the site: they choose one now (8+ characters); it is also their TestMu AI password. Already registered: the password they chose on the site. End with: "Type **done** here when it's finished." Never ask for the password here. When they type done, `kanehack password --check --json` must exit 0 before you go on.
 2. Ask: "Have you already registered on kaneclihack.sh?"
    - No → `references/signup-team.md`: `kanehack register` saves the profile and signs this machine in.
    - Yes → `kanehack signin --email <their email> --json`. Exit 0 = signed in. 2 with `WRONG_PASSWORD` = the email or the saved password is wrong: check the email, or they run `kanehack password` again in their terminal. 3 = server unreachable: check the network.
+   - Checked in at the desk but never saved a profile? That's "No": checking in makes an account with no password, and `kanehack register` sets the saved one on it.
 
 **Fallback only** (sign-in keeps failing, or they'd rather approve in the browser): pair this machine.
 

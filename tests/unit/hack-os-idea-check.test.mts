@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,7 @@ function check(sb: { dir: string; state: string }, body: unknown): Promise<{ cod
   const file = join(sb.dir, "validator.json");
   writeFileSync(file, typeof body === "string" ? body : JSON.stringify(body));
   return new Promise((done) => {
-    const p = spawn(process.execPath, [SCRIPT, "--file", file], { env: { ...process.env, KANEHACK_OS_STATE: sb.state } });
+    const p = spawn(process.execPath, [SCRIPT, "--file", file], { env: { ...process.env, KANEHACK_OS_STATE: sb.state, KANEHACK_OS_FALLBACK: join(sb.dir, "fallback") } });
     let out = "", err = "";
     p.stdout.on("data", (b) => (out += b));
     p.stderr.on("data", (b) => (err += b));
@@ -101,4 +101,27 @@ test("keeps the full result private and prints only the verdict and the comment"
   assert.equal(saved.criteria[7].score, 3);
   assert.ok(saved.checked_at);
   assert.equal(statSync(sb.saved).mode & 0o777, 0o600);
+});
+
+// Codex's default sandbox can't write outside the project: ~/.kanehack/os fails with EPERM. The
+// check crashed there with a stack trace and printed nothing, so the person never saw the feedback.
+test("a home folder it can't write to still shows the feedback, and keeps the result in the temp fallback", async () => {
+  const sb = sandbox();
+  const locked = join(sb.dir, "locked");
+  mkdirSync(locked);
+  chmodSync(locked, 0o500);
+  const fallback = join(sb.dir, "tmp-fallback");
+  const file = join(sb.dir, "validator.json");
+  writeFileSync(file, JSON.stringify(result()));
+  const r = await new Promise<{ code: number | null; out: string; stderr: string }>((done) => {
+    const p = spawn(process.execPath, [SCRIPT, "--file", file], { env: { ...process.env, KANEHACK_OS_STATE: join(locked, "os", "state.json"), KANEHACK_OS_FALLBACK: fallback } });
+    let out = "", err = "";
+    p.stdout.on("data", (b) => (out += b));
+    p.stderr.on("data", (b) => (err += b));
+    p.on("close", (code) => done({ code, out, stderr: err }));
+  });
+  chmodSync(locked, 0o700);
+  assert.equal(r.code, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.out).comment, COMMENT);
+  assert.equal(JSON.parse(readFileSync(join(fallback, "idea-check.json"), "utf8")).verdict, "ready");
 });
