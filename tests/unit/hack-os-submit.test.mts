@@ -108,3 +108,14 @@ test("hack-os and /start don't say the clock locks teams or ideas (#42): only a 
   const start = startGuideMarkdown();
   assert.doesNotMatch(start, /teams are locked|idea locks/i);
 });
+
+test("submissions are due at 18:00, not locked (#45): hack-os and /start never say they lock", () => {
+  for (const b of skills) {
+    const md = readFileSync(`${b}/hack-os/SKILL.md`, "utf8") + readFileSync(`${b}/hack-os/references/build.md`, "utf8");
+    assert.doesNotMatch(md, /Submissions lock/i, b);
+    assert.match(md, /due at 18:00/, b);
+  }
+  const start = startGuideMarkdown();
+  assert.doesNotMatch(start, /Submissions lock/i);
+  assert.match(start, /Submissions due/);
+});
