@@ -35,11 +35,7 @@ async function IdeaLab({ team, me }: HubContext) {
     <section className="py-10 sm:py-14">
       <div className="container-page space-y-10">
         <div className="flex flex-wrap items-center justify-end gap-4">
-          {idea.locked ? (
-            <StatusPill tone="pending">Frozen at {formatEventTime(idea.idea_lock_at, event)}</StatusPill>
-          ) : (
-            <span className="font-plex text-xs text-lightgray">Ideas freeze at {formatEventTime(idea.idea_lock_at, event)}</span>
-          )}
+          {idea.locked && <StatusPill tone="pending">Frozen{idea.frozen_at ? ` at ${formatEventTime(idea.frozen_at, event)}` : ""}</StatusPill>}
         </div>
 
         {!on && (

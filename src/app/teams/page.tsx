@@ -5,9 +5,7 @@ import { Suspense } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusPill from "@/components/ui/StatusPill";
 import { trackLabel } from "@/data/hackday";
-import { getEvent } from "@/lib/event";
 import { getPersonalMember } from "@/server/auth";
-import { serverNow } from "@/server/core";
 import { listPool } from "@/server/flow";
 import { listTeamDirectory, teamlessCounts } from "@/server/teams";
 import { Panel, Stat, StateLine, Tag } from "../team/blocks";
@@ -59,16 +57,13 @@ export default function TeamsPage() {
 async function Directory() {
   // Request-time: the sign-in check reads the clock, which Cache Components won't prerender.
   await connection();
-  const [all, counts, viewer, event, now] = await Promise.all([
+  const [all, counts, viewer] = await Promise.all([
     listTeamDirectory(),
     teamlessCounts(),
     getPersonalMember(),
-    getEvent(),
-    serverNow(),
   ]);
   const teams = all.filter((t) => t.member_count > 0);
   const onTeams = teams.reduce((n, t) => n + t.member_count, 0);
-  const closed = now >= event.teamLockAt;
   const pool = viewer ? await listPool(viewer.id) : [];
 
   return (
@@ -131,30 +126,16 @@ async function Directory() {
             <span className="text-bright">{counts.matching}</span>{" "}
             {counts.matching === 1 ? "is" : "are"} in teammate matching.
           </p>
-          {closed ? (
-            <p>
-              Team registration closed at 11:00 Pacific. Still without a team?
-              Go to the{" "}
-              <Link
-                href="/help"
-                className="text-lime underline-offset-4 hover:underline"
-              >
-                help desk
-              </Link>
-              : an organizer can place you.
-            </p>
-          ) : (
-            <p>
-              Looking for teammates?{" "}
-              <Link
-                href="/match"
-                className="text-lime underline-offset-4 hover:underline"
-              >
-                Matchmaking
-              </Link>{" "}
-              shows who&apos;s looking and the teams with open seats.
-            </p>
-          )}
+          <p>
+            Looking for teammates?{" "}
+            <Link
+              href="/match"
+              className="text-lime underline-offset-4 hover:underline"
+            >
+              Matchmaking
+            </Link>{" "}
+            shows who&apos;s looking and the teams with open seats.
+          </p>
           {!viewer && (
             <p>
               Participants see who&apos;s in teammate matching here once

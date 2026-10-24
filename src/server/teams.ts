@@ -40,7 +40,7 @@ export type TeamInfo = {
   recruiting_open: boolean;
   roster_locked_at: Date | null;
   team_lock_at: Date;
-  /** Roster changes need an organizer: state is locked, or the team lock passed and no organizer reopened it. */
+  /** Roster changes need an organizer: the captain locked it, the team submitted or withdrew, or an organizer locked it. */
   locked: boolean;
   member_count: number;
   seeking_skills: string[];
@@ -64,9 +64,9 @@ export type InviteRow = {
   for_member: string | null;
 };
 
-// The single definition of "effectively locked", shared by reads and the join transaction.
-const LOCKED_SQL = `(t.state in ('roster_locked','submitted','withdrawn')
-  or (t.roster_locked_at is null and now() >= (select e.team_lock_at from hack_events e where e.id = coalesce(t.event_id, current_event_id()))))`;
+// The single definition of "effectively locked", shared by reads and the join transaction. The team
+// lock time doesn't lock anything: on event day (2026-10-24) people had to keep moving between teams.
+const LOCKED_SQL = `(t.state in ('roster_locked','submitted','withdrawn'))`;
 
 const TEAM_SELECT = `
   select t.id, t.slug, t.name, t.track, t.is_solo, t.state, t.captain_id,
@@ -100,16 +100,16 @@ export async function actingMember(req?: Request): Promise<ActingMember> {
 
 export const receiptOf = (id: string | number, at: Date): Receipt => ({ id: String(id), server_time: at.toISOString() });
 
-// ── Auto roster lock (T-TEAM-04) ─────────────────────────────────────────────
+// ── Team lock time (T-TEAM-04) ───────────────────────────────────────────────
 
 /**
- * Lock every open roster once the team lock time has passed (server clock).
- * Teams an organizer reopened keep roster_locked_at set and are skipped.
+ * Once the team lock time passes (server clock), stamp roster_locked_at on every open team so
+ * it can go on to activation without a captain lock. The roster stays open: state is unchanged.
  * Called lazily from reads and writes here; the cron can call it too.
  */
 export async function syncRosterLocks() {
   const rows = await query<{ id: number; state: string }>(
-    `update teams t set state = 'roster_locked', roster_locked_at = now()
+    `update teams t set roster_locked_at = now()
       where t.state in ('recruiting','formed','active') and t.roster_locked_at is null
         and now() >= (select e.team_lock_at from hack_events e where e.id = coalesce(t.event_id, current_event_id()))
       returning t.id, t.state`,
@@ -118,7 +118,7 @@ export async function syncRosterLocks() {
     return [];
   });
   for (const r of rows) {
-    await writeAudit({ type: "system", label: "team lock" }, { action: "team.roster_lock", resourceType: "team", resourceId: r.id, reason: "Team lock time reached" }).catch(() => {});
+    await writeAudit({ type: "system", label: "team lock" }, { action: "team.lock_time", resourceType: "team", resourceId: r.id, reason: "Team lock time reached; roster stays open" }).catch(() => {});
   }
   return rows.length;
 }
@@ -219,8 +219,8 @@ export type CreatedTeam = { teamId: number; slug: string; state: TeamState; rece
 /**
  * An existing member (no current team) starts a team and becomes captain.
  * Reserves projects.slug = team slug (the /ship/{slug} page) and seeds the
- * private idea. After the team lock, the new team is created already locked
- * (a walk-in can still ship solo; adding people then needs an organizer).
+ * private idea. After the team lock time the new team is stamped (roster_locked_at) so it can
+ * activate straight away, and its roster stays open like every other team's.
  */
 export async function createTeam(who: ActingMember, input: unknown): Promise<CreatedTeam> {
   const data = parse(createTeamSchema, input);
@@ -239,7 +239,7 @@ export async function createTeam(who: ActingMember, input: unknown): Promise<Cre
       const { rows } = await tx.query<{ id: number; state: TeamState; now: Date }>(
         `insert into teams (slug, name, track, idea, is_solo, password_hash, captain_id, state, max_size, recruiting_open, summary_public, roster_locked_at)
          select $1::text, $2::text, $3::text, '', $4::boolean, $5::text, $6::bigint,
-                case when now() >= e.team_lock_at then 'roster_locked' when $4::boolean then 'formed' else 'recruiting' end,
+                case when $4::boolean then 'formed' else 'recruiting' end,
                 $7::int, $8::boolean and not $4::boolean, $9::text,
                 case when now() >= e.team_lock_at then now() end
            from hack_events e where e.id = current_event_id()
