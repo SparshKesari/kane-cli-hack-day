@@ -10,7 +10,10 @@ import { ACTIVATION_STEPS, CODEX_REDEEM_INSTRUCTIONS, CODEX_REDEEM_URL, TESTMU_S
 import { getPersonalMember } from "@/server/auth";
 import { getActivationView, planClaimedMessage, planErrorMessage, type ActivationView } from "@/server/event-activation";
 import { flowState } from "@/server/flow";
-import { ClaimPlanButton, GetCodeButton, TickButton } from "./parts";
+import { teamSyncMessage } from "@/lib/testmu-team";
+import { getTeamInfo } from "@/server/teams";
+import { teamSyncStatus } from "@/server/testmu-team";
+import { ClaimPlanButton, GetCodeButton, RetryTeamInvitesForm, TickButton } from "./parts";
 
 export const metadata: Metadata = { title: "Activate", robots: { index: false } };
 
@@ -65,6 +68,7 @@ async function Checklist({ searchParams }: Pick<PageProps<"/activate">, "searchP
           </StepCard>
         ))}
       </ol>
+      {view.plan?.status === "claimed" && member.team_id && <TeamInvites memberId={member.id} teamId={member.team_id} />}
 
       {view.done ? (
         <div className="brackets border border-lime bg-lime-deep p-5">
@@ -166,5 +170,35 @@ function CodexStep({ view, ready }: { view: ActivationView; ready: boolean }) {
         <TickButton step="codex_credits" done={view.ticks.has("codex_credits")} label="Credits enabled" />
       </div>
     </div>
+  );
+}
+
+/** The captain's TestMu AI team: each teammate's invite status, and a retry for the ones that failed. */
+async function TeamInvites({ memberId, teamId }: { memberId: number; teamId: number }) {
+  const team = await getTeamInfo({ id: teamId });
+  if (!team || team.captain_id !== memberId || !team.locked) return null;
+  const statuses = await teamSyncStatus(teamId);
+  if (!statuses.length) return null;
+  const left = statuses.filter((s) => !s.done).length;
+  return (
+    <section id="team-invites" className="border border-hairline p-5 sm:p-6" aria-labelledby="team-invites-title" data-team-invites={left ? "pending" : "done"}>
+      <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">Your TestMu AI team</p>
+      <h2 id="team-invites-title" className="mt-2 font-display text-xl text-bright sm:text-2xl">
+        {left ? `${left} ${left === 1 ? "teammate isn’t" : "teammates aren’t"} in your TestMu AI team yet` : "Everyone is in your TestMu AI team"}
+      </h2>
+      <ul className="mt-4 border-t border-dashed border-hairline">
+        {statuses.map((s) => (
+          <li key={s.member_id} className="border-b border-dashed border-hairline py-2.5 font-plex text-sm" data-member-invite={s.code ?? "pending"}>
+            <span className={s.done ? "text-lime" : "text-warning"}>{s.done ? "■" : "□"}</span> <span className="text-bright">{s.name}</span>
+            <span className="block text-xs text-lightgray">{teamSyncMessage(s.code, s.name)}</span>
+          </li>
+        ))}
+      </ul>
+      {left > 0 && (
+        <div className="mt-5">
+          <RetryTeamInvitesForm />
+        </div>
+      )}
+    </section>
   );
 }

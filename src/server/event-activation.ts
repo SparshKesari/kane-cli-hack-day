@@ -7,6 +7,7 @@ import { PLAN_MESSAGES, type ActivationStepId } from "@/data/activation-steps";
 import { memberActor, staffActor, type MemberRow, type Staff } from "./auth";
 import { AppError, maskEmail, transaction, withAudit, writeAudit, type Actor } from "./core";
 import { enforceRateLimit } from "./ratelimit";
+import { syncTeamAfterClaim } from "./testmu-team";
 
 // The event-day activation checklist (/activate), replacing the Kane-driven
 // ceremony for participants:
@@ -250,6 +251,8 @@ export async function claimPlan(member: MemberRow, password: string): Promise<Cl
       tx,
     );
   });
+  // A captain's claim moves the locked team into their TestMu AI org with the same password. It never throws.
+  if (status === "claimed") await syncTeamAfterClaim(member, password);
   if (status === "claimed") return { outcome: "claimed", message: claimedMessage(mapped) };
   if (status === "not_registered") return { outcome: "not_registered", message: PLAN_MESSAGES.notRegistered(email) };
   return { outcome: "error", message: claimErrorMessage(mapped) };
