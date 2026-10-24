@@ -2,7 +2,7 @@
 // kanehack: the Kane CLI Hack Day helper. No dependencies, Node >= 18.17.
 //
 //   kanehack password [--testmu|--check|--forget]  type your password once, in your own terminal (hidden; ~/.kanehack/credentials.json, mode 600)
-//   kanehack register --name --email --linkedin --x [--github] [--looking]  save your profile and sign this machine in (no browser)
+//   kanehack register --name --email --linkedin [--x] [--github] [--looking]  save your profile and sign this machine in (no browser)
 //   kanehack signin [--email E]            sign this machine in with your email + the saved password (no browser)
 //   kanehack claim                         claim your TestMu AI hack-day plan (/activate step 2) with the saved password
 //   kanehack login [--username U --access-key K]  save your TestMu AI username + access key (mandatory sign-in)
@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.23";
+const VERSION = "0.1.24";
 // TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
 const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");
@@ -333,10 +333,10 @@ async function register(a) {
   const cfg = loadConfig();
   if (a.flags.api) cfg.api = String(a.flags.api).replace(/\/$/, "");
   const f = (k) => (a.flags[k] === undefined || a.flags[k] === true ? "" : String(a.flags[k]).trim());
-  const body = { name: f("name"), email: f("email"), linkedin: f("linkedin"), x: f("x"), ...(f("github") ? { github: f("github") } : {}), ...(a.flags.looking ? { looking: "yes" } : {}) };
-  const missing = ["name", "email", "linkedin", "x"].filter((k) => !body[k]);
+  const body = { name: f("name"), email: f("email"), linkedin: f("linkedin"), ...(f("x") ? { x: f("x") } : {}), ...(f("github") ? { github: f("github") } : {}), ...(a.flags.looking ? { looking: "yes" } : {}) };
+  const missing = ["name", "email", "linkedin"].filter((k) => !body[k]);
   if (missing.length)
-    fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> --x <handle> [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
+    fail(`Missing --${missing.join(", --")}. Usage: kanehack register --name "Full Name" --email you@example.com --linkedin <url or handle> [--x <handle>] [--github <handle>] [--looking]`, EXIT.ACTION, "USAGE");
   const pw = needPassword();
   const r = await api({ ...cfg, token: null, testmu: null }, "/api/v1/auth/register", json({ ...body, password: pw, proof_password: pw, client: "kanehack", label: deviceLabel() }));
   // A 401 here is this email's account having another password, not a missing sign-in.
@@ -1288,7 +1288,7 @@ function usage() {
 
   kanehack password [--testmu]                type your password once, in YOUR OWN terminal (hidden; never in Codex)
   kanehack password --check | --forget         is one saved? / remove it
-  kanehack register --name N --email E --linkedin L --x X [--github G] [--looking]
+  kanehack register --name N --email E --linkedin L [--x X] [--github G] [--looking]
                                               save your profile and sign this machine in (uses the saved password)
   kanehack signin [--email E]                 sign this machine in (email + the saved password)
   kanehack claim                              claim your TestMu AI hack-day plan (/activate step 2)

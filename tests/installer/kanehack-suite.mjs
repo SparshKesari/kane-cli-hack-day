@@ -136,6 +136,8 @@ try {
     check("password without a terminal → exit 2 NEEDS_TERMINAL (never asked for in an agent)", r.code === 2 && r.json?.error?.code === "NEEDS_TERMINAL" && /own terminal/.test(r.err), r.show);
     r = kh(["password", "--check", "--json"]);
     check("password --check with none saved → exit 2", r.code === 2 && r.json?.stored?.password === false, r.show);
+    r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--json"]);
+    check("register without --x gets past the flags (X is optional): exit 2 NO_PASSWORD, not USAGE", r.code === 2 && r.json?.error?.code === "NO_PASSWORD", r.show);
     r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
     check("register with no saved password → exit 2 NO_PASSWORD, pointing at kanehack password", r.code === 2 && r.json?.error?.code === "NO_PASSWORD" && /kanehack password/.test(r.err), r.show);
     r = kh(["claim", "--json"]);

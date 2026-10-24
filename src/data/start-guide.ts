@@ -87,7 +87,7 @@ export const startGuide: GuideSection[] = [
     blocks: [
       {
         list: [
-          "New here, or only checked in at the desk: `kanehack register` with your name, the email you registered for the event with, LinkedIn and X (GitHub optional). It saves your profile and signs this machine in.",
+          "New here, or only checked in at the desk: `kanehack register` with your name, the email you registered for the event with, and LinkedIn (X and GitHub optional). It saves your profile and signs this machine in.",
           "Already registered: `kanehack signin --email you@example.com`.",
         ],
       },

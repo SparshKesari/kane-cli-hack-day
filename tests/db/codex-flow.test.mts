@@ -79,6 +79,19 @@ test("kanehack register: the API saves the profile and returns a bearer token, n
   assert.equal(web.env.data?.token, undefined);
 });
 
+test("register without an X handle: saved with none (X is optional)", { skip }, async () => {
+  m.jar.clear();
+  const e = `${tag}.nox@example.test`;
+  const r = await read(await m.register.POST(post({ name: "No X Person", email: e, linkedin: "no-x-person", password: PW, proof_password: PW, client: "kanehack", label: "kanehack test" })));
+  assert.equal(r.status, 200, JSON.stringify(r.env));
+  const [row] = await m.db.query<{ x_handle: string | null }>("select x_handle from members where lower(email) = $1", [e]);
+  assert.equal(row.x_handle, null);
+  // A malformed handle is still refused.
+  m.jar.clear();
+  const bad = await read(await m.register.POST(post({ name: "Bad X Person", email: `${tag}.badx@example.test`, linkedin: "bad-x", x: "not a handle!", password: PW, proof_password: PW, client: "kanehack" })));
+  assert.equal(bad.status, 400, JSON.stringify(bad.env));
+});
+
 test("kanehack signin: email + the stored password gives a token; a wrong password doesn't", { skip }, async () => {
   const good = await read(await m.token.POST(post({ email, password: PW, label: "kanehack test" })));
   assert.equal(good.status, 200, JSON.stringify(good.env));
