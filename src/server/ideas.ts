@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { requireFlag } from "@/lib/flags";
 import { draftObject } from "./ai";
 import { AppError, parse, sha256, withAudit, writeAudit, z, zx, type Receipt } from "./core";
+import { hasRole, type Staff } from "./auth";
 import { receiptOf, type ActingMember } from "./teams";
 
 // Ideas (SPEC §4, E6). A team's idea is private by default; every save is a
@@ -121,6 +122,38 @@ export async function getIdea(teamId: number): Promise<Idea | null> {
 }
 
 export type Revision = { revision: number; created_at: Date; actor: string | null; title: string; verdict: Verdict | null; generator: string | null };
+
+export type OpsIdeaRow = {
+  team_id: number;
+  team_name: string;
+  team_slug: string;
+  team_state: string;
+  title: string | null;
+  app_type: string | null;
+  private_description: string | null;
+  kane_plan: string | null;
+  extra_info: string | null;
+  status: IdeaStatus | null;
+  updated_at: Date | null;
+  revision: number;
+  /** Something was saved: a revision, a description or a Kane plan (a team's blank row doesn't count). */
+  saved: boolean;
+};
+
+/** Every team's idea for /ops/ideas, newest first, teams with nothing saved last; withdrawn teams left out. Organizer only. */
+export async function listIdeasForOps(staff: Staff | null): Promise<OpsIdeaRow[]> {
+  if (!hasRole(staff, "organizer")) throw new AppError("FORBIDDEN");
+  return query<OpsIdeaRow>(
+    `select t.id as team_id, t.name as team_name, t.slug as team_slug, t.state as team_state,
+            i.title, i.app_type, i.private_description, i.kane_plan, i.extra_info, i.status, i.updated_at, coalesce(r.n, 0) as revision,
+            (coalesce(r.n, 0) > 0 or coalesce(i.private_description, '') <> '' or coalesce(i.kane_plan, '') <> '') as saved
+       from teams t
+       left join ideas i on i.team_id = t.id
+       left join lateral (select max(x.revision)::int as n from idea_revisions x where x.idea_id = i.id) r on true
+      where t.state <> 'withdrawn'
+      order by (coalesce(r.n, 0) > 0 or coalesce(i.private_description, '') <> '' or coalesce(i.kane_plan, '') <> '') desc, i.updated_at desc nulls last, t.name`,
+  );
+}
 
 export async function listRevisions(ideaId: number, limit = 20) {
   return query<Revision>(
