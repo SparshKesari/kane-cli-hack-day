@@ -32,7 +32,7 @@ export const startGuide: GuideSection[] = [
           { time: "11:00", text: "Teams set. Rosters stay open after this: invite codes still work." },
           { time: "12:00", text: "Idea saved. You can keep refining it after this." },
           { time: "16:00–17:00", text: "Final evaluation at your team's table." },
-          { time: "18:00", text: "Submissions lock." },
+          { time: "18:00", text: "Submissions due." },
         ],
       },
     ],
@@ -163,7 +163,7 @@ export const startGuide: GuideSection[] = [
     id: "submit",
     eyebrow: "Step 09 · by 18:00",
     title: "Submit",
-    summary: "Final evaluation is 16:00–17:00 at your table. Submissions lock at 18:00.",
+    summary: "Final evaluation is 16:00–17:00 at your table. Submissions due at 18:00.",
     jump: "9 · Submit",
     blocks: [
       {
