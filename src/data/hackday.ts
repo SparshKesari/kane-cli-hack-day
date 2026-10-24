@@ -71,13 +71,13 @@ export type Slot = {
 export const schedule: Slot[] = [
   { start: "09:30", end: "10:15", title: "Arrival, breakfast", key: true },
   { start: "10:15", end: "11:00", title: "Kickoff", note: "Kane CLI x OpenAI loop demo", key: true },
-  { start: "11:00", title: "Team registration closes. Hackathon begins", deadline: true, href: "/submit#team", key: true },
-  { start: "12:00", title: "Idea submission locks", deadline: true, href: "/submit#idea" },
+  { start: "11:00", title: "Hackathon begins. Teams due", deadline: true, href: "/submit#team", key: true },
+  { start: "12:00", title: "Idea due", deadline: true, href: "/submit#idea" },
   { start: "13:00", end: "14:00", title: "Working lunch" },
   { start: "14:00", title: "Mid evaluation", note: "Feedback only", href: "/judging#mid" },
   { start: "16:00", end: "17:00", title: "Final evaluation at your table", note: "Scored", href: "/judging#final" },
-  { start: "17:00", end: "18:00", title: "Content hour", note: "Submissions lock at 6:00", href: "/content-hour" },
-  { start: "18:00", title: "Submissions lock", deadline: true, href: "/submit#final", key: true },
+  { start: "17:00", end: "18:00", title: "Content hour", note: "Submissions due at 6:00", href: "/content-hour" },
+  { start: "18:00", title: "Submissions due", deadline: true, href: "/submit#final", key: true },
   { start: "18:00", end: "19:00", title: "Demo round", note: "Top 7 teams", href: "/judging#stage", key: true },
   { start: "19:30", title: "Prizes and closing", key: true },
 ];
@@ -292,7 +292,7 @@ export const submissions = {
     pickTwo: ["Video", "Blog", "X post", "HN post"],
     minimumNote: "Minimum for the shipped prize: the three essentials, plus any two content pieces, all live by 6:00.",
     fullBundle: "Full bundle: all four content pieces.",
-    closing: "Submissions lock at 6:00 by the server clock. No exceptions.",
+    closing: "Submissions are due at 6:00 PM.",
   },
 };
 
@@ -375,7 +375,7 @@ export const judgingCriteria = {
     label: "GTM",
     title: "GTM",
     points: 25,
-    when: "Scored from your submission links after lock",
+    when: "Scored from your submission links after 6:00 PM",
     lead: "Points are earned per asset. Each must be live and linked in your submission.",
     assets: [
       { asset: "Demo video with voiceover", points: 7, full: "2 to 4 minutes, leads with the Kane run report, shows one real flow, says what Kane caught. Voiceover required, editing not." },

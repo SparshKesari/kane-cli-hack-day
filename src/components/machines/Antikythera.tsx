@@ -834,7 +834,7 @@ function ReadoutBody({ time, group, status }: { time: string; group: Group; stat
                 <span className="font-pixel text-[11px] uppercase tracking-[0.25em] text-bright">{s.title}</span>
                 {s.deadline && (
                   <span className="border border-lime px-1.5 py-0.5 font-pixel text-[9px] uppercase tracking-[0.25em] text-lime">
-                    Lock
+                    Due
                   </span>
                 )}
               </div>

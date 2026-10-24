@@ -29,7 +29,7 @@ export default function Schedule({ keyOnly = false }: { keyOnly?: boolean }) {
             bright="Ship by six."
             intro={
               <>
-                Deadlines are marked <span className="text-lime">Lock</span>. They don’t move.
+                Deadlines are marked <span className="text-lime">Due</span>.
                 {keyOnly ? (
                   <>
                     <br />
@@ -70,7 +70,7 @@ export default function Schedule({ keyOnly = false }: { keyOnly?: boolean }) {
                         now ? "border-ink" : "border-lime text-lime"
                       }`}
                     >
-                      Lock
+                      Due
                     </span>
                   )}
                   {linkOf(s) && <span className="font-plex text-sm text-lightgray group-hover:text-lime">→</span>}

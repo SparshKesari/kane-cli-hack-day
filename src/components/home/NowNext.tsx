@@ -17,7 +17,7 @@ export default function NowNext() {
 
   if (day?.phase === "before") {
     now = "Doors open at 9:30";
-    next = { label: `Team registration closes at ${to12h(deadlines[0].start)}`, href: ctas.register.href };
+    next = { label: `Teams due at ${to12h(deadlines[0].start)}`, href: ctas.register.href };
   } else if (day?.phase === "during") {
     now = day.current ? day.current.title : "Doors open soon";
     if (day.next) {
