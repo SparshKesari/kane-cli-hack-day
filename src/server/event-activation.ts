@@ -7,6 +7,7 @@ import { PLAN_MESSAGES, type ActivationStepId } from "@/data/activation-steps";
 import { memberActor, staffActor, type MemberRow, type Staff } from "./auth";
 import { AppError, maskEmail, transaction, withAudit, writeAudit, type Actor } from "./core";
 import { enforceRateLimit } from "./ratelimit";
+import { decryptEmail } from "./roster";
 import { syncTeamAfterClaim } from "./testmu-team";
 
 // The event-day activation checklist (/activate), replacing the Kane-driven
@@ -449,11 +450,28 @@ export async function reassignCodexCode(staff: Staff, memberId: number, reason: 
 
 /** Organizer CSV export of the pool (full codes: organizer only, audited by the caller's route). */
 export async function exportCodexCodes(staff: Staff) {
-  const rows = await query<{ code: string; batch: string | null; status: string; name: string | null; email: string | null; team: string | null; assigned_at: Date | null; assigned_by: string | null; revoked_reason: string | null }>(
-    `select k.code, k.batch, k.status, coalesce(m.display_name, m.name) as name, m.email, t.name as team, k.assigned_at, k.assigned_by, k.revoked_reason
-       from codex_credit_codes k left join members m on m.id = k.assigned_member_id left join teams t on t.id = m.team_id
+  const rows = await query<{
+    code: string;
+    batch: string | null;
+    status: string;
+    name: string | null;
+    member_email: string | null;
+    guest_email: Buffer | null;
+    email_hint: string | null;
+    team: string | null;
+    assigned_at: Date | null;
+    assigned_by: string | null;
+    emailed_at: Date | null;
+    email_count: number;
+    revoked_reason: string | null;
+  }>(
+    // A code emailed by /api/v1/codex/coupon may have no member: the roster row says who it went to.
+    `select k.code, k.batch, k.status, coalesce(m.display_name, m.name, g.name) as name, m.email as member_email, g.email_ciphertext as guest_email, g.email_hint,
+            t.name as team, k.assigned_at, k.assigned_by, k.emailed_at, k.email_count, k.revoked_reason
+       from codex_credit_codes k left join members m on m.id = k.assigned_member_id left join roster_guests g on g.id = k.assigned_guest_id
+       left join teams t on t.id = m.team_id
       where k.event_id = current_event_id() order by k.id`,
   );
   await writeAudit(staffActor(staff), { action: "codex_code.export", resourceType: "codex_credit_code", resourceId: "export", payload: { rows: rows.length } });
-  return rows;
+  return rows.map(({ member_email, guest_email, email_hint, ...r }) => ({ ...r, email: member_email ?? decryptEmail(guest_email) ?? email_hint }));
 }
