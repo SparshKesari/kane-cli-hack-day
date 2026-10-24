@@ -123,12 +123,19 @@ async function Receipt({ params }: { params: PageProps<"/submit/receipt/[code]">
         <Row k="Project" v={d.project_name ?? "—"} />
         <Row k="Type" v={d.project_type ? (PROJECT_TYPE_LABEL[d.project_type as ProjectType] ?? d.project_type) : "—"} />
         {d.one_line_pitch && <Row k="Pitch" v={d.one_line_pitch} />}
+        {d.project_description && <Row k="Description" v={d.project_description} />}
         <Row k="Repository" v={d.repo_url ?? "—"} mono />
-        <Row k="Commit SHA" v={d.commit_sha ?? "—"} mono />
+        {d.commit_sha && <Row k="Commit SHA" v={d.commit_sha} mono />}
         {d.artifact_hash && <Row k="Archive SHA-256" v={d.artifact_hash} mono />}
-        <Row k="Live demo" v={d.demo_url ?? "—"} mono />
+        {d.demo_url && <Row k="Live demo" v={d.demo_url} mono />}
         {d.run_command && <Row k="Run command" v={d.run_command} mono />}
-        <Row k="Harness" v={d.harness_summary ?? d.harness ?? "—"} />
+        {(d.harness_summary ?? d.harness) && <Row k="Harness" v={(d.harness_summary ?? d.harness)!} />}
+        {d.showcase_url && <Row k="Showcase page" v={d.showcase_url} mono />}
+        {d.linkedin_posts?.length ? <Row k="LinkedIn" v={d.linkedin_posts.join(", ")} mono /> : null}
+        {d.x_posts?.length ? <Row k="X" v={d.x_posts.join(", ")} mono /> : null}
+        {d.blog_links?.length ? <Row k="Blog" v={d.blog_links.join(", ")} mono /> : null}
+        {d.deck_url && <Row k="Deck" v={d.deck_url} mono />}
+        {d.hn_url && <Row k="Hacker News" v={d.hn_url} mono />}
         {d.kane_components?.length ? <Row k="Kane components" v={d.kane_components.map(kaneComponentLabel).join(", ")} /> : null}
         {d.limitations?.length ? <Row k="Limitations" v={d.limitations.join(" · ")} /> : null}
         {d.caveats && <Row k="Caveats" v={d.caveats} />}

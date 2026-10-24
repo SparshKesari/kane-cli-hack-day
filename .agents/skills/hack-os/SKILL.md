@@ -61,12 +61,12 @@ Teams should be set by 11:00 and the idea saved by 12:00, but the clock locks ne
 
 ## Submission and launch assets
 
-What the event team asks for:
+The final submission on the Submit tab has these fields:
 
-- Project details: name, description, about, and how they used Kane CLI.
-- Launch assets: LinkedIn and X posts that tag the official accounts (several posts are fine; they share every link), a blog post, a Show HN post (`$hack-gtm` drafts the title and an outline; the author posts it in their own words), a deck, and a demo video with voice-over.
+- Required to finalize (what `submission_preflight` checks): project name, project description, one-liner pitch and the GitHub repo URL. No commit SHA.
+- Optional, each a live https link: showcase page, LinkedIn post(s), X post(s), blog link(s), deck, video and Hacker News post (the Show HN post). Several posts or blog links go in one field, separated by commas.
 
-The Submit tab won't finalize without these (what `submission_preflight` checks): project name and type, a one-line pitch, the repo, the exact commit SHA, a live URL or run command, a linked Kane CLI run report, a harness description, the Kane components used and known limitations. Deck and video are never required to finalize. `submission_preflight` is the authority on what finalizing needs; don't call something required when it isn't.
+LinkedIn and X posts tag the official accounts. For Show HN, `$hack-gtm` drafts the title and an outline; the author posts it in their own words. `submission_preflight` is the authority on what finalizing needs; don't call something required when it isn't.
 
 The shipped prize is separate. It counts only from the Submit tab's "Shipped prize bundle" checklist: the three essentials (repo, live URL or run command, Kane CLI run report) plus any two of video, blog, X post and Show HN post. A signed-in teammate pastes each live link, ticks the row and presses Save, by 18:00 Pacific and before the captain finalizes: the receipt records whether the bundle was met at that moment. `submission_preflight` never checks those rows.
 

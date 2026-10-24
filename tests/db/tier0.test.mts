@@ -93,6 +93,38 @@ test("two mentors claim one ticket: one wins, the other gets 409", { skip }, asy
   assert.equal((bad[0].reason as { status?: number }).status, 409);
 });
 
+test("the final submission form (2026-10-24): saving it keeps a draft's older fields, and the four required fields finalize", { skip }, async () => {
+  const slug = `${tag}-t0`;
+  await signInAsCaptain(0);
+  // A draft saved with the earlier form: commit SHA, harness, limitations.
+  await m.sub.saveDraft(slug, { project_name: "Old form", repo_url: "https://github.com/example/old", commit_sha: "b".repeat(40), harness_summary: "Old harness", limitations: "one gap" });
+  const fd = new FormData();
+  for (const [k, v] of Object.entries({
+    project_name: "New form", project_description: "What it does, in full.", one_line_pitch: "One line.", repo_url: "https://github.com/example/new",
+    showcase_url: "", linkedin_posts: "https://www.linkedin.com/posts/a, https://www.linkedin.com/posts/b", x_posts: "https://x.com/a/status/1\nhttps://x.com/a/status/2",
+    blog_links: "https://blog.example/post", deck_url: "", video_url: "https://youtu.be/x", hn_url: "https://news.ycombinator.com/item?id=1",
+  })) fd.set(k, v);
+  await m.sub.saveDraft(slug, m.sub.draftInputFromForm(fd));
+
+  const ctx = await m.sub.getSubmissionContext(ids.teams[0]);
+  const d = ctx.draft;
+  assert.equal(d.project_name, "New form");
+  assert.equal(d.repo_url, "https://github.com/example/new");
+  assert.deepEqual(d.linkedin_posts, ["https://www.linkedin.com/posts/a", "https://www.linkedin.com/posts/b"]);
+  assert.deepEqual(d.x_posts, ["https://x.com/a/status/1", "https://x.com/a/status/2"]);
+  assert.equal(d.deck_url, null);
+  // Not on the new form, so not wiped by its save.
+  assert.equal(d.commit_sha, "b".repeat(40));
+  assert.equal(d.harness_summary, "Old harness");
+  assert.deepEqual(d.limitations, ["one gap"]);
+  assert.deepEqual(ctx.preflight.missing, []);
+
+  const fin = await m.sub.finalizeSubmission(slug, { confirm_phrase: `${tag} team 0`, confirm: "on", publish_showcase: "on", idempotency_key: `${tag}-final-0` });
+  const [row] = await m.db.query<{ snap: { submission?: { linkedin_posts?: string[]; hn_url?: string } } }>("select immutable_snapshot as snap from submissions where receipt_code = $1", [fin.data.receipt_code]);
+  assert.deepEqual(row.snap.submission?.linkedin_posts, ["https://www.linkedin.com/posts/a", "https://www.linkedin.com/posts/b"]);
+  assert.equal(row.snap.submission?.hn_url, "https://news.ycombinator.com/item?id=1");
+});
+
 async function signInAsCaptain(teamIdx: number) {
   m.jar.clear();
   await m.session.setMemberSession({ memberId: ids.members[teamIdx * 4], personal: true });
@@ -112,7 +144,7 @@ test("finalize twice returns the same receipt; after the deadline time drafts st
     [p.id, teamId, `${tag}-run`, sha],
   );
   await m.sub.saveDraft(slug, {
-    project_name: "QA project", project_type: "tool", one_line_pitch: "QA", repo_url: "https://github.com/example/qa", commit_sha: sha,
+    project_description: "What it does.", project_name: "QA project", project_type: "tool", one_line_pitch: "QA", repo_url: "https://github.com/example/qa", commit_sha: sha,
     demo_url: "https://example.com", harness_summary: "QA harness", kane_components: ["testrun"], limitations: "none known", kane_run_ids: [String(run.id)],
   });
   const body = { confirm_phrase: `${tag} team 1`, confirm: "on", publish_showcase: "on", idempotency_key: `${tag}-final-1` };
@@ -174,7 +206,7 @@ test("finalize keeps the story the team published in the Ship Studio and adds th
   );
   const video = "https://cdn.example/qa-demo.mp4";
   await m.sub.saveDraft(slug, {
-    project_name: "QA submission name", project_type: "tool", one_line_pitch: "The submission pitch.", repo_url: "https://github.com/example/qa", commit_sha: sha,
+    project_description: "What it does.", project_name: "QA submission name", project_type: "tool", one_line_pitch: "The submission pitch.", repo_url: "https://github.com/example/qa", commit_sha: sha,
     demo_url: "https://example.com/qa", harness_summary: "Submission harness", kane_components: ["testrun"], limitations: "none known", kane_run_ids: [String(run.id)], video_url: video,
   });
   const fin = await m.sub.finalizeSubmission(slug, { confirm_phrase: `${tag} team 4`, confirm: "on", publish_showcase: "on", idempotency_key: `${tag}-final-4` });
