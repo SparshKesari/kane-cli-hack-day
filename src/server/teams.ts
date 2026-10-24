@@ -216,7 +216,7 @@ export async function createTeam(who: ActingMember, input: unknown): Promise<Cre
       const { rows: cur } = await tx.query("select 1 from team_memberships where member_id = $1 and left_at is null for update", [who.member.id]);
       if (cur.length) throw new AppError("CONFLICT", { userMessage: "You're already on a team. Leave it first, then start a new one." });
 
-      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1", [slug]);
+      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1 union all select 1 from project_slug_redirects where old_slug = $1", [slug]);
       if (taken.length) throw new AppError("CONFLICT", { userMessage: "That team name is taken. Try another." });
 
       const { rows } = await tx.query<{ id: number; state: TeamState; now: Date }>(
@@ -641,7 +641,7 @@ export async function formTeamFromPool(staff: Staff, input: unknown) {
         [data.member_ids],
       );
       if (busy.length) throw new AppError("CONFLICT", { userMessage: `Already on a team: ${busy.map((b) => b.name).join(", ")}. Reload the pool.` });
-      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1", [slug]);
+      const { rows: taken } = await tx.query("select 1 from teams where slug = $1 union all select 1 from projects where slug = $1 union all select 1 from project_slug_redirects where old_slug = $1", [slug]);
       if (taken.length) throw new AppError("CONFLICT", { userMessage: "That team name is taken. Try another." });
       const captain = people[0].id;
       const { rows } = await tx.query<{ id: number; now: Date }>(
