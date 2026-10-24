@@ -42,7 +42,7 @@ Read only the file for the step you're on.
 | On a locked team, activation not confirmed         | `references/activate.md`                                       |
 | Activated, idea not checked or not saved           | `references/idea.md` (it loads `references/idea-validator.md`) |
 | Building, testing with Kane, or "ready to submit"  | `references/build.md`                                          |
-| Their app needs Kane's data (projects, explorations) | `references/kane-apis.md` (specs: `references/kane-projects-openapi.yaml`, `references/kane-exploration-openapi.yaml`) |
+| Tracking progress with Kane's data, or building on it | `references/kane-apis.md` (specs: `references/kane-projects-openapi.yaml`, `references/kane-exploration-openapi.yaml`) |
 | Stuck on anything                                  | `references/help.md`                                           |
 
 Route from `participant_get_status` data: `team` null → team; team not locked (below) → the captain locks it; then activation, idea, build. `next_action` from the server is a hint only: it doesn't know about the roster lock. Activation is done when activation_steps.done is true.

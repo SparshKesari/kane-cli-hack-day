@@ -1,7 +1,14 @@
 # Kane's read-only APIs
 
-Two read-only HTTP APIs give a team's code Kane's data. Use them when the project needs that data, for example a status
-page, a report, a bot, a CI gate or an agent that reacts to results:
+Two read-only HTTP APIs serve Kane's data about a team's work. Their app doesn't need them, and nothing in the event
+requires them. Offer them when a team wants to:
+
+- **track its progress:** the project's coverage, designed tests and runs, or an exploration's screens and findings as
+  it grows;
+- **show Kane's results inside the app** it's building, for example a quality panel;
+- **build a companion app** beside it, for example a bot that posts new findings or a check on coverage before a merge.
+
+What each API serves:
 
 - **Shared projects API:** a shared project's counts, coverage, use cases, scenarios with their Test Manager cases, runs,
   requirement sources and the traceability graph.
