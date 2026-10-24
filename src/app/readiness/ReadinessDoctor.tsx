@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import CopyField from "@/components/ui/CopyField";
 import { reportWeb } from "./actions";
+import { apiFetch } from "@/lib/api-client";
 
 // ReadinessDoctor (T-ACT-08), the interactive half: run the checks a browser
 // can do itself (Chrome, API reachable), and let the person record what their
@@ -24,7 +25,7 @@ export default function ReadinessDoctor({ checks }: { checks: DoctorCheck[] }) {
     let api: Status = "fail";
     let apiDetail = "Couldn’t reach /api/v1/readiness from this browser";
     try {
-      const res = await fetch("/api/v1/readiness", { cache: "no-store" });
+      const res = await apiFetch("/api/v1/readiness", { cache: "no-store" });
       if (res.ok) {
         api = "pass";
         apiDetail = "Reached from this browser";

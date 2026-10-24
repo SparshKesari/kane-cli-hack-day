@@ -14,6 +14,7 @@ import {
   setStaffSession,
 } from "@/lib/session";
 import { AppError, sha256, transaction, writeAudit, type Actor, type StaffRole } from "./core";
+import { memberFromPrincipal } from "./testmu";
 
 // Who is asking. Three kinds of identity, checked server-side on every call:
 //   member  : a participant (hd_member cookie, or the team cookie after "who are you?")
@@ -78,7 +79,8 @@ async function getTeamRef(id: number | null) {
 export async function getMember(): Promise<MemberRow | null> {
   const [ms, ts] = await Promise.all([getMemberSession(), getTeamSession()]);
   const id = ms?.memberId ?? ts?.memberId ?? null;
-  if (!id) return null;
+  // No cookie: a CLI/MCP call that sent only its TestMu access key (src/proxy.ts).
+  if (!id) return memberFromPrincipal(getMemberById);
   const m = await getMemberById(id);
   // A team-cookie member must still be on that team.
   if (m && !ms && ts && m.team_id !== ts.teamId) return null;
@@ -111,7 +113,9 @@ export async function requireMember(): Promise<MemberRow> {
 /** The member proven to be *this person* (personal session), or null. */
 export async function getPersonalMember(): Promise<MemberRow | null> {
   const ms = await getMemberSession();
-  if (!ms?.personal) return null;
+  // The TestMu access key is the person's own credential, so it counts as personal.
+  if (!ms) return memberFromPrincipal(getMemberById);
+  if (!ms.personal) return null;
   return getMemberById(ms.memberId);
 }
 

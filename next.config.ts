@@ -59,6 +59,11 @@ const nextConfig: NextConfig = {
       // Staff pages and paper copies stay out of search engines.
       { source: "/ops/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
       { source: "/print/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
+      // Swagger UI (/api/docs) loads its pinned bundle from jsdelivr; only this page may.
+      {
+        source: "/api/docs",
+        headers: [{ key: "Content-Security-Policy", value: csp.replace("script-src 'self'", "script-src 'self' https://cdn.jsdelivr.net").replace("style-src 'self'", "style-src 'self' https://cdn.jsdelivr.net") }],
+      },
       // Installers are read before they're run: serve them as UTF-8 text, not octet-stream, so
       // browsers show them and PowerShell's irm decodes them as text (✓ marks included).
       { source: "/install.sh", headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }] },

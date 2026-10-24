@@ -7,6 +7,7 @@ import { FormError, Label, SubmitButton, inputCls } from "@/components/forms/fie
 import HumanCameraCheckpoint from "@/components/camera/HumanCameraCheckpoint";
 import { checkProfileFields } from "@/lib/profile-fields";
 import { choiceAction, profileAction, skipPhotoAction, type ChoiceState, type ProfileState } from "./actions";
+import { apiFetch } from "@/lib/api-client";
 
 // The three /register steps. The server decides which one shows.
 
@@ -159,7 +160,7 @@ function SocialInput({ kind, invalid, className, ...input }: { kind: "linkedin" 
     if (!v || v === last.current) return;
     last.current = v;
     setStatus("checking");
-    const r = await fetch("/api/v1/profile/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, value: v }) }).catch(() => null);
+    const r = await apiFetch("/api/v1/profile/check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, value: v }) }).catch(() => null);
     if (last.current !== v) return;
     const out = r ? ((await r.json().catch(() => null)) as { status: CheckStatus; url: string | null } | null) : null;
     setStatus(out?.status ?? "unknown");

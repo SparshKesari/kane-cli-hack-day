@@ -139,6 +139,24 @@ export const ERROR_CODES = {
     nextAction: "Use the web or paper fallback.",
     manualRoute: "/help",
   },
+  TESTMU_KEY_REQUIRED: {
+    status: 401,
+    userMessage: "Connect your TestMu AI account first: this needs your TestMu AI access key.",
+    nextAction: "Sign in to TestMu AI, or send X-TestMu-Username and X-TestMu-Access-Key.",
+    manualRoute: "/api/v1/auth/testmu/start",
+  },
+  TESTMU_UNAVAILABLE: {
+    status: 503,
+    userMessage: "We couldn't check your TestMu AI access key right now.",
+    nextAction: "Try again in a minute, or ask at the help desk.",
+    manualRoute: "/help",
+  },
+  NOT_IMPLEMENTED: {
+    status: 501,
+    userMessage: "This part of Hack OS isn't built yet.",
+    nextAction: "Use the web page or ask at the help desk.",
+    manualRoute: "/help",
+  },
   RATE_LIMITED: {
     status: 429,
     userMessage: "Too many tries. Slow down a little.",

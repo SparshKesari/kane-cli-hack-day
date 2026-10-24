@@ -1,0 +1,562 @@
+[
+ {
+  "group": "auth",
+  "method": "POST",
+  "path": "/api/v1/auth/start",
+  "summary": "Begin guest authentication",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "auth",
+  "method": "POST",
+  "path": "/api/v1/pair/start",
+  "summary": "Start expiring activation pairing",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "auth",
+  "method": "POST",
+  "path": "/api/v1/pair/confirm",
+  "summary": "Confirm approved guest identity",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "GET",
+  "path": "/api/v1/participants/me",
+  "summary": "Read own Hacker Passport",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "PATCH",
+  "path": "/api/v1/participants/me",
+  "summary": "Update own profile and consent",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/activate/checkpoints",
+  "summary": "Persist secure human camera checkpoint",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/activate/selfie",
+  "summary": "Create signed upload session for user-controlled selfie",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/activate/resume",
+  "summary": "Resume at verified checkpoint",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/readiness",
+  "summary": "Record attested environment readiness",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "teams",
+  "method": "POST",
+  "path": "/api/v1/teams",
+  "summary": "Create a team",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "teams",
+  "method": "POST",
+  "path": "/api/v1/teams/join",
+  "summary": "Join an existing team using invite",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "teams",
+  "method": "POST",
+  "path": "/api/v1/match/profile",
+  "summary": "Update opted-in matching profile",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "teams",
+  "method": "GET",
+  "path": "/api/v1/match/suggestions",
+  "summary": "Find opted-in compatible teams and builders",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "ideas",
+  "method": "POST",
+  "path": "/api/v1/ideas",
+  "summary": "Save team idea",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "ideas",
+  "method": "POST",
+  "path": "/api/v1/ideas/validate",
+  "summary": "Validate idea against challenge and rubric",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "ideas",
+  "method": "POST",
+  "path": "/api/v1/ideas/radar",
+  "summary": "Check opted-in idea overlap",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "kane",
+  "method": "POST",
+  "path": "/api/v1/kane/runs",
+  "summary": "Ingest verified scoped Kane metadata",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "kane",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/milestones",
+  "summary": "Propose evidence-based milestone",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "help",
+  "method": "POST",
+  "path": "/api/v1/help",
+  "summary": "Open mentor ticket",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "help",
+  "method": "GET",
+  "path": "/api/v1/help/{ticketId}",
+  "summary": "Get ticket status",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "help",
+  "method": "POST",
+  "path": "/api/v1/help/{ticketId}/claim",
+  "summary": "Mentor claims help",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "help",
+  "method": "POST",
+  "path": "/api/v1/help/{ticketId}/resolve",
+  "summary": "Mentor resolves help",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "submissions",
+  "method": "POST",
+  "path": "/api/v1/submissions/preflight",
+  "summary": "Validate eligible team submission",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "submissions",
+  "method": "POST",
+  "path": "/api/v1/submissions/finalize",
+  "summary": "Finalize immutable submission receipt",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "studio",
+  "method": "PUT",
+  "path": "/api/v1/projects/{projectId}/story",
+  "summary": "Save reviewed project story draft",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "studio",
+  "method": "POST",
+  "path": "/api/v1/decks/{deckId}/versions",
+  "summary": "Create deck revision",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "studio",
+  "method": "POST",
+  "path": "/api/v1/decks/{deckId}/render",
+  "summary": "Start deck export job",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "studio",
+  "method": "GET",
+  "path": "/api/v1/renders/{jobId}",
+  "summary": "Get render status",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "studio",
+  "method": "POST",
+  "path": "/api/v1/showcase/{projectId}/publish",
+  "summary": "Publish approved Ship Page",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "social",
+  "method": "POST",
+  "path": "/api/v1/media",
+  "summary": "Upload staff photography",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "social",
+  "method": "POST",
+  "path": "/api/v1/social/drafts",
+  "summary": "Prepare evidence-linked social draft",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "social",
+  "method": "POST",
+  "path": "/api/v1/social/{draftId}/approve",
+  "summary": "Approve photo and caption",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "social",
+  "method": "POST",
+  "path": "/api/v1/social/{draftId}/publish",
+  "summary": "Publish approved social post",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "live",
+  "method": "GET",
+  "path": "/api/v1/live/metrics",
+  "summary": "Public verified event metrics and freshness",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "live",
+  "method": "GET",
+  "path": "/api/v1/live/stream",
+  "summary": "Stream public event activity and mode changes",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "ops",
+  "method": "POST",
+  "path": "/api/v1/ops/recovery",
+  "summary": "Record audited recovery action",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "ops",
+  "method": "GET",
+  "path": "/api/v1/ops/integrations/health",
+  "summary": "Read integration and queue health",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "webhooks",
+  "method": "POST",
+  "path": "/webhooks/github",
+  "summary": "Receive signed GitHub App webhook",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "webhooks",
+  "method": "POST",
+  "path": "/webhooks/luma",
+  "summary": "Receive signed Luma webhook where available",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "mcp",
+  "method": "POST",
+  "path": "/mcp",
+  "summary": "Proposed authenticated Streamable HTTP MCP endpoint",
+  "kind": "Existing blueprint contract"
+ },
+ {
+  "group": "Team",
+  "method": "POST",
+  "path": "/api/v1/teams/{teamId}/invites",
+  "summary": "Issue random expiring single-use code; captain only",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Team",
+  "method": "POST",
+  "path": "/api/v1/teams/invites/inspect",
+  "summary": "Validate opaque invite and show team preview without redeeming",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Team",
+  "method": "POST",
+  "path": "/api/v1/teams/invites/revoke",
+  "summary": "Revoke captain invitation",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Team",
+  "method": "GET",
+  "path": "/api/v1/teams/{teamId}/invites",
+  "summary": "List safe metadata, never reveal stored hash",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Event",
+  "method": "GET",
+  "path": "/api/v1/event/brief",
+  "summary": "Return official clock, event phase and deadline",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Passport",
+  "method": "GET",
+  "path": "/api/v1/passport/badge",
+  "summary": "Issue revocable QR token for personal Passport",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Help",
+  "method": "GET",
+  "path": "/api/v1/help/stream",
+  "summary": "Staff-only ticket notification stream",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Milestones",
+  "method": "POST",
+  "path": "/api/v1/milestones/{id}/approve",
+  "summary": "Captain approves public display of evidence-backed claim",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "TV",
+  "method": "GET",
+  "path": "/api/v1/live/snapshot",
+  "summary": "Single snapshot with verified metrics and source freshness",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Ops",
+  "method": "PATCH",
+  "path": "/api/v1/ops/broadcast",
+  "summary": "Organizer sets on-air phase and offline alert",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Kane",
+  "method": "GET",
+  "path": "/api/v1/kane/catalog",
+  "summary": "Entitlement-specific Kane capabilities and documentation links",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Repository",
+  "method": "POST",
+  "path": "/api/v1/repos/link",
+  "summary": "Connect authorized GitHub repository to team",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Studio",
+  "method": "GET",
+  "path": "/api/v1/studio/{projectId}/deck",
+  "summary": "Load latest public/draft HTML deck scene model",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Telemetry",
+  "method": "POST",
+  "path": "/api/v1/telemetry/events/batch",
+  "summary": "Authenticated append-only batched Codex hook events with idempotency and accepted/rejected IDs",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Telemetry",
+  "method": "GET",
+  "path": "/api/v1/telemetry/outbox/status",
+  "summary": "Participant telemetry health, last ack and pending count without raw prompt content",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Milestones",
+  "method": "GET",
+  "path": "/api/v1/projects/{projectId}/milestones",
+  "summary": "Verified vs reported milestones and visibility",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "X",
+  "method": "GET",
+  "path": "/api/v1/x/oauth/start",
+  "summary": "Begin X OAuth PKCE with bounded posting scopes",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "X",
+  "method": "GET",
+  "path": "/api/v1/x/oauth/callback",
+  "summary": "Resolve X account identity and encrypted OAuth tokens",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "X",
+  "method": "DELETE",
+  "path": "/api/v1/x/connection",
+  "summary": "Revoke participant X connection and future posting authorization",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/share/draft",
+  "summary": "Generate unique reviewable X copy containing exact Ship Page and deck canonical URLs",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/share/publish",
+  "summary": "Explicit participant-approved X API post; returns post ID; no scripted X UI",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/share/verify",
+  "summary": "Validate public post ID, author/team membership, BOTH links, freshness, status and publication policy",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "GET",
+  "path": "/api/v1/teams/{teamId}/eligibility",
+  "summary": "Current judging gate, verified X post URL or outage exception receipt",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "POST",
+  "path": "/api/v1/ops/eligibility/exceptions",
+  "summary": "Organizer-only auditable outage exception under explicitly adopted event policy",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "Social eligibility",
+  "method": "POST",
+  "path": "/api/v1/ops/social/recheck",
+  "summary": "Recheck post deletion, editing, account visibility or link changes before judging",
+  "kind": "Extension needed"
+ },
+ {
+  "group": "participants",
+  "method": "GET",
+  "path": "/api/v1/public/builders/{handle}",
+  "summary": "Read published individual Builder Page",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "studio",
+  "method": "GET",
+  "path": "/api/v1/public/projects/{slug}",
+  "summary": "Read canonical public team Ship Page",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "participants",
+  "method": "GET",
+  "path": "/api/v1/me/public-profile/preview",
+  "summary": "Preview my optional Builder Page and consent gaps",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "participants",
+  "method": "PATCH",
+  "path": "/api/v1/me/public-profile",
+  "summary": "Edit selected public Builder Page fields",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/me/public-profile/publish",
+  "summary": "Explicitly publish my Builder Page",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "participants",
+  "method": "POST",
+  "path": "/api/v1/me/public-profile/unpublish",
+  "summary": "Revoke my published Builder Page",
+  "kind": "v2.4 planned addition"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/repository/verification",
+  "summary": "Verify GitHub repository identity, team authorization, visibility, default branch and HEAD SHA",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "GET",
+  "path": "/api/v1/projects/{projectId}/repository/verification",
+  "summary": "Read verified GitHub binding, verification timestamp and staleness",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "POST",
+  "path": "/api/v1/projects/{projectId}/repository/refresh",
+  "summary": "Reverify repository availability and latest commit; do not change submitted SHA",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "POST",
+  "path": "/api/v1/verify-plans/generate",
+  "summary": "Request Codex-generated Kane objective or _test.md candidate with requirement trace",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "PATCH",
+  "path": "/api/v1/verify-plans/{planId}",
+  "summary": "Save user-edited objective and command as new immutable version",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "POST",
+  "path": "/api/v1/verify-plans/{planId}/approve",
+  "summary": "Record member approval of exact command hash, repo SHA and test scope",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "GET",
+  "path": "/api/v1/verify-plans/{planId}",
+  "summary": "Read proposed and approved revisions, command text and execution status",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "POST",
+  "path": "/api/v1/verify-plans/{planId}/evaluate",
+  "summary": "Evaluate passing Kane run and evidence matching approved plan and git SHA",
+  "kind": "v2.5 extension required"
+ },
+ {
+  "group": "GitHub / Kane verification",
+  "method": "GET",
+  "path": "/api/v1/projects/{projectId}/verify-milestone",
+  "summary": "Read explicit milestone gate and linked passing evidence",
+  "kind": "v2.5 extension required"
+ }
+]

@@ -25,6 +25,7 @@ import {
   type TeamFormState,
 } from "./actions";
 import { ActionNote, dangerBtn, smallBtn } from "./ui";
+import { apiFetch } from "@/lib/api-client";
 
 export function CreateTeamForm({ idempotencyKey }: { idempotencyKey: string }) {
   const [state, action] = useActionState<TeamFormState, FormData>(createTeamAction, null);
@@ -315,7 +316,7 @@ export function WaitingForCaptain({ captainName }: { captainName: string | null 
     let stop = false;
     const tick = async () => {
       try {
-        const r = await fetch("/api/v1/me/flow", { cache: "no-store" });
+        const r = await apiFetch("/api/v1/me/flow", { cache: "no-store" });
         const j = (await r.json()) as { stage: string | null; next?: string };
         if (!stop && j.stage && j.stage !== "team" && j.next) router.push(j.next);
       } catch {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { event } from "@/data/hackday";
+import { apiFetch } from "@/lib/api-client";
 
 // The bell next to your avatar: someone asked to join your team, wants to team
 // up, invited you, or answered you. Polls while the tab is visible; anything
@@ -57,7 +58,7 @@ export default function NotificationBell() {
   const box = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const r = await fetch("/api/v1/me/notifications", { cache: "no-store" }).catch(() => null);
+    const r = await apiFetch("/api/v1/me/notifications", { cache: "no-store" }).catch(() => null);
     if (!r?.ok) return;
     const next = (await r.json()) as Feed;
     if (known.current) {
@@ -120,7 +121,7 @@ export default function NotificationBell() {
     const next = !open;
     setOpen(next);
     if (next && data?.unread) {
-      await fetch("/api/v1/me/notifications", { method: "POST" }).catch(() => null);
+      await apiFetch("/api/v1/me/notifications", { method: "POST" }).catch(() => null);
       setData((d) => (d ? { unread: 0, items: d.items } : d));
     }
   };

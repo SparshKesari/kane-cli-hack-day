@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { apiFetch } from "@/lib/api-client";
 
 // /setup → the team's Idea tab. Setup counts as done once a machine is paired
 // and a Kane run is on record. Already done when the page opened: just a button
@@ -13,7 +14,7 @@ export default function OnToIdea({ ideaUrl, done }: { ideaUrl: string; done: boo
     let stop = false;
     const id = setInterval(async () => {
       try {
-        const j = (await (await fetch("/api/v1/me/flow", { cache: "no-store" })).json()) as { setupDone?: boolean; ideaUrl?: string | null };
+        const j = (await (await apiFetch("/api/v1/me/flow", { cache: "no-store" })).json()) as { setupDone?: boolean; ideaUrl?: string | null };
         if (!stop && j.setupDone) router.push(j.ideaUrl ?? ideaUrl);
       } catch {
         // offline for a moment: try again on the next tick

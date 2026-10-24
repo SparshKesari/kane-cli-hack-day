@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useId, useState } from "react";
 import { FormError, Label, SubmitButton, inputCls } from "@/components/forms/fields";
 import { defectAction, logManualRun, milestoneDecision, proposeMilestoneAction, type ProofFormState } from "./actions";
+import { apiFetch } from "@/lib/api-client";
 
 // Client forms for the Proof tab. Success text appears only after the server
 // returns a receipt, in an aria-live region.
@@ -225,11 +226,11 @@ export function EvidenceUpload({ projectId, runs }: { projectId: number; runs: {
       let res: Response;
       if (file.size <= DIRECT_MAX) {
         form.set("project_id", String(projectId));
-        res = await fetch("/api/v1/kane/evidence", { method: "POST", body: form });
+        res = await apiFetch("/api/v1/kane/evidence", { method: "POST", body: form });
       } else {
         const safe = file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-120);
         const blob = await upload(`evidence-incoming/${projectId}/${safe}`, file, { access: "private", handleUploadUrl: "/api/v1/kane/evidence/upload" });
-        res = await fetch("/api/v1/kane/evidence", {
+        res = await apiFetch("/api/v1/kane/evidence", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ pathname: blob.pathname, name: file.name, kind: form.get("kind"), run_id: form.get("run_id") || undefined, project_id: projectId, visibility: form.get("visibility") }),
