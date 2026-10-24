@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import type { ActivationStepId } from "@/data/activation-steps";
 import { requirePersonalMember } from "@/server/auth";
+import { COUPON_MESSAGES, requestCodexCoupon } from "@/server/codex-coupon";
 import { runAction } from "@/server/core";
 import { claimPlan, getActivationView, setTick, type ClaimView } from "@/server/event-activation";
+import { enforceRateLimit } from "@/server/ratelimit";
 import { retryTeamInvites, teamInvitesPending } from "@/server/testmu-team";
 
 // /activate checklist actions. The member always comes from the personal
@@ -35,6 +37,17 @@ export async function claimPlanAction(form: FormData): Promise<ActState> {
   refresh();
   if (!r.ok) return { ok: false, message: r.error.message };
   return { ok: r.data.outcome === "claimed", message: r.data.message, outcome: r.data.outcome };
+}
+
+/** Step 3: email the Codex coupon to the signed-in email. Same per-member cap as the event tool; again re-sends the same coupon. */
+export async function sendCouponAction(): Promise<ActState> {
+  const member = await requirePersonalMember();
+  const r = await runAction(async () => {
+    await enforceRateLimit(`codex-coupon-member:${member.id}`, { limit: 10, windowSec: 3600 });
+    return requestCodexCoupon(member.email);
+  });
+  if (!r.ok) return { ok: false, message: r.error.message };
+  return { ok: r.data.outcome === "sent", message: COUPON_MESSAGES[r.data.outcome](r.data.emailHint) };
 }
 
 /** Captain: invite the teammates not in the TestMu AI team yet. The password goes to TestMu AI only. */
