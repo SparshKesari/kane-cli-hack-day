@@ -18,7 +18,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from evidence_to_storyboard import redact_data
+from evidence_to_storyboard import redact_data, refuse_placeholders
 
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -170,8 +170,6 @@ class Painter:
                 shot.thumbnail((box_w, box_h))
                 im.paste(shot, (x + (box_w - shot.width) // 2, top + (box_h - shot.height) // 2))
                 x += box_w + gap
-        else:
-            d.text((self.pad, top), "add demo screenshots to the brief (demo: a.png, b.png)", font=font(int(self.H * 0.03)), fill=(160, 170, 180))
         self.caption(d, s.get("narration"))
         return im
 
@@ -214,14 +212,15 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--vertical", action="store_true")
     a = ap.parse_args()
+    sb_path = Path(a.storyboard)
+    sb = redact_data(json.loads(sb_path.read_text(encoding="utf-8")))
+    refuse_placeholders(sb)
     # Keep --help usable with stock Python, even without rendering dependencies.
     global Image, ImageDraw, ImageFont
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:
         sys.exit("Pillow is required for ffmpeg rendering")
-    sb_path = Path(a.storyboard)
-    sb = redact_data(json.loads(sb_path.read_text(encoding="utf-8")))
     base = sb_path.parent
     p = Painter(sb, base, a.vertical)
     with tempfile.TemporaryDirectory(prefix="render-") as tmp_dir:
