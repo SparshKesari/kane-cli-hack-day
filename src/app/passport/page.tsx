@@ -67,7 +67,6 @@ async function Body() {
             <p className="font-plex text-xs text-lightgray">
               {p.member.email_hint}
               {p.member.public_code ? ` · badge ${p.member.public_code}` : ""}
-              {p.member.checked_in_at ? " · checked in" : ""}
             </p>
             {(p.member.github_handle || p.member.x_handle) && (
               <p className="font-plex text-xs text-lightgray">

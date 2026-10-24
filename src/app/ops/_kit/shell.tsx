@@ -43,10 +43,7 @@ export async function StaffGate({ roles, next, children }: { roles: StaffRole[];
       <div className="max-w-xl space-y-3">
         <p className="font-plex text-sm text-bright">This section is for {roles.join(" / ")} staff.</p>
         <p className="font-plex text-sm text-lightgray">
-          You&apos;re signed in as {staff.name} ({staff.role}). Ask an organizer if you need access.{" "}
-          <Link href="/ops/checkin" className="underline underline-offset-4 hover:text-lime">
-            Check-in desk →
-          </Link>
+          You&apos;re signed in as {staff.name} ({staff.role}). Ask an organizer if you need access.
         </p>
       </div>
     );

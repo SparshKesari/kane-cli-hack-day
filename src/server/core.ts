@@ -33,7 +33,7 @@ export const ERROR_CODES = {
   NOT_APPROVED: {
     status: 403,
     userMessage: "We couldn't find an approved registration for you.",
-    nextAction: "Go to the check-in desk; staff can admit you as a walk-in.",
+    nextAction: "Ask at the help desk; staff can sort out your registration.",
     manualRoute: "/ops/checkin",
   },
   CONSENT_REQUIRED: {

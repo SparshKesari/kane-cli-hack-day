@@ -8,6 +8,7 @@
 export const METRIC_DEFINITION_VERSION = "1";
 
 export const METRIC_NAMES = [
+  "participants_registered",
   "participants_checked_in",
   "participants_activated",
   "teams_active",
@@ -60,6 +61,18 @@ export type MetricDef = {
 const d = (def: MetricDef) => def;
 
 export const METRICS: Record<MetricName, MetricDef> = {
+  participants_registered: d({
+    name: "participants_registered",
+    label: "Registered",
+    footnote: "Profiles saved on the site",
+    numerator: "Distinct participants with a saved profile on /register",
+    denominator: "None",
+    source: "Event DB",
+    trustGate: "The participant saved their own profile",
+    trust: "count",
+    unit: "count",
+    audience: "public",
+  }),
   participants_checked_in: d({
     name: "participants_checked_in",
     label: "Checked in",
@@ -77,7 +90,7 @@ export const METRICS: Record<MetricName, MetricDef> = {
     label: "Passports active",
     footnote: "Browser-verified activations",
     numerator: "Distinct participants with a verified activation receipt",
-    denominator: "Checked-in participants",
+    denominator: "Registered participants",
     source: "Event DB + Kane activation",
     trustGate: "Activation receipt issued after browser verification",
     trust: "verified",

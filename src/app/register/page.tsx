@@ -17,7 +17,7 @@ import TestmuPanel from "./testmu";
 
 export const metadata: Metadata = { title: "Start here" };
 
-// The event-day profile builder. Checked in at the desk? Sit down and start
+// The event-day profile builder. Everyone starts
 // here: (a) profile, ending with the "looking for a team?" tick, then (b) photo.
 // (c) asks the team question only for someone who never answered it. The step shown is
 // read from the database, so a reload or a second device resumes it.
@@ -29,7 +29,7 @@ export default function RegisterPage({ searchParams }: PageProps<"/register">) {
       <Suspense fallback={<FlowProgress stage={null} />}>
         <Progress />
       </Suspense>
-      <GreetingHeader greet={(n) => ({ dim: `Nice to meet you, ${n}.`, bright: "Let’s finish your profile." })} eyebrow="Start here" dim="Checked in?" bright="Build your profile." intro="Two minutes: who you are, where to find you, a photo, and whether you want help finding a team." />
+      <GreetingHeader greet={(n) => ({ dim: `Nice to meet you, ${n}.`, bright: "Let’s finish your profile." })} eyebrow="Start here" dim="New here?" bright="Build your profile." intro="Two minutes: who you are, where to find you, a photo, and whether you want help finding a team." />
       <section className="py-12 sm:py-16">
         <div className="container-page max-w-2xl">
           <Suspense fallback={<p className="font-plex text-sm text-lightgray">Loading…</p>}>

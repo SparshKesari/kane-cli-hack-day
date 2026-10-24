@@ -286,7 +286,7 @@ type GuestRow = { id: number; name: string; email_hint: string | null; source: s
 /**
  * Is this person on the approved roster (Luma CSV or a walk-in admitted at the
  * desk)? Shows only a masked email. If the roster hasn't been imported yet we
- * don't block anyone: the desk confirms at check-in.
+ * don't block anyone: staff sort it out at the help desk.
  */
 export async function checkAdmission(member: MemberRow): Promise<AdmissionCheck> {
   const [{ n }] = await query<{ n: number }>("select count(*)::int as n from roster_guests where event_id = current_event_id()");
@@ -331,7 +331,7 @@ export async function confirmAdmission(member: MemberRow, isMe: boolean) {
       return { result: null, resourceId: s.id };
     });
     throw new AppError("NOT_APPROVED", {
-      userMessage: isMe ? ERROR_NOT_APPROVED : "Thanks. If that isn’t you, staff at the check-in desk will sort out your registration.",
+      userMessage: isMe ? ERROR_NOT_APPROVED : "Thanks. If that isn’t you, staff at the help desk will sort out your registration.",
     });
   }
   return withAudit(actor, "activation.admission_confirmed", "activation_session", async (tx) => {
@@ -350,7 +350,7 @@ export async function confirmAdmission(member: MemberRow, isMe: boolean) {
   });
 }
 
-const ERROR_NOT_APPROVED = "We couldn’t find an approved registration for you. Go to the check-in desk; staff can admit you as a walk-in, then come back here.";
+const ERROR_NOT_APPROVED = "We couldn’t find an approved registration for you. Ask at the help desk; staff can sort out your registration, then come back here.";
 
 // ── Identity and consent ─────────────────────────────────────────────────────
 

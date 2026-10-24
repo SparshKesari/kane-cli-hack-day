@@ -164,7 +164,6 @@ const RENDER: Record<UiType, { title: string; body: (d: Data, env: Env) => React
           rows={[
             ["Name", str(m.name)],
             ["Code", str(m.public_code)],
-            ["Checked in", m.checked_in === undefined ? null : m.checked_in ? "Yes" : "Not yet"],
             ["Team", str(t.name) ?? (d.team === null ? "No team yet" : null)],
             ["Activation", str(a.status) ?? str(d.status)],
             ["Next", str(obj(d.next_action).label) ?? str(d.instruction)],

@@ -15,7 +15,7 @@ export const event = {
 };
 
 export const ctas = {
-  register: { label: "Checked in? Start here →", href: "/register" },
+  register: { label: "Start here →", href: "/register" },
   login: { label: "Sign in", href: "/passport/login" },
 } satisfies Record<string, Link>;
 
@@ -62,7 +62,7 @@ export type Slot = {
 };
 
 export const schedule: Slot[] = [
-  { start: "09:30", end: "10:15", title: "Check-in, breakfast", key: true },
+  { start: "09:30", end: "10:15", title: "Arrival, breakfast", key: true },
   { start: "10:15", end: "11:00", title: "Kickoff", note: "Kane CLI x OpenAI loop demo", key: true },
   { start: "11:00", title: "Team registration closes. Hackathon begins", deadline: true, href: "/submit#team", key: true },
   { start: "12:00", title: "Idea submission locks", deadline: true, href: "/submit#idea" },
