@@ -37,7 +37,9 @@ function Fresh($name) {
 function RunPS($code, [switch]$Interactive) {
   # The child's stderr must not become a terminating error here (Windows PowerShell 5.1).
   $ErrorActionPreference = "Continue"
-  $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; NPM_CONFIG_PREFIX = $env:NPM_CONFIG_PREFIX; KANEHACK_SITE = $env:KANEHACK_SITE; CODEX_HOME = $env:CODEX_HOME }
+  $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; NPM_CONFIG_PREFIX = $env:NPM_CONFIG_PREFIX; KANEHACK_SITE = $env:KANEHACK_SITE; CODEX_HOME = $env:CODEX_HOME; KANEHACK_NO_KANE = $env:KANEHACK_NO_KANE }
+  # No real Kane CLI install in these scenarios.
+  $env:KANEHACK_NO_KANE = "1"
   # KANEHACK_SITE so `irm | iex` runs talk to the test server, never production.
   $env:USERPROFILE = $script:H; $env:HOME = $script:H; $env:NPM_CONFIG_PREFIX = $script:Npm; $env:KANEHACK_SITE = $Site
   # Codex on Windows finds ~ through the OS profile folder (dirs::home_dir), not USERPROFILE, so the

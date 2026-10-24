@@ -24,9 +24,10 @@
 #   curl -fsSL https://kaneclihack.sh/install.sh | sh -s -- --yes
 # Options: --yes (-y) answer yes to every install question · --no-path don't link kanehack or
 # touch your profile · --no-skills don't install the hack-os skill · --no-agents don't connect
-# Codex to the event server · --site URL another server.
+# Codex to the event server · --no-kane don't install or update Kane CLI and its skill ·
+# --site URL another server.
 # The same as environment variables: KANEHACK_YES=1 KANEHACK_NO_PATH=1 KANEHACK_NO_SKILLS=1
-# KANEHACK_NO_AGENTS=1 KANEHACK_SITE=URL.
+# KANEHACK_NO_AGENTS=1 KANEHACK_NO_KANE=1 KANEHACK_SITE=URL.
 # Exit codes: 0 done (problems are listed as ✗ lines) · 1 a download, checksum or install failed · 2 bad option.
 set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
@@ -41,20 +42,23 @@ YES="${KANEHACK_YES:-}"
 NO_PATH="${KANEHACK_NO_PATH:-}"
 NO_SKILLS="${KANEHACK_NO_SKILLS:-}"
 NO_AGENTS="${KANEHACK_NO_AGENTS:-}"
+NO_KANE="${KANEHACK_NO_KANE:-}"
 case "$YES" in 0|false|no) YES="" ;; esac
 case "$NO_PATH" in 0|false|no) NO_PATH="" ;; esac
 case "$NO_SKILLS" in 0|false|no) NO_SKILLS="" ;; esac
 case "$NO_AGENTS" in 0|false|no) NO_AGENTS="" ;; esac
+case "$NO_KANE" in 0|false|no) NO_KANE="" ;; esac
 while [ $# -gt 0 ]; do
   case "$1" in
     -y|--yes) YES=1 ;;
     --no-path) NO_PATH=1 ;;
     --no-skills) NO_SKILLS=1 ;;
     --no-agents) NO_AGENTS=1 ;;
+    --no-kane) NO_KANE=1 ;;
     --site) [ $# -ge 2 ] || { echo "install.sh: --site needs a URL" >&2; exit 2; }; SITE="$2"; shift ;;
     --site=*) SITE="${1#--site=}" ;;
-    -h|--help) sed -n '2,29p' "$0" 2>/dev/null || echo "Options: --yes --no-path --no-skills --no-agents --site URL"; exit 0 ;;
-    *) echo "install.sh: unknown option $1 (try --yes, --no-path, --no-skills, --no-agents, --site URL)" >&2; exit 2 ;;
+    -h|--help) sed -n '2,29p' "$0" 2>/dev/null || echo "Options: --yes --no-path --no-skills --no-agents --no-kane --site URL"; exit 0 ;;
+    *) echo "install.sh: unknown option $1 (try --yes, --no-path, --no-skills, --no-agents, --no-kane, --site URL)" >&2; exit 2 ;;
   esac
   shift
 done
@@ -133,6 +137,25 @@ else
   fi
 fi
 
+# Kane CLI: the hackathon runs on its release candidate. Every run installs or updates it
+# (npm install -g @testmuai/kane-cli@rc) and the official Kane CLI skill for Codex
+# (npx @testmuai/kane-cli-skill), after a yes; never with sudo. --no-kane skips both.
+if [ -z "$NO_KANE" ] && have npm; then
+  NPM_G="$(npm prefix -g 2>/dev/null || true)"
+  if [ -n "$NPM_G" ] && { [ -w "$NPM_G/lib/node_modules" ] || { [ ! -e "$NPM_G/lib/node_modules" ] && [ -w "$NPM_G" ]; }; }; then
+    if ask "Install or update Kane CLI (the hackathon's release candidate) and its Codex skill now (npm install -g @testmuai/kane-cli@rc, then npx @testmuai/kane-cli-skill)?"; then
+      KLOG="${TMPDIR:-/tmp}/kanehack-kane.$$"
+      if npm install -g --silent --no-audit --no-fund @testmuai/kane-cli@rc >/dev/null 2>"$KLOG"; then hash -r 2>/dev/null || true
+      else cat "$KLOG" >&2; warn kane_cli "npm install failed" "See the npm output above, then: npm install -g @testmuai/kane-cli@rc"; fi
+      # The skill installer asks one optional question on a terminal; </dev/null keeps it unattended.
+      if ! npx --yes @testmuai/kane-cli-skill install </dev/null >/dev/null 2>"$KLOG"; then cat "$KLOG" >&2; warn kane_skill "install failed" "npx @testmuai/kane-cli-skill"; fi
+      rm -f "$KLOG"
+    fi
+  else
+    warn kane_cli "not updated" "npm's global folder (${NPM_G:-unknown}) needs sudo. Don't use sudo: npm config set prefix ~/.npm-global, add ~/.npm-global/bin to PATH, then npm install -g @testmuai/kane-cli@rc"
+  fi
+fi
+
 if have kane-cli; then
   KV=$(bounded kane-cli --version 2>/dev/null | head -n1)
   # The hackathon runs on the release candidate (0.10.0-rc or newer): 0.0-0.9 gets the upgrade command.
@@ -148,7 +171,7 @@ fi
 
 SKILL=""
 for d in .agents/skills/kane-cli .codex/skills/kane-cli; do if [ -f "${HOME}/${d}/SKILL.md" ]; then SKILL=yes; fi; done
-if [ -n "$SKILL" ]; then pass kane_skill; else warn kane_skill "not found" "npx @testmuai/kane-cli-skill"; fi
+if [ -n "$SKILL" ]; then pass kane_skill "$(cat "${HOME}/.agents/skills/kane-cli/VERSION" 2>/dev/null || true)"; else warn kane_skill "not found" "npx @testmuai/kane-cli-skill"; fi
 
 # Where Codex looks for personal skills. One per line, so a HOME with spaces in it works.
 skill_dirs() {
