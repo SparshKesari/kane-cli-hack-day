@@ -142,7 +142,7 @@ export function buildMcpServer(auth: BearerAuth) {
     const degraded = systems.filter((s) => s.status === "degraded" || s.status === "down");
     return {
       status: e.fallback ? "partial" : "ok",
-      message: `${e.name}: phase ${e.phase.toUpperCase()}. Submissions lock at ${e.submissionLocksAt.toISOString()} (server clock).`,
+      message: `${e.name}: phase ${e.phase.toUpperCase()}. Submissions due ${e.submissionLocksAt.toISOString()} (server clock).`,
       data: {
         event: { name: e.name, slug: e.slug, timezone: e.timezone, is_demo: e.isDemo },
         server_time: e.now.toISOString(),
@@ -160,7 +160,7 @@ export function buildMcpServer(auth: BearerAuth) {
       warnings: [...(e.fallback ? ["Event config came from defaults; the database was unreachable."] : []), ...degraded.map((s) => `${s.system} is ${s.status}.`)],
       uiType: "metric_pulse",
       freshness: { as_of: e.now.toISOString(), state: e.fallback ? "stale" : "fresh", source: "event-db" },
-      fallbackText: `Phase ${e.phase.toUpperCase()} · submissions lock ${e.submissionLocksAt.toISOString()} · ${degraded.length ? `degraded: ${degraded.map((s) => s.system).join(", ")}` : "all systems ok"}`,
+      fallbackText: `Phase ${e.phase.toUpperCase()} · submissions due ${e.submissionLocksAt.toISOString()} · ${degraded.length ? `degraded: ${degraded.map((s) => s.system).join(", ")}` : "all systems ok"}`,
     };
   });
 

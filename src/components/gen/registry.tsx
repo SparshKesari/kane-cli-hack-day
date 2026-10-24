@@ -283,7 +283,7 @@ const RENDER: Record<UiType, { title: string; body: (d: Data, env: Env) => React
           rows={[
             ["Phase", str(d.phase)?.toUpperCase()],
             ["Server time", str(d.server_time)],
-            ["Submissions lock", str(dl.submission_lock)],
+            ["Submissions due", str(dl.submission_lock)],
             ["Value", num(d.value) ?? null],
             ["Definition", str(d.definition)],
           ]}

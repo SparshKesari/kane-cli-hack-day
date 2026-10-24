@@ -90,7 +90,7 @@ async function JudgeView() {
         <h2 id="queue-h" className={label}>
           Finalized submissions · {finals.length}
         </h2>
-        <QueueList items={finals} empty="No finalized submissions yet. Submissions lock at 6:00 PM." />
+        <QueueList items={finals} empty="No finalized submissions yet. Submissions are due at 6:00 PM." />
       </section>
 
       {inProgress.length > 0 && (
