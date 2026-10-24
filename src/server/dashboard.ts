@@ -1,8 +1,10 @@
 import "server-only";
 import { query } from "@/lib/db";
 import { getEvent } from "@/lib/event";
+import { getFinalStats } from "./final-stats";
 import { getLiveSnapshot, offlineSnapshot, readRunBuckets, type LiveSnapshot } from "./metrics";
 import { getOrgMetrics, type OrgMetrics } from "./orgMetrics";
+import type { FinalStats } from "@/components/live/final-stats";
 
 // /dashboard: the public Mission Control board. Everything here is an
 // aggregate: counts and 5-minute buckets, never names or emails. The live
@@ -23,6 +25,8 @@ export type DashboardData = {
   runs: Series;
   /** TestMu AI Insights totals for the event orgs; null when the API is unreachable. */
   org: OrgMetrics | null;
+  /** The final Kane CLI numbers once an organizer saves them in /ops/final-stats; totals only. */
+  final: Pick<FinalStats, "totals" | "window" | "imported_at"> | null;
 };
 
 async function counts<T extends Record<string, unknown>>(sql: string, params: unknown[]): Promise<T | null> {
@@ -57,7 +61,7 @@ export async function getDashboard(): Promise<DashboardData> {
     snap = offlineSnapshot(e.now, e);
   }
 
-  const [guests, members, arrivals, runs, org] = await Promise.all([
+  const [guests, members, arrivals, runs, org, final] = await Promise.all([
     counts<{ registered: string; checked_in: string }>(
       `select count(*) as registered, count(*) filter (where checked_in_at is not null) as checked_in
          from roster_guests
@@ -80,6 +84,7 @@ export async function getDashboard(): Promise<DashboardData> {
     ),
     series(() => readRunBuckets(e.id, e.now, BUCKET_MINUTES, BUCKETS)),
     getOrgMetrics(e.now),
+    getFinalStats(),
   ]);
 
   const n = (v: string | undefined) => (v == null ? null : Number(v));
@@ -89,5 +94,6 @@ export async function getDashboard(): Promise<DashboardData> {
     arrivals,
     runs,
     org,
+    final: final && { totals: final.totals, window: final.window, imported_at: final.imported_at },
   };
 }
