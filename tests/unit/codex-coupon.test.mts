@@ -16,6 +16,7 @@ test("SMTP defaults to Gmail over TLS, from the sending account", () => {
   assert.equal(c.host, "smtp.gmail.com");
   assert.equal(c.port, 465);
   assert.equal(c.secure, true);
+  assert.equal(c.requireTLS, false, "465 is TLS from the first byte");
   assert.equal(c.user, "organiser@gmail.com");
   assert.equal(c.pass, "abcdefghijklmnop", "Google shows app passwords in groups of four; the spaces are not part of it");
   assert.equal(c.from, "Kane CLI Hack Day <organiser@gmail.com>");
@@ -26,6 +27,7 @@ test("SMTP host, port and sender can be overridden", () => {
   assert.equal(c.host, "smtp.example.com");
   assert.equal(c.port, 587);
   assert.equal(c.secure, false, "587 is STARTTLS, not implicit TLS");
+  assert.equal(c.requireTLS, true, "STARTTLS is required, never optional");
   assert.equal(c.from, "Hack Day <hack@example.com>");
 });
 

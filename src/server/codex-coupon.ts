@@ -15,7 +15,9 @@ import { enforceRateLimit } from "./ratelimit";
 //   re-sends the same code. A member who already had a code keeps it.
 // - Not on the list, or revoked → nothing is sent.
 // The code only ever goes to the inbox: the API answers sent / not_on_list / out_of_codes.
-// Three requests an hour per address, so nobody can flood someone's inbox.
+// Three emails an hour per listed address, so nobody can flood someone's inbox. Misses don't
+// count against an address (someone added at the desk can retry at once); callers are capped
+// instead: per IP on the REST route, per member on the event tool.
 
 export type CouponOutcome = "sent" | "not_on_list" | "out_of_codes";
 export type CouponResult = { outcome: CouponOutcome; resent: boolean; emailHint: string };
@@ -29,7 +31,6 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
   const actor: Actor = { type: "anonymous", label: emailHint };
   const smtp = smtpConfig();
   if (!smtp) throw new AppError("FEATURE_DISABLED", { userMessage: "Coupon emails aren't set up yet. Ask at the help desk." });
-  await enforceRateLimit(`codex-coupon:${hash}`, PER_ADDRESS);
 
   const guests = await query<{ id: number; name: string; admission_status: string }>(
     "select id, name, admission_status from roster_guests where event_id = current_event_id() and email_hash = $1 order by id",
@@ -39,6 +40,7 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
     await writeAudit(actor, { action: "codex_code.email_not_on_list", resourceType: "roster_guest", resourceId: hash.slice(0, 16) });
     return { outcome: "not_on_list", resent: false, emailHint };
   }
+  await enforceRateLimit(`codex-coupon:${hash}`, PER_ADDRESS);
   const guest = guests[0];
   const [member] = await query<{ id: number }>("select id from members where lower(email) = $1 and deleted_at is null order by id limit 1", [email]);
   const memberId = member?.id ?? null;
@@ -75,7 +77,7 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
 
   const mail = couponEmail({ name: guest.name, code: got.code });
   try {
-    const transport = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.secure, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 });
+    const transport = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.secure, requireTLS: smtp.requireTLS, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 });
     await transport.sendMail({ from: smtp.from, to: email, subject: mail.subject, text: mail.text, html: mail.html });
   } catch (err) {
     // The code stays mapped to them; a retry sends the same one.

@@ -10,7 +10,7 @@ import { z } from "zod";
 
 type Env = Record<string, string | undefined>;
 
-export type SmtpConfig = { host: string; port: number; secure: boolean; user: string; pass: string; from: string };
+export type SmtpConfig = { host: string; port: number; secure: boolean; requireTLS: boolean; user: string; pass: string; from: string };
 
 export function smtpConfig(env: Env = process.env): SmtpConfig | null {
   const user = env.SMTP_USER?.trim();
@@ -18,7 +18,8 @@ export function smtpConfig(env: Env = process.env): SmtpConfig | null {
   const pass = env.SMTP_PASS?.replace(/\s+/g, "");
   if (!user || !pass) return null;
   const port = Number(env.SMTP_PORT) || 465;
-  return { host: env.SMTP_HOST?.trim() || "smtp.gmail.com", port, secure: port === 465, user, pass, from: env.MAIL_FROM?.trim() || `Kane CLI Hack Day <${user}>` };
+  // 465 is TLS from the first byte; anything else must upgrade with STARTTLS (never send in the clear).
+  return { host: env.SMTP_HOST?.trim() || "smtp.gmail.com", port, secure: port === 465, requireTLS: port !== 465, user, pass, from: env.MAIL_FROM?.trim() || `Kane CLI Hack Day <${user}>` };
 }
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

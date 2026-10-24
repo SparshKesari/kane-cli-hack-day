@@ -48,7 +48,7 @@ before(async () => {
 
 after(async () => {
   if (skip || !m) return;
-  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma", "kim"].map((w) => hash(addr(w)));
+  const hashes = ["ann", "bob", "cat", "dee", "eve", "fay", "gus", "hal", "ivy", "jo", "jo.luma", "kim", "lee", "max"].map((w) => hash(addr(w)));
   await m.db.query(`delete from codex_credit_codes where code like 'QA-${tag}-%'`).catch(() => {});
   await m.db
     .query(
@@ -286,4 +286,20 @@ test("when the roster row and the member each hold a code, the roster row's code
   assert.equal(res.status, 200);
   assert.equal((await res.json()).data.outcome, "sent");
   assert.match(mail().sent.at(-1)!.text, new RegExp(mine.code));
+});
+
+test("asking for an address that isn't on the list doesn't use up its hourly limit", { skip }, async () => {
+  for (let i = 0; i < 4; i++) assert.equal((await (await askCoupon(addr("lee"))).json()).data.outcome, "not_on_list");
+  // Added at the help desk after a few tries: the next request goes through.
+  await addPeople({ email: addr("lee") });
+  const res = await askCoupon(addr("lee"));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).data.outcome, "sent");
+});
+
+test("the event tool takes at most 10 requests an hour from one member", { skip }, async () => {
+  const [row] = await m.db.query("insert into members (team_id, name, email, email_hash) values (null, 'Max QA', $1, $2) returning *", [addr("max"), hash(addr("max"))]);
+  const ctx = { member: row as never, actor: { type: "member" as const, id: (row as { id: number }).id }, requestId: "qa" };
+  for (let i = 0; i < 10; i++) assert.equal((await m.A.sendCodexCoupon(ctx, `${tag}.probe${i}@example.test`)).outcome, "not_on_list");
+  await assert.rejects(m.A.sendCodexCoupon(ctx, `${tag}.probe10@example.test`), (e: { code?: string }) => e.code === "RATE_LIMITED");
 });
