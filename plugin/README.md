@@ -16,7 +16,7 @@ One participant skill, `hack-os`, plus the event MCP server for Kane CLI Hack Da
 
 | Skill | MCP tools it uses |
 |---|---|
-| hack-os | participant_get_status, team_find, team_match, team_create, team_join, idea_validate, idea_check_overlap, help_diagnose, help_create, submission_preflight (plus `kanehack` for setup, sign-in and run reports) |
+| hack-os | participant_get_status, team_find, team_create, team_join, idea_validate, idea_check_overlap, help_diagnose, help_create, submission_preflight (plus `kanehack` for setup, sign-in and run reports) |
 
 `social_publish` is an organizer action on the web and is deliberately **not** an MCP tool.
 
