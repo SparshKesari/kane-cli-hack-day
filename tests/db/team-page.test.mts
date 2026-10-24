@@ -34,7 +34,7 @@ type Caller = import("../../src/server/team-page.ts").PageCaller;
 type Team = { id: number; slug: string; project: number; members: number[] };
 
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const SHA = "b".repeat(40);
 const teams: Team[] = [];
 const staff = { organizer: 0, judge: 0 };

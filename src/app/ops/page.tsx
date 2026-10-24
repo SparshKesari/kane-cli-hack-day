@@ -4,7 +4,7 @@ import DegradedServiceAlert from "@/components/ui/DegradedServiceAlert";
 import DemoDataChip from "@/components/ui/DemoDataChip";
 import FreshnessStamp from "@/components/ui/FreshnessStamp";
 import StatusPill from "@/components/ui/StatusPill";
-import { challenge } from "@/data/hackday";
+import { challenge, trackLabel } from "@/data/hackday";
 import { formatEventTime, getEvent, msUntil } from "@/lib/event";
 import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { isRegistrationOpen, listTeams } from "@/lib/teams";
@@ -43,7 +43,7 @@ export default function OpsOverviewPage() {
             return {
               slug: t.slug,
               name: t.name,
-              track: t.track,
+              track: trackLabel(t.track),
               isSolo: t.is_solo,
               members: t.member_names,
               done: done.size,

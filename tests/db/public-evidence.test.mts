@@ -33,7 +33,7 @@ type Mods = {
 };
 let m: Mods;
 let admin: S3Client;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const bucket = `qa-pe-${tag}`;
 const ids = { teams: [] as number[], projects: [] as number[], members: [] as number[], staff: [] as number[], run: 0 };
 const callers: Caller[] = [];

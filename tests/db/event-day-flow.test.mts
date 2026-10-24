@@ -28,7 +28,7 @@ type Mods = {
   jar: Map<string, string>;
 };
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const email = (s: string) => `${tag}.${s}@example.test`;
 const ids = { staff: 0, codes: [] as string[] };
 let organizer: { id: number; name: string; email: string | null; role: "organizer" };
@@ -197,12 +197,12 @@ test("joining a team by any route leaves the matchmaking pool", { skip }, async 
   assert.equal(took.joinedTeam, `${tag} Pool Team`);
   assert.equal((await memberByEmail(email("poolF"))).team_id, team.teamId);
   assert.ok(!(await inPool()).includes(f.id));
-  // A team without a track is Wildcard.
+  // A team without a track is Other.
   await register("poolG");
   const g = (await viewer())!;
   const noTrack = await m.teams.createTeam(acting(g), { name: `${tag} No Track`, seeking_skills: "react, go" });
   const [nt] = await m.db.query<{ track: string }>("select track from teams where id = $1", [noTrack.teamId]);
-  assert.equal(nt.track, "Wildcard");
+  assert.equal(nt.track, "Other");
   // Route 4: an organizer forms a team at the cut-off.
   await register("poolD");
   const d = (await viewer())!;

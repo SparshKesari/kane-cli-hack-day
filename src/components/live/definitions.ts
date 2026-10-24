@@ -5,7 +5,7 @@
 // These are distinct signals. Never add them up into one "confidence score",
 // never call a Kane execution a build, and never compare coverage across projects.
 
-export const METRIC_DEFINITION_VERSION = "1";
+export const METRIC_DEFINITION_VERSION = "2";
 
 export const METRIC_NAMES = [
   "participants_registered",
@@ -88,12 +88,12 @@ export const METRICS: Record<MetricName, MetricDef> = {
   participants_activated: d({
     name: "participants_activated",
     label: "Passports active",
-    footnote: "Browser-verified activations",
-    numerator: "Distinct participants with a verified activation receipt",
+    footnote: "Finished all three activation steps",
+    numerator: "Distinct participants who finished /activate: TestMu AI sign-up, the plan, Codex credits",
     denominator: "Registered participants",
-    source: "Event DB + Kane activation",
-    trustGate: "Activation receipt issued after browser verification",
-    trust: "verified",
+    source: "Event DB + TestMu AI plan claim",
+    trustGate: "The TestMu AI plan is claimed by the server; the sign-up and Codex ticks are the person's own",
+    trust: "count",
     unit: "count",
     audience: "public",
   }),

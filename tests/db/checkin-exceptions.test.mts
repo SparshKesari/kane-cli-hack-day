@@ -20,7 +20,7 @@ type Mods = {
   recovery: typeof import("../../src/server/recovery.ts");
 };
 let m: Mods;
-const tag = `qa${Date.now().toString(36)}`;
+const tag = `qa${Date.now().toString(36)}p${process.pid.toString(36)}`;
 const ids = { staff: 0, guests: [] as number[] };
 let organizer: { id: number; name: string; email: string | null; role: "organizer" };
 
