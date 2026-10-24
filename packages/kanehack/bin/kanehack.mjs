@@ -39,7 +39,9 @@ import { fileURLToPath } from "node:url";
 import { redactText, typedOnly } from "../lib/redact.mjs";
 import { scan } from "../lib/stream.mjs";
 
-const VERSION = "0.1.13";
+const VERSION = "0.1.14";
+// TestMu AI's password reset (src/data/activation-steps.ts TESTMU_PASSWORD_RESET_URL).
+const TESTMU_RESET_URL = "https://accounts.lambdatest.com/password/reset";
 const DIR = join(homedir(), ".kanehack");
 const CONFIG = join(DIR, "config.json");
 const PENDING = join(DIR, "pending-pair.json");
@@ -391,7 +393,14 @@ async function claim() {
   const code = outcome === "claimed" ? EXIT.OK : outcome === "in_progress" ? EXIT.PENDING : env.status === "error" && !outcome ? EXIT.FAIL : EXIT.ACTION;
   printEnvelope(env);
   if (outcome === "not_registered") say(dim("Then run kanehack claim again."));
-  if (outcome === "error" && !creds.testmu_password) say(dim("TestMu AI account with a different password? In your own terminal: kanehack password --testmu, then kanehack claim."));
+  if (outcome === "error" && /different password/i.test(env.message ?? ""))
+    say(
+      dim(
+        creds.testmu_password
+          ? `Still refused? Set a new TestMu AI password at ${TESTMU_RESET_URL} (same email; a Google or GitHub sign-up has none yet), save it in your own terminal with kanehack password --testmu, then kanehack claim.`
+          : `In your own terminal: kanehack password --testmu (that account's password), then kanehack claim. Don't know it, or signed up with Google or GitHub? Set one at ${TESTMU_RESET_URL} first.`,
+      ),
+    );
   emit({ ok: code === EXIT.OK, exit_code: code, outcome, ...envJson(env) });
   if (code !== EXIT.OK) exit(code);
 }
