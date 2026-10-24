@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**139 operations**: 92 live in production, 23 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**140 operations**: 92 live in production, 24 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -10691,6 +10691,95 @@
      },
      "description": "JSON object; fields are listed in the description above."
     }
+   }
+  },
+  "/api/v1/teams/{id}": {
+   "get": {
+    "tags": [
+     "teams"
+    ],
+    "operationId": "get_api_v1_teams_id",
+    "summary": "[new] team readback by numeric id or slug. Unknown team: NOT_FOUND (404).",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/teams/[id]/route.ts`\n\n```text\nGET /api/v1/teams/{id|slug}  team readback by numeric id or slug. Unknown team: NOT_FOUND (404).\nMembers of the team get the full record and roster (view \"member\").\nAnyone else signed in gets only id, slug, name, track, member_count, cap, locked, recruiting_open, summary_public (view \"public\").\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ]
    }
   },
   "/api/v1/teams/{id}/eligibility": {
