@@ -1,0 +1,16 @@
+SETUP AND REAL DEPLOYED HANDOFF (inspected 2026-10-24)
+Installer https://kaneclihack.sh/install.sh, version 0.1.3. Inspect locally before running. It asks to install Codex if absent, the kanehack helper and 12 skills. It CHECKS Kane CLI/official Kane skill, but does not install those automatically. Missing prerequisites need repair. Installer exit 0 may include failed lines. In no-TTY mode questions default no; --yes opts into all offered changes. Do not silently pass --yes without setup authorization. Never use npx kanehack (not the event package).
+Repairs: npm install -g @openai/codex; npm install -g @testmuai/kane-cli; npx @testmuai/kane-cli-skill. Reuse installed versions; do not downgrade or globally upgrade without need. Use current upstream docs and installed --help for platform details. Node 18.17+ required by helper. Chrome required for browser; mobile/cloud dependencies follow official Kane skill. Windows: inspect official install.ps1 first, then use documented platform path.
+
+Auth checks are separate:
+Codex: codex login status; login with codex login if needed, human browser grant.
+Kane: official skill preflight, kane-cli whoami/balance; human OAuth via kane-cli login --oauth if needed.
+Event: successful participant_get_status on this machine, not merely a local token flag.
+GitHub: provider OAuth/App grant plus verified project repo/judge access; gh login alone does not bind event repo.
+X: server per-user connection/account identity for publishing; manual posting may avoid publisher OAuth, but eligibility still needs server verification.
+
+Pair without TTY: kanehack pair --start --json. Show only user_code + verification_url; person signs in and approves in browser. Never read pending-pair.json (device secret) or config. Then kanehack pair --wait --timeout 30 --json. Exit 4 pending: preserve state, allow human time, retry within expiry; 3 unreachable: retry network; 1 expired/denied: explicitly start fresh; 2 action/usage. Pairing may need manual desk check-in first.
+Connect: kanehack connect codex (changes Codex config with backup, no token copy). Start a NEW Codex session and invoke $hack-os. Existing configured connection before pairing can pick up credentials next session. Native tool discovery must confirm the connection works.
+Keep helper credentials in its private store. Do not run token/mcp-headers in chat. On custom server, validate organizer origin before granting credentials. Do not overwrite another configured MCP entry.
+
+The currently deployed installer distributes 12 old entry points; this package provides one hack-os folder. Organizers must publish the new tarball and update installer URL/hash, readiness's old hack-onboard checks and final prompt to $hack-os. Until that rollout, stage this folder in one discoverable .agents/skills location. Do not also copy to .codex/skills and create duplicate discovery. Repository packaging here is plugin/skills/hack-os; it must be installed into a discoverable location on participant machines.

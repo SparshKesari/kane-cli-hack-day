@@ -1,0 +1,26 @@
+VIDEO OVERRIDE: video.txt governs supplied video skills/guidelines and the separate existing-video upload option. Both resources and upload endpoint are pending. Deck exports are not proof of a generated or uploaded video.
+
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-demo
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **deck_get, deck_update, demo_generate, showcase_preview** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. `deck_get` for the current version and render status. The HTML deck at `/ship/{slug}/deck` always works, even if renders fail.
+2. Draft scene text with the team from their story and **verified** claims only. Unverified claims stay labelled UNVERIFIED.
+3. Save with `deck_update`: send the whole `deck` object you read from `deck_get` with your edits, and the version you read as `expected_version`. On `CONFLICT`, re-read and re-apply.
+4. Ask for an export with `demo_generate` (`format`: pdf, pptx or mp4). PDF is browser print from the presenter; PPTX and MP4 come back as unavailable. Don't tell anyone a file exists unless the job says `succeeded`. The HTML deck at `/ship/{team}/deck` needs no export.
+
+## Done when
+
+Deck version, HTML deck link, and each render's real status.
+
+## Fallback
+
+Open the Studio (`/studio/{team}`) and present the HTML deck directly.
+
+## Privacy
+
+Only verified claims are presented as verified. No one's face or name without their consent.

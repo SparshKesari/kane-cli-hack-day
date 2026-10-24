@@ -1,0 +1,25 @@
+UPDATED SOURCE: event-day-flow.txt includes inspected branch implementation. Public evidence bucket and /t page API will be supplied later; do not substitute private Blob APIs. Existing finalization tools are browser handoffs.
+
+API ACCESS AND CURRENT EVIDENCE
+Prefer native event MCP tools with live schemas. scripts/event-api.mjs provides JSON MCP discovery/calls against the same /mcp transport used by deployed kanehack 0.1.3. It reads the helper token privately, only sends to official HTTPS event origin, handles apex->www within that origin set, stops external redirects, and never prints credentials. It does not implement OAuth, RBAC, receipt signature verification or backend business logic.
+Usage: node <skill>/scripts/event-api.mjs list
+Usage: node <skill>/scripts/event-api.mjs call participant_get_status --args <private-args.json>
+For a mutation add --confirmed only after actual authorization of those exact args. Tool must be present in live tools/list; use its actual schema. Read-only names are restricted in the client; all other calls require --confirmed. The flag is a local intent guard, not a substitute for server permissions or a participant confirmation receipt. Use server explicit_confirmation fields as required.
+No automatic retry of writes. Persist idempotency key in a private pending-operation record before first call; reuse it only for the same body. On uncertain outcome read back. API response may contain private data; bridge redacts token-like fields but avoid pasting whole responses into public logs.
+
+Existing deployed helper verified by checksum inspection: pair/start and pair/confirm device flow; doctor, consent, report, status (recent runs), help, submit --preflight, connect codex. Does NOT implement generic team/idea/activation/finalize/X commands. Native MCP or this bridge is needed. Hook enable explicitly unavailable in 0.1.3 and optional.
+Public live check: canonical www /mcp returned 401 JSON envelope 2026-10-24. This proves reachability/auth wall only; no authenticated tools were inspected. Helper and skills package contents inspected, never executed here. No participant session or credentials used.
+
+Organizer must confirm / provide:
+1. Publish this skill archive and update installer checksum, folder checks and new-session invocation; current live installer still distributes old 12-skill bundle. Update plugin metadata as appropriate after rollout.
+2. Authenticated tools/list and smoke results for activation/team/idea/help/preflight. Discovery may establish these without any API redesign.
+3. Full v2.5 repository grant + judge access + verification plan/evaluation request/response schemas and real live capability availability. Blueprint YAML often only has generic payloads/response descriptions.
+4. Authoritative participant/checklist snapshot with event/participant/team IDs, roles, mandatory items, deadlines and receipts, including readback of finalized submission. Current helper status only lists runs.
+5. Evidence limits/storage/signature/source trust and authoritative evaluation receipt; never infer verified from source_verified naming alone.
+6. X connection/publish/verify + eligibility schema, both canonical URLs and staff outage exception route. Mandatory per user.
+7. Event official timezone/deadline, roster cap/lock, walk-in rules, Luma approval/import mapping, selfie skip policy and desk contact/help URL. Use live event brief where supplied, never assume local India time or guessed San Francisco deadline.
+8. Validated dependency versions and clean macOS/Windows installer runs; installer currently only reports missing Kane prerequisites. No authenticated end-to-end proof yet.
+
+All 12 deployed upstream phase procedures are included as .txt references for progressive loading; install only the single hack-os skill folder. They are a dated snapshot and must be refreshed against deployed tool schemas on use. Blueprint source and current installer differ; do not represent the blueprint as live state.
+
+USER UPDATE: Local idea analysis uses the supplied validator subskill (pending); see idea-validator.txt. Video uses supplied skills/guidelines and an option to upload an existing video via a supplied endpoint (pending); see video.txt. After every team-scoped Codex turn, persist and POST team lifecycle status through the supplied endpoint when available; see after-turn-status.txt for acknowledgement, outbox, retry and host-adapter gaps. General activity hooks remain separate.

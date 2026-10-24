@@ -1,0 +1,24 @@
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-gtm
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **showcase_preview, milestone_propose** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. Read `showcase_preview` and the Proof tab. Collect only claims with a VERIFIED run or evidence behind them; anything else is worded as a plan or marked unverified.
+2. Draft: a 2–3 sentence announcement, a short technical thread (what Kane validates, how failures feed back), and a README "How we validate" section. Link `/ship/{slug}` for proof.
+3. No invented numbers, no other people's names or photos unless they consented, no tags of people who didn't opt in.
+4. The team posts from its own accounts. This skill never posts; event social posts go through the photo team and organizers (not available as a participant tool).
+
+## Done when
+
+Drafts in the conversation, each line traceable to a run or evidence id.
+
+## Fallback
+
+Use the GTM templates in the Studio.
+
+## Privacy
+
+No personal data, no unconsented photos or tags, no invented metrics.

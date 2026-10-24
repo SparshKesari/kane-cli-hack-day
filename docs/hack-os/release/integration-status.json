@@ -1,0 +1,54 @@
+{
+  "as_of": "2026-10-24",
+  "package_version": "1.2.0",
+  "participant_state": "not inspected; no participant session used",
+  "confirmed": [
+    "Live installer 0.1.3 downloaded and inspected",
+    "kanehack and upstream skills SHA256 matched installer pins",
+    "Canonical www MCP returns HTTP 401 JSON",
+    "Device pairing and JSON MCP client implemented in downloaded helper",
+    "Single hack-os skill and bundled procedures created locally",
+    "User confirmed mandatory v2.5 X gate",
+    "User confirmed public evidence bucket API will be provided later",
+    "User confirmed new submission-page API needs to be supplied",
+    "Branch source reviewed: existing team APIs, browser signup, event entitlement functions and human-only finalization handoffs",
+    "User will supply local idea-validator subskill",
+    "User will supply video skills/guidelines and video-upload endpoint",
+    "User requires team lifecycle POST after every team-scoped Codex turn; endpoint will be supplied"
+  ],
+  "unverified": [
+    "Authenticated MCP tool discovery and end-to-end participant flow",
+    "Live v2.5 GitHub binding and plan/evaluation tools",
+    "Authoritative full checklist and finalized-submission readback",
+    "X publication/verification/eligibility and outage exceptions",
+    "Official deadline/timezone, roster/skip policy from authenticated event brief",
+    "Clean machine macOS/Windows installer execution",
+    "Branch source inspected; runtime deployment not established",
+    "Public bucket upload and submission-page contracts explicitly pending"
+  ],
+  "deployment_needed": [
+    "Publish hack-os-skills.tgz",
+    "Apply installer patch and update post-install invocation to $hack-os",
+    "Update kanehack doctor old hack-onboard discovery expectations",
+    "Provision participant session to validate remaining capabilities",
+    "Expose installer-first registration/session and entitlement/roster adapters or supported human handoffs",
+    "Supply public evidence bucket upload contract",
+    "Supply team submission-page create/update/readback contract",
+    "Supply and wire local idea-validator subskill",
+    "Supply video skills/guidelines and upload endpoint",
+    "Supply POST team-status endpoint and validate turn-completion adapter/durable delivery"
+  ],
+  "sources": [
+    "README_AGENT_START_HERE.md",
+    "kane-hack-os-blueprint/docs/AGENT_IMPLEMENTATION_HANDOFF.md",
+    "kane-hack-os-blueprint/api/MCP_TOOLS.md",
+    "https://kaneclihack.sh/install.sh",
+    "https://kaneclihack.sh/kanehack-0.1.3.tgz",
+    "https://kaneclihack.sh/hack-skills-0.1.3.tgz",
+    "https://www.kaneclihack.sh/mcp"
+  ],
+  "upstream_helper_sha256": "4f78dc1b0fa7ff944a24b91146d4a4da172047ba75b5365bc2feb628ece252c6",
+  "upstream_skills_sha256": "cd832b7a6a0ccfbd664b667b40efea17fab6104c6e0217e2a07188ebb499d7b3",
+  "flow_update": "Installer-first signup, team APIs, resumable hours-long building, separate public evidence bucket, future /t page API",
+  "source_branch": "https://github.com/SparshKesari/kane-cli-hack-day/tree/event-day-flow"
+}

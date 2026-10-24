@@ -1,0 +1,26 @@
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-harness
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **harness_get_capabilities, event_get_brief** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. Call `harness_get_capabilities` for the building blocks (run, testmd, testrun, remote, design, cover, evidence, mobile).
+2. Ask what the product does and what would break a user's day. Pick 3–5 critical flows.
+3. For each flow propose: the Kane command (exact syntax from the official Kane CLI skill), what a pass proves, what evidence is kept (the sealed evidence pack, NDJSON), and when it runs (every commit, PR, before demo).
+4. Design the feedback loop: a failure becomes a SUSPECTED defect in the Proof tab; a person confirms it; a later passing run on a new commit re-verifies the fix.
+5. If they have a spec, suggest `kane-cli design tests` + `kane-cli cover` for designed-vs-proven coverage.
+6. Write the plan into their repo only if they ask (e.g. `HARNESS.md`). Don't run paid or remote commands without asking; remote grid needs a plan entitlement they check with `kane-cli plugin doctor remote-execution`.
+
+## Done when
+
+A short harness plan: flows, commands, evidence, cadence, and how results reach the Proof tab (the verify phase of this skill).
+
+## Fallback
+
+The Resources tab in the hub links the Kane CLI docs; a mentor at the help desk can review the plan.
+
+## Privacy
+
+Don't read repos or files the person didn't point you at. Don't send source code to the event server.

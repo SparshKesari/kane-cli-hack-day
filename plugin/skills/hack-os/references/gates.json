@@ -1,0 +1,150 @@
+[
+  {
+    "id": "setup",
+    "label": "Installer, prerequisites and Codex/Kane readiness",
+    "depends_on": [],
+    "required_for": "onboarding"
+  },
+  {
+    "id": "registration",
+    "label": "Skill-led signup and event session",
+    "depends_on": [
+      "setup"
+    ],
+    "required_for": "onboarding"
+  },
+  {
+    "id": "team",
+    "label": "Solo/team membership",
+    "depends_on": [
+      "registration"
+    ],
+    "required_for": "build"
+  },
+  {
+    "id": "activation",
+    "label": "Team confirmed, TestMu plan and Codex entitlement decisions",
+    "depends_on": [
+      "team"
+    ],
+    "required_for": "onboarding"
+  },
+  {
+    "id": "project",
+    "label": "Idea and Kane feedback loop",
+    "depends_on": [
+      "activation"
+    ],
+    "required_for": "build"
+  },
+  {
+    "id": "idea_validation",
+    "label": "Supplied local idea-validator advisory assessment",
+    "depends_on": [
+      "project"
+    ],
+    "required_for": "advisory"
+  },
+  {
+    "id": "build",
+    "label": "Build with Kane; wait for participant readiness",
+    "depends_on": [
+      "project"
+    ],
+    "required_for": "submission"
+  },
+  {
+    "id": "source",
+    "label": "GitHub provider binding and SHA",
+    "depends_on": [
+      "team"
+    ],
+    "required_for": "submission"
+  },
+  {
+    "id": "plan",
+    "label": "Approved current verification plan",
+    "depends_on": [
+      "project",
+      "source"
+    ],
+    "required_for": "proof"
+  },
+  {
+    "id": "execution",
+    "label": "Real Kane execution recorded",
+    "depends_on": [
+      "plan"
+    ],
+    "required_for": "submission"
+  },
+  {
+    "id": "proof",
+    "label": "Passing evidence accepted for milestone",
+    "depends_on": [
+      "execution"
+    ],
+    "required_for": "milestone"
+  },
+  {
+    "id": "public_evidence",
+    "label": "Separate public evidence bucket upload",
+    "depends_on": [
+      "execution"
+    ],
+    "required_for": "page"
+  },
+  {
+    "id": "video_upload",
+    "label": "Supplied video workflow or upload option",
+    "depends_on": [
+      "build"
+    ],
+    "required_for": "artifact_option"
+  },
+  {
+    "id": "submission_page",
+    "label": "API creates/updates /t/{team-id} artifact page",
+    "depends_on": [
+      "build",
+      "public_evidence",
+      "source"
+    ],
+    "required_for": "submission"
+  },
+  {
+    "id": "submission",
+    "label": "Immutable submission receipt",
+    "depends_on": [
+      "submission_page",
+      "execution",
+      "source"
+    ],
+    "required_for": "submission"
+  },
+  {
+    "id": "showcase",
+    "label": "Public team Ship Page and hosted deck",
+    "depends_on": [
+      "submission"
+    ],
+    "required_for": "judging"
+  },
+  {
+    "id": "x",
+    "label": "Verified public X post with both links",
+    "depends_on": [
+      "showcase"
+    ],
+    "required_for": "judging"
+  },
+  {
+    "id": "eligibility",
+    "label": "Server judging eligibility",
+    "depends_on": [
+      "submission",
+      "x"
+    ],
+    "required_for": "judging"
+  }
+]

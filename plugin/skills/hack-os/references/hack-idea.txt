@@ -1,0 +1,27 @@
+LOCAL VALIDATOR OVERRIDE: Follow idea-validator.txt. The requested analysis runs locally through a user-supplied subskill (pending). Do not call the hosted idea_validate tool as an automatic substitute. Hosted storage and opt-in overlap remain separate.
+
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-idea
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **idea_validate, idea_check_overlap, harness_get_capabilities** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. Ask for the idea in a few sentences: what it builds, who uses it, where Kane CLI runs in it.
+2. Invoke the supplied local validator once available. Until then keep the assessment pending; do not automatically send the private idea to hosted validation. The result is advisory, never a judging score.
+3. Apply the supplied validator criteria and actual findings. Do not invent the rubric, a fixed number of suggestions, or an eligibility decision. Revalidate changed idea revisions when requested.
+4. Use `harness_get_capabilities` to suggest the Kane path (run → testrun → cover).
+5. `idea_check_overlap` only compares opted-in public summaries. If they haven't opted in, explain the opt-in on the Idea tab; never paste another team's private idea.
+
+## Done when
+
+The verdict, which criteria are met, three concrete changes, and the Kane path.
+
+## Fallback
+
+The Idea tab in the team hub has the same checklist by hand.
+
+## Privacy
+
+Private idea text stays in the team. Overlap uses opted-in public summaries only.

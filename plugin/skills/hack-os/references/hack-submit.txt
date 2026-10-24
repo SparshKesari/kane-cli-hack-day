@@ -1,0 +1,27 @@
+EVENT-DAY OVERRIDE: Read event-day-flow.txt first. It supersedes the old camera activation, agent-finalize, publication and private-evidence assumptions below.
+
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-submit
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **submission_preflight, submission_finalize, event_get_brief** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. `event_get_brief` for the lock time (server clock). If it's close, say how long is left in plain words.
+2. `submission_preflight`: walk through each item (✓ ok, ? uncertain, ✗ missing), the same list the Submit tab shows. The draft itself is saved on the Submit tab (`/t/{team}/submit`); fix gaps there or in the repo, then re-run preflight.
+3. Show what will be frozen: repo + commit SHA, linked Kane runs and evidence. Warn that runs which aren't source-verified show as UNVERIFIED to judges. The inspected deployed procedure can publish the showcase during finalization. Set `publish_showcase: false` unless the participant has already approved that exact public preview; honor the live schema. Publishing remains a separately reviewed action.
+4. Ask the person to confirm **and to type their team name exactly**. Call `submission_finalize` with that text as `confirm_phrase`, a fresh `idempotency_key`, and `explicit_confirmation: true`. Retrying with the same key returns the same receipt.
+5. Show the receipt code (S-…) and server time. That receipt is the proof; nothing else is.
+
+## Done when
+
+Receipt code, server timestamp, receipt link, and the public showcase link.
+
+## Fallback
+
+Finalize on the Submit tab (`/t/{team}/submit`). If the site is down near the deadline, go to the help desk: staff record a manual receipt with the real time.
+
+## Privacy
+
+The snapshot holds repo, SHA and evidence ids, not source files or secrets.

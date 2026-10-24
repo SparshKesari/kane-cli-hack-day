@@ -1,0 +1,196 @@
+{
+  "as_of": "2026-10-24",
+  "source_branch": "event-day-flow",
+  "source_repo": "https://github.com/SparshKesari/kane-cli-hack-day/",
+  "participant_state": "No participant account inspected",
+  "stages": [
+    {
+      "id": "install",
+      "phase": "Get ready",
+      "title": "Run installer",
+      "participant": "Run curl -fsSL https://kaneclihack.sh/install.sh | sh; complete installation and open Codex.",
+      "skill": "Check dependencies and discovery; start $hack-os. Reuse tools already installed.",
+      "backend": "Serve checksum-pinned skill/helper releases; publish the updated bundle and bootstrap handoff.",
+      "status": "existing",
+      "note": "Installer source exists; updated single-skill rollout and clean-machine checks pending.",
+      "sources": [
+        "public/install.sh"
+      ]
+    },
+    {
+      "id": "signup",
+      "phase": "Get ready",
+      "title": "Skill guides signup",
+      "participant": "Confirm missing profile details; enter passwords and identity proof in the secure browser flow.",
+      "skill": "Create or recover account through the approved handoff; pair device and verify current identity.",
+      "backend": "Validate profile, prove existing-account ownership, create account/session, link admission record, issue scoped device session.",
+      "status": "gap",
+      "note": "Browser signup exists. Installer-first registration/session API adapter needs a contract; profile/check is only handle validation.",
+      "sources": [
+        "src/server/flow.ts",
+        "src/server/pairing.ts",
+        "src/app/api/v1/profile/check/route.ts"
+      ]
+    },
+    {
+      "id": "team",
+      "phase": "Get ready",
+      "title": "Solo or team via API",
+      "participant": "Choose solo/create/join/find; confirm membership and final roster.",
+      "skill": "Call team APIs; read back canonical team ID, slug and role. Preserve successful membership on resume.",
+      "backend": "Find opted-in teams; atomically create/join; enforce seats, invite expiry, captain permissions and roster lock.",
+      "status": "existing",
+      "note": "GET/POST /api/v1/teams and POST /api/v1/teams/join exist. REST join uses code; MCP uses invite_code. Roster-confirmation adapter still needs checking.",
+      "sources": [
+        "src/app/api/v1/teams/route.ts",
+        "src/app/api/v1/teams/join/route.ts",
+        "src/server/flow.ts"
+      ]
+    },
+    {
+      "id": "activate",
+      "phase": "Get ready",
+      "title": "Activate event resources",
+      "participant": "Complete TestMu signup; claim plan; obtain and redeem personal Codex credits.",
+      "skill": "Read each activation state; guide missing human steps. Continue credit allocation if TestMu claim is temporarily unavailable.",
+      "backend": "Claim TestMu plan for member email; save result and audit; atomically assign/reuse organizer credit code; stamp activation after required ticks.",
+      "status": "adapter",
+      "note": "Server functions exist in event-activation.ts; corresponding skill-facing adapters are not in the inspected MCP list. Code assignment is not proven redemption.",
+      "sources": [
+        "src/server/event-activation.ts",
+        "src/server/mcp.ts"
+      ]
+    },
+    {
+      "id": "idea",
+      "phase": "Get ready",
+      "title": "Idea \u2192 local validator \u2192 build plan",
+      "participant": "Choose the creation and meaningful Kane workflow.",
+      "skill": "Load the user-supplied validator subskill and analyse the idea locally; refine findings and the Kane feedback loop.",
+      "backend": "Persist approved idea revisions if requested. Local analysis does not require the hosted validator API; private text stays local.",
+      "status": "pending",
+      "note": "USER WILL SUPPLY the local idea-validator subskill, entrypoint and rubric. Existing hosted idea/team tools do not substitute for this local assessment.",
+      "sources": [
+        "src/server/mcp.ts",
+        "src/server/ideas.ts"
+      ],
+      "status_label": "Local validator subskill pending"
+    },
+    {
+      "id": "build",
+      "phase": "Build \u00b7 potentially hours",
+      "title": "Build, test, fix, repeat",
+      "participant": "Work with Codex + Kane. Return with \u201c$hack-os, ready to submit\u201d.",
+      "skill": "Save build=building and end the onboarding turn. Resume tests/help when asked; recheck state at submission time.",
+      "backend": "Persist opted-in run reports and evidence metadata; process validation jobs/tickets, deadline phases and operational health independently.",
+      "status": "local",
+      "note": "No hours-long sleeping, continuous polling, automatic submission or inferred completion. Existing run/help code can support the build period; service deployment is not verified.",
+      "sources": [
+        "src/server/kane.ts",
+        "src/server/help.ts",
+        "src/server/outbox.ts"
+      ]
+    },
+    {
+      "id": "team-status",
+      "phase": "After every team-scoped turn",
+      "title": "POST current team lifecycle status",
+      "participant": "Continue working, wait for a human action, or resume later; status reporting preserves the current phase.",
+      "skill": "At turn completion, persist a minimal snapshot; POST when configured; track acknowledgement or pending delivery separately.",
+      "backend": "Future endpoint authorizes team scope, deduplicates turn events, rejects stale updates, stores current/history and returns acknowledgement/version.",
+      "status": "pending",
+      "status_label": "POST endpoint + turn adapter pending",
+      "note": "ENDPOINT WILL BE PROVIDED. Needs a supported turn-completion adapter to cover turns outside $hack-os. Queue failed sends; never upload transcripts/code or treat status as verified proof. No heartbeat while idle.",
+      "sources": [
+        "plugin/skills/hack-os/references/after-turn-status.txt",
+        "plugin/hooks/README.md"
+      ]
+    },
+    {
+      "id": "evidence",
+      "phase": "Finish and submit",
+      "title": "Upload evidence separately",
+      "participant": "Approve the public-safe evidence export.",
+      "skill": "Prepare files + SHA256 manifest; upload separately; verify returned public URL/digest; retain receipts for linking.",
+      "backend": "Future upload service issues scoped upload authorization; bucket stores public objects; completion validates type/size/digest and deduplicates.",
+      "status": "pending",
+      "note": "PUBLIC BUCKET API WILL BE PROVIDED LATER. Existing evidence routes store private Blob and are a different integration. Event API outage can leave upload usable; linking waits.",
+      "sources": [
+        "src/app/api/v1/kane/evidence/route.ts",
+        "src/app/api/v1/kane/evidence/upload/route.ts"
+      ]
+    },
+    {
+      "id": "video",
+      "phase": "Finish and submit",
+      "title": "Video guideline / skill / upload option",
+      "participant": "Use the supplied video skill/guideline, record manually, or choose an existing video for upload.",
+      "skill": "Load the provided video guidance; preview the actual file, upload via the supplied endpoint, then link the acknowledged asset to the team page.",
+      "backend": "Future upload endpoint issues scoped authorization, validates accepted video/visibility, stores asset and returns URL/receipt for page linkage.",
+      "status": "pending",
+      "status_label": "Video resources + upload API pending",
+      "note": "USER WILL PROVIDE video skills/guidelines and upload endpoint. Generated draft, local file, uploaded asset and page-linked video are separate states. Do not assume evidence bucket is the video upload endpoint.",
+      "sources": [
+        "plugin/skills/hack-os/references/video.txt",
+        "src/server/submission.ts"
+      ]
+    },
+    {
+      "id": "page",
+      "phase": "Finish and submit",
+      "title": "Create team submission page",
+      "participant": "Review repo + exact commit, one-pager HTML, video, deck, Kane results and limitations.",
+      "skill": "Call supplied page API with reviewed artifacts and public evidence references; save receipt and returned /t/{team-id} URL.",
+      "backend": "Future API creates/updates authorized team page idempotently, links artifacts, handles HTML isolation, visibility, versions/jobs and readback.",
+      "status": "pending",
+      "note": "PAGE API WILL BE SUPPLIED. Existing /t/[slug] is a hub, not evidence that the new artifact-page API exists. Resolve ID/slug mapping and page access in the contract. Include the independent video-upload receipt; the endpoint is still pending.",
+      "sources": [
+        "src/app/t/[slug]/page.tsx",
+        "src/server/submission.ts"
+      ]
+    },
+    {
+      "id": "submit",
+      "phase": "Finish and submit",
+      "title": "Preflight and final receipt",
+      "participant": "Captain confirms final submission in browser when preflight is ready.",
+      "skill": "Show gaps and exact snapshot; hand off as required; read existing receipt instead of repeating finalization.",
+      "backend": "Check server deadline, team permissions, required artifacts and repo revision; freeze immutable snapshot; return timestamped receipt.",
+      "status": "existing",
+      "note": "Inspected MCP/REST bearer finalize is a browser handoff. Future page creation does not automatically mean submitted.",
+      "sources": [
+        "src/server/mcp.ts",
+        "src/app/api/v1/submissions/finalize/route.ts",
+        "src/server/submission.ts"
+      ]
+    },
+    {
+      "id": "x",
+      "phase": "Finish and submit",
+      "title": "Showcase and judging eligibility",
+      "participant": "Approve public Ship Page + deck and X post containing BOTH canonical links.",
+      "skill": "Guide approved API/human publication, then require server X verification and eligibility receipt.",
+      "backend": "Publish approved assets; validate X author, links, visibility and event timing; apply audited outage exceptions when authorized.",
+      "status": "gap",
+      "note": "Mandatory v2.5 policy remains confirmed. Share/eligibility tools absent from inspected MCP list. New /t page does not silently replace Ship/deck links.",
+      "sources": [
+        "src/server/mcp.ts",
+        "src/server/showcase.ts"
+      ]
+    }
+  ],
+  "statuses": {
+    "existing": "Code present \u00b7 runtime unverified",
+    "adapter": "Backend function present \u00b7 skill adapter needed",
+    "local": "Checkpoint implemented locally",
+    "gap": "Requested flow needs integration",
+    "pending": "API contract to be supplied"
+  },
+  "user_supplied_components_pending": [
+    "local idea-validator subskill",
+    "video skills/guidelines",
+    "video upload endpoint",
+    "team status POST endpoint",
+    "Codex turn-completion adapter"
+  ]
+}

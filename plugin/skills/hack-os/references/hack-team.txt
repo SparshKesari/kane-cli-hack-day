@@ -1,0 +1,25 @@
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-team
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **participant_get_status, team_find, team_create, team_join** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. `participant_get_status`: if they're already on a team, show it and stop unless they want to look at others.
+2. To browse: `team_find` (optionally with `skill`). Show seats left and the public summary. Only opted-in builders appear; don't try to find others.
+3. To create: confirm the name, size (use the live event roster cap) and whether it's recruiting. Call `team_create`; it answers `needs_action`. After the person says yes, call again with `explicit_confirmation: true`.
+4. To join: ask for the invite code (from a teammate or the hub). Call `team_join`, then confirm and repeat with `explicit_confirmation: true`. `TEAM_FULL` means pick another team.
+5. Team changes lock at the server's team lock time (`event_get_brief`). After that, send them to the help desk.
+
+## Done when
+
+Team name and hub link (`/t/{slug}`), or the list of options with seats.
+
+## Fallback
+
+https://kaneclihack.sh/match to browse, or https://kaneclihack.sh/register to create a team in the browser.
+
+## Privacy
+
+Only opted-in builders and recruiting teams are visible. Don't search for or share anyone else.

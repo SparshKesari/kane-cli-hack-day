@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "event_slug": "kane-cli-hack-day-2026",
+  "source": "user_approved_local_export",
+  "exported_at": "2026-10-24T06:50:23.029Z",
+  "source_sha256": "b12e0189f08e9879a1182b7eff285cd1194cef0afb0752d070a79eb4c709a93b",
+  "assignments": [
+    {
+      "id": "release",
+      "owner_name": "Samyak",
+      "status": "pending",
+      "note": "Create and publish skill and add in install.sh"
+    },
+    {
+      "id": "clean-machine",
+      "owner_name": "Samyak",
+      "status": "pending",
+      "note": "QA"
+    },
+    {
+      "id": "signup-api",
+      "owner_name": "Surya",
+      "status": "pending",
+      "note": "API for sign up.\nInput values supplied by Sparsh."
+    },
+    {
+      "id": "admission",
+      "owner_name": "Sparsh",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "id": "team-api",
+      "owner_name": "Umar",
+      "status": "pending",
+      "note": "Surya to ensure teams are created in single org. Sparsh to provide the endpoint"
+    },
+    {
+      "id": "roster-lock",
+      "owner_name": "Sparsh",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "id": "testmu-plan",
+      "owner_name": "Surya",
+      "status": "pending",
+      "note": "Surya to provide the APIs"
+    },
+    {
+      "id": "codex-credits",
+      "owner_name": "Samyak",
+      "status": "pending",
+      "note": "Sparsh to provide"
+    },
+    {
+      "id": "idea-plan",
+      "owner_name": "Sparsh",
+      "status": "pending",
+      "note": "Skill to be created for validating idea."
+    },
+    {
+      "id": "build-resume",
+      "owner_name": "",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "id": "run-reporting",
+      "owner_name": "",
+      "status": "done",
+      "note": ""
+    },
+    {
+      "id": "help-ops",
+      "owner_name": "Samyak",
+      "status": "pending",
+      "note": "Create Github issues on kanecli repo directly."
+    },
+    {
+      "id": "event-clock",
+      "owner_name": "Sparsh",
+      "status": "done",
+      "note": "To be done physically"
+    },
+    {
+      "id": "bucket-contract",
+      "owner_name": "Umar",
+      "status": "pending",
+      "note": "Sparsh to create the public bucket to store evidence."
+    },
+    {
+      "id": "bucket-wiring",
+      "owner_name": "Siddhant",
+      "status": "pending",
+      "note": "Siddhant to help provide the public evidence URL based on above."
+    },
+    {
+      "id": "page-contract",
+      "owner_name": "Umar",
+      "status": "pending",
+      "note": "For submission of final repo."
+    },
+    {
+      "id": "page-wiring",
+      "owner_name": "Sparsh",
+      "status": "pending",
+      "note": "Showcase page and GTM skill"
+    },
+    {
+      "id": "submission",
+      "owner_name": "Samyak",
+      "status": "pending",
+      "note": "QA. Check UI after submission"
+    },
+    {
+      "id": "source-proof",
+      "owner_name": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "id": "showcase",
+      "owner_name": "Sparsh",
+      "status": "pending",
+      "note": "QA"
+    },
+    {
+      "id": "x-eligibility",
+      "owner_name": "",
+      "status": "pending",
+      "note": ""
+    }
+  ]
+}

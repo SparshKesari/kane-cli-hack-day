@@ -1,0 +1,86 @@
+{
+  "public_evidence_upload": {
+    "status": "awaiting_user_supplied_contract",
+    "endpoint": null,
+    "public_base_url": null,
+    "required_details": [
+      "Authorization/scoped upload issuance",
+      "Method/headers/content types/size limits",
+      "Expiry/refresh and per-object resume",
+      "Completion and digest verification",
+      "Stable object ID/public URL/readback",
+      "Deduplication and error semantics"
+    ]
+  },
+  "submission_page": {
+    "status": "awaiting_user_supplied_contract",
+    "endpoint": null,
+    "desired_page": "/t/{team-id}",
+    "required_details": [
+      "Team authorization and ID/slug mapping",
+      "Repo/SHA, one-pager HTML, video, deck, evidence-reference schema",
+      "Idempotent upsert and version/concurrency behavior",
+      "Visibility/preview approval and HTML isolation",
+      "Canonical URL/receipt/job status/readback",
+      "Relation to immutable final submission and Ship/deck X URLs"
+    ]
+  },
+  "registration_session": {
+    "status": "skill_api_adapter_needed",
+    "existing_source": "src/server/flow.ts submitProfile browser action",
+    "required_details": [
+      "Pre-auth account creation/secure browser handoff",
+      "Existing-account ownership proof",
+      "Device pairing before team membership",
+      "Session resume/readback"
+    ]
+  },
+  "event_activation": {
+    "status": "skill_adapter_needed",
+    "existing_source": "src/server/event-activation.ts",
+    "required_details": [
+      "Safe state readback without disclosing credit code",
+      "Team lock/confirmation adapter",
+      "TestMu signup/claim states",
+      "Human credit redemption handoff and completion"
+    ]
+  },
+  "local_idea_validator": {
+    "status": "awaiting_user_supplied_subskill",
+    "entrypoint": null,
+    "execution": "local",
+    "required_details": [
+      "Supplied skill package/entrypoint and version",
+      "Actual rubric/input/output schema",
+      "Local execution and private-data behavior",
+      "Idea revision invalidation and incomplete-input handling"
+    ]
+  },
+  "video_workflow_upload": {
+    "status": "awaiting_user_supplied_skills_guidelines_and_endpoint",
+    "skill_entrypoint": null,
+    "guideline": null,
+    "endpoint": null,
+    "required_details": [
+      "Actual supplied skill capabilities and guidelines",
+      "Choice of supplied workflow/manual recording/existing-file upload",
+      "Upload auth, MIME/size/duration and visibility rules",
+      "Resume/completion/digest/public-URL readback",
+      "Canonical video asset linkage to team page"
+    ]
+  },
+  "team_status_after_turn": {
+    "status": "awaiting_user_supplied_endpoint_and_turn_adapter",
+    "method": "POST",
+    "endpoint": null,
+    "turn_adapter": null,
+    "required_details": [
+      "Team authorization and allowed lifecycle snapshot schema",
+      "Supported Codex turn-completion trigger including waiting/error turns",
+      "Stable turn/event IDs, idempotency and sequence ordering",
+      "Acknowledgement/server version and event/latest-state readback",
+      "Private durable outbox, bounded retry and account/team isolation",
+      "No transcript, code, credential or private idea upload"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-progress
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **kane_record_run, milestone_propose, submission_preflight** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. Read the Proof tab state: open `/t/{team}/proof` or `GET /api/v1/kane/runs` with the paired token (`kanehack status`).
+2. Separate what is source-verified from what is reported or manual. Only verified passes support a VERIFIED claim.
+3. Draft at most three milestones, each tied to a run id and evidence ids. Show the draft; the person edits it.
+4. Propose each with `milestone_propose`. Default visibility is `team`. For `judges` or `public`, confirm with the person, call with `explicit_confirmation: true`, and remind them a teammate approves it on the Proof tab.
+5. Point out gaps: suspected defects nobody triaged, confirmed defects not yet re-verified, missing evidence.
+
+## Done when
+
+What is proven (with run ids), what is only claimed, milestones proposed, and the next run worth doing.
+
+## Fallback
+
+Propose milestones directly on the Proof tab.
+
+## Privacy
+
+Team-only by default. Wider visibility needs a teammate's approval.

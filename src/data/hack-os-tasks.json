@@ -1,0 +1,198 @@
+[
+  {
+    "id": "release",
+    "stage_id": "install",
+    "title": "Publish the single skill and installer handoff",
+    "acceptance": "Publish pinned archive; install prerequisites; start fresh Codex discovery.",
+    "dependency": "Installer and skill release"
+  },
+  {
+    "id": "clean-machine",
+    "stage_id": "install",
+    "title": "Validate clean-machine setup",
+    "acceptance": "Check supported macOS/Windows setup and separate Codex/Kane authentication.",
+    "dependency": "Install readiness"
+  },
+  {
+    "id": "signup-api",
+    "stage_id": "signup",
+    "title": "Provide signup and session adapter",
+    "acceptance": "Connect secure registration/recovery and device pairing to the installer-first skill flow.",
+    "dependency": "Missing API adapter"
+  },
+  {
+    "id": "admission",
+    "stage_id": "signup",
+    "title": "Prepare admission and check-in data",
+    "acceptance": "Confirm roster import, walk-in policy and staffed recovery route.",
+    "dependency": "Event operations"
+  },
+  {
+    "id": "team-api",
+    "stage_id": "team",
+    "title": "Validate team create / join / solo",
+    "acceptance": "Confirm API permissions, invite expiry, seat limits and ID/slug readback.",
+    "dependency": "Existing API validation"
+  },
+  {
+    "id": "roster-lock",
+    "stage_id": "team",
+    "title": "Connect captain roster confirmation",
+    "acceptance": "Expose supported roster lock/readback and organizer recovery.",
+    "dependency": "Missing skill adapter"
+  },
+  {
+    "id": "testmu-plan",
+    "stage_id": "activate",
+    "title": "Connect TestMu signup and plan claim",
+    "acceptance": "Provision provider configuration; expose safe state readback and retries.",
+    "dependency": "Entitlement adapter"
+  },
+  {
+    "id": "codex-credits",
+    "stage_id": "activate",
+    "title": "Provision and connect Codex credit allocation",
+    "acceptance": "Import organizer code pool; support private redemption and out-of-stock recovery.",
+    "dependency": "Credit inventory and adapter"
+  },
+  {
+    "id": "idea-plan",
+    "stage_id": "idea",
+    "title": "Validate idea and Kane workflow guidance",
+    "acceptance": "Confirm idea persistence, requirement design and the evidence/feedback loop.",
+    "dependency": "Existing tool validation"
+  },
+  {
+    "id": "build-resume",
+    "stage_id": "build",
+    "title": "Validate the hours-long build checkpoint",
+    "acceptance": "Resume in a fresh Codex session without repeating signup or team creation.",
+    "dependency": "Skill behavior validation"
+  },
+  {
+    "id": "run-reporting",
+    "stage_id": "build",
+    "title": "Connect opted-in Kane run reporting",
+    "acceptance": "Keep real command exits, evidence references and failures; expose ingestion health.",
+    "dependency": "Run reporting"
+  },
+  {
+    "id": "help-ops",
+    "stage_id": "build",
+    "title": "Staff mentor help and incident response",
+    "acceptance": "Assign dispatcher and operational contacts; confirm ticket receipt and escalation.",
+    "dependency": "Event operations"
+  },
+  {
+    "id": "event-clock",
+    "stage_id": "build",
+    "title": "Confirm event deadline and phase control",
+    "acceptance": "Validate authoritative timezone/deadlines, event policy and operational health.",
+    "dependency": "Event configuration"
+  },
+  {
+    "id": "bucket-contract",
+    "stage_id": "evidence",
+    "title": "Supply public evidence upload contract",
+    "acceptance": "Provide scoped upload, allowed public origin, digest/readback, limits and resume semantics.",
+    "dependency": "API contract pending"
+  },
+  {
+    "id": "bucket-wiring",
+    "stage_id": "evidence",
+    "title": "Connect separate public evidence uploads",
+    "acceptance": "Upload public-safe exports; verify URL/checksum and preserve independent receipts.",
+    "dependency": "Integration pending contract"
+  },
+  {
+    "id": "page-contract",
+    "stage_id": "page",
+    "title": "Supply team submission-page API contract",
+    "acceptance": "Define /t team-ID/slug mapping, schema, authorization, visibility and readback.",
+    "dependency": "API contract pending"
+  },
+  {
+    "id": "page-wiring",
+    "stage_id": "page",
+    "title": "Connect artifact page creation and updates",
+    "acceptance": "Link repo/SHA, one-pager HTML, video, deck and public evidence receipts without duplicates.",
+    "dependency": "Integration pending contract"
+  },
+  {
+    "id": "submission",
+    "stage_id": "submit",
+    "title": "Validate final preflight and captain receipt",
+    "acceptance": "Keep browser-only finalization and authoritative frozen submission readback.",
+    "dependency": "Existing flow validation"
+  },
+  {
+    "id": "source-proof",
+    "stage_id": "submit",
+    "title": "Connect v2.5 source and proof gates",
+    "acceptance": "Validate provider repo/SHA, approved exact Kane plan and matched evidence evaluation.",
+    "dependency": "Missing capability integration"
+  },
+  {
+    "id": "showcase",
+    "stage_id": "x",
+    "title": "Confirm public Ship Page and hosted deck",
+    "acceptance": "Review canonical public URLs and approved artifacts; resolve how the new /t page relates.",
+    "dependency": "Showcase integration"
+  },
+  {
+    "id": "x-eligibility",
+    "stage_id": "x",
+    "title": "Connect mandatory X verification and eligibility",
+    "acceptance": "Verify team author, public post with both URLs, event window and audited outage exceptions.",
+    "dependency": "Missing API integration"
+  },
+  {
+    "id": "idea-validator-supply",
+    "stage_id": "idea",
+    "title": "Supply local idea-validator subskill",
+    "acceptance": "Provide versioned entrypoint, actual rubric and input/output contract.",
+    "dependency": "Supplied subskill pending"
+  },
+  {
+    "id": "idea-validator-wire",
+    "stage_id": "idea",
+    "title": "Route idea analysis through the local validator",
+    "acceptance": "Keep analysis local; bind assessment to idea revision and preserve pending/missing status.",
+    "dependency": "Integration pending supplied skill"
+  },
+  {
+    "id": "video-skill-guidelines",
+    "stage_id": "video",
+    "title": "Supply video skills and recording guidelines",
+    "acceptance": "Define supported video workflow and let participants choose manual recording or existing video.",
+    "dependency": "Supplied video resources pending"
+  },
+  {
+    "id": "video-upload",
+    "stage_id": "video",
+    "title": "Provide and connect video upload endpoint",
+    "acceptance": "Supply upload contract, verify asset URL/receipt and link video to the team page.",
+    "dependency": "Video endpoint pending"
+  },
+  {
+    "id": "team-status-contract",
+    "stage_id": "team-status",
+    "title": "Supply POST team-status endpoint contract",
+    "acceptance": "Define auth, phase/status schema, ordering, acknowledgement and latest-state readback.",
+    "dependency": "POST endpoint pending"
+  },
+  {
+    "id": "team-status-trigger",
+    "stage_id": "team-status",
+    "title": "Connect Codex turn-completion lifecycle adapter",
+    "acceptance": "Cover all team-scoped turns, including waiting/error/build turns; validate host support.",
+    "dependency": "Turn adapter pending"
+  },
+  {
+    "id": "team-status-delivery",
+    "stage_id": "team-status",
+    "title": "Connect durable status delivery and recovery",
+    "acceptance": "Persist outbox; deduplicate/retry; avoid stale snapshots and cross-team status writes.",
+    "dependency": "Integration pending endpoint and trigger"
+  }
+]

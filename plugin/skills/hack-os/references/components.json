@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "idea_validator": {
+    "kind": "local_subskill",
+    "status": "awaiting_user_supplied_skill",
+    "entrypoint": null,
+    "version": null,
+    "route_reference": "references/idea-validator.txt"
+  },
+  "video": {
+    "kind": "supplied_skill_and_guidelines",
+    "status": "awaiting_user_supplied_resources",
+    "entrypoint": null,
+    "guideline": null,
+    "upload_endpoint": null,
+    "route_reference": "references/video.txt"
+  },
+  "team_status": {
+    "kind": "after_turn_post",
+    "status": "awaiting_endpoint_and_supported_turn_adapter",
+    "method": "POST",
+    "endpoint": null,
+    "auth_contract": null,
+    "turn_adapter": null,
+    "route_reference": "references/after-turn-status.txt"
+  }
+}

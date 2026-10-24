@@ -1,0 +1,26 @@
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-doctor
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **readiness_report, event_get_brief, help_diagnose** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+1. Run `kanehack doctor --json` (read-only; it prints versions and pass/fail, never secrets; exit 0 = no failing check, 1 = something to fix). It needs no terminal. Still not installed? Run the installer non-interactively only after the person agrees: `curl -fsSL https://kaneclihack.sh/install.sh | sh -s -- --yes` (Windows: `& ([scriptblock]::Create((irm https://www.kaneclihack.sh/install.ps1))) -Yes`). Without `--yes` it installs nothing when there's no terminal and prints the command to run. If the kanehack CLI isn't available, check by hand: `node -v`, `git --version`, Chrome present, `kane-cli --version`, `kane-cli whoami`.
+   The doctor also checks `codex` (installed), `codex_skills` (the hack-* skills are in `~/.agents/skills`, with no second copy in `~/.codex/skills`, which makes Codex list each skill twice) and `codex_mcp` (`kane-hack-event` is in `~/.codex/config.toml`; fix: `kanehack connect codex`, then a new Codex session).
+2. For each failing check, give the one fix from the doctor output. Install commands are suggestions: run them only after the person agrees, never with `sudo` on their behalf.
+3. Send the results with `readiness_report` (or `kanehack doctor --report --json`, which sends the same statuses and versions) (`checks[]` with `id`, `status`, `version`). Statuses and versions only: no paths, no env, no usernames.
+4. Re-run the doctor after fixes and report again.
+5. If something still fails after one fix attempt, call `help_diagnose`, then offer the help phase of this skill.
+
+## Done when
+
+Which checks pass, which fail with the exact fix, and the readiness receipt id. Partial readiness is fine to report as partial.
+
+## Fallback
+
+The Setup tab in the team hub (`/t/{team}/setup`) has the same checks by hand. The help desk can pair you with a mentor.
+
+## Privacy
+
+Report versions and pass/fail only. Never send paths, usernames, environment variables or tokens.

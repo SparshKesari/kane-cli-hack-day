@@ -1,0 +1,32 @@
+EVENT-DAY OVERRIDE: Read event-day-flow.txt first. It supersedes the old camera activation, agent-finalize, publication and private-evidence assumptions below.
+
+UPSTREAM PROCEDURE: installer 0.1.3, inspected 2026-10-24. Central SKILL.md governs resume and v2.5 gates.
+
+# hack-onboard
+
+Event skill for Kane CLI Hack Day (KANE HACK OS). It drives the event MCP tools **participant_get_status, participant_update_profile, activation_begin, activation_get_checkpoint** and hands Kane CLI mechanics to the official Kane CLI skill.
+
+## Procedure
+
+0. Not paired yet (no token, or `UNAUTHENTICATED`)? Pair without a terminal:
+   - `kanehack pair --start --json` → show the person `verification_url` and `user_code` and ask them to open it in their own browser, sign in and press Approve. Never ask them to paste a token or password into the chat.
+   - `kanehack pair --wait --json` (waits up to 90 s; `--timeout` to change). Exit 0 = paired, 4 = not approved yet (run it again), 1 = the code expired or was denied (start over), 3 = server unreachable.
+   - Connect the MCP server if it isn't connected yet: `kanehack connect codex`. That stores only the server URL and `kanehack mcp-headers` (which hands Codex the auth header when it connects), never the token, so don't paste or print the token anywhere. Then the person starts a **new** Codex session (type the onboard phase of this skill again; check with `codex mcp list` or `/mcp`). Already connected before pairing? Nothing to redo: the next session picks the token up.
+1. Call `participant_get_status`. If `member.checked_in` is false, tell them to check in at the desk first (walk-ins are admitted there) and stop.
+2. Ask only for what's missing: display name, GitHub handle, skills, interests. Save with `participant_update_profile` (`delta` only).
+3. Consent is per category (`selfie_storage`, `photo_publication`, `face_matching`, `social_mention`, `teammate_discovery`, `idea_discovery`, `activity_publication`). Ask about each one separately, in plain words, defaulting to **no**. Send `consent_changes` only after they answer, with `explicit_confirmation: true` once they confirm the summary the tool shows.
+4. Call `activation_begin` and give them the `activate_url`. If you drive the browser with Kane, stop as soon as `activation_get_checkpoint` says `awaiting_human: true`. **Never click the camera shutter.** The person takes the selfie or skips it.
+5. Poll `activation_get_checkpoint` (every 10–15 s, at most 5 minutes). When it reaches `active`, show the receipt code.
+6. Offer team options next (the team phase of this skill). Don't create or join a team without asking.
+
+## Done when
+
+Activation status, receipt code if any, passport link (`/passport`), and which consents are on.
+
+## Fallback
+
+Open https://kaneclihack.sh/activate in the browser and follow it by hand, or ask at the check-in desk. A phone QR on that page works for the selfie.
+
+## Privacy
+
+Selfies never pass through Codex or the prompt; the browser uploads them. Don't read out other people's emails or codes.

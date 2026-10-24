@@ -1,0 +1,30 @@
+--- install.sh
++++ install.sh
+@@ -37 +37,2 @@
+-SKILLS_SHA256="cd832b7a6a0ccfbd664b667b40efea17fab6104c6e0217e2a07188ebb499d7b3"
++SKILLS_SHA256="e104c292f554c3c6092fc439abc5d81c20d62bf5d8abb93398cf089e4f35f9ce"
++SKILLS_VERSION="1.2.0"
+@@ -159,2 +160,2 @@
+-  if [ ! -f "${d}/hack-onboard/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-onboard/.bundle-version" 2>/dev/null; then echo yes; fi
+-done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then echo yes; fi; } | head -n1)"
++  if [ ! -f "${d}/hack-os/SKILL.md" ] || ! grep -qx "$SKILLS_VERSION" "${d}/hack-os/.bundle-version" 2>/dev/null; then echo yes; fi
++done; if [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then echo yes; fi; } | head -n1)"
+@@ -188 +189 @@
+-  elif ask "Install the 12 hack-* skills into ${SKILL_DIRS}?"; then WANT_SKILLS=1
++  elif ask "Install the single hack-os skill into ${SKILL_DIRS}?"; then WANT_SKILLS=1
+@@ -205,2 +206,2 @@
+-    STGZ="${TMP}/hack-skills-${KANEHACK_VERSION}.tgz"
+-    if ! curl -fsSL --max-time 60 --retry 2 --retry-delay 2 --retry-connrefused -o "$STGZ" "${SITE}/hack-skills-${KANEHACK_VERSION}.tgz"; then fail hack_skills "download failed" "Check your network and re-run"; BAD=1
++    STGZ="${TMP}/hack-os-skills.tgz"
++    if ! curl -fsSL --max-time 60 --retry 2 --retry-delay 2 --retry-connrefused -o "$STGZ" "${SITE}/hack-os-skills-1.2.0.tgz"; then fail hack_skills "download failed" "Check your network and re-run"; BAD=1
+@@ -231 +232 @@
+-      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$KANEHACK_VERSION" > "${d}/hack-onboard/.bundle-version" || exit 1
++      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$SKILLS_VERSION" > "${d}/hack-os/.bundle-version" || exit 1
+@@ -236,2 +237,2 @@
+-    pass hack_skills "12 skills → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load them."
+-    if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then
++    pass hack_skills "1 skill → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load them."
++    if [ -f "${LEGACY_SKILLS}/hack-os/.bundle-version" ]; then
+@@ -356 +357 @@
+-if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-onboard'; fi
++if [ -n "$AGENTS_SHOWN" ]; then echo '  4. In a new Codex session type $hack-os'; fi

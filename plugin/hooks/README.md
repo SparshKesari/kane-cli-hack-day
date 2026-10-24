@@ -25,7 +25,7 @@ This is not a run report and never creates evidence, so it does not go to `/api/
 - run in the background without a visible "on" state (`kanehack hook status`)
 - stay on after `kanehack hook disable`
 
-## Example config (for when the endpoint exists)
+## Historical session-hook sketch (unvalidated; do not install)
 
 Codex `~/.codex/hooks.json`:
 
@@ -37,3 +37,7 @@ Codex `~/.codex/hooks.json`:
   }
 }
 ```
+
+## Required team-status reporting is a separate integration
+
+The event workflow now requires a current team lifecycle status POST after each team-scoped Codex turn. The endpoint will be supplied later. This is distinct from the optional general-purpose telemetry above: see `../skills/hack-os/references/after-turn-status.txt`. A supported host turn-completion adapter, allowed metadata schema, durable outbox and server acknowledgement are still pending. `SessionEnd` is not equivalent to turn completion; the historical sketch is not a supported or installed turn hook. No transcript/source/credential upload or automatic milestone/publication is authorized by status reporting.
