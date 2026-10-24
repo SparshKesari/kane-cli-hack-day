@@ -7,6 +7,7 @@ import type { DashboardData, Series } from "@/server/dashboard";
 import type { FeedItem } from "@/server/metrics";
 import type { OrgMetrics, RunStatus } from "@/server/orgMetrics";
 import { displayValue, type MetricName } from "./definitions";
+import { FINAL_STATS } from "./final-stats";
 import { PHASE_SPECS } from "./phases";
 
 // /dashboard (public). Layout from the Mission Control design: header with
@@ -101,7 +102,7 @@ export default function Dashboard({ initial }: { initial: DashboardData }) {
             <Image src="/icon.png" alt="" width={44} height={44} className="size-11 rounded-lg border border-[#2a2f55] bg-[#151935] p-1" />
             <div>
               <p className="text-base font-bold leading-none">
-                KANE CLI <span className="font-plex text-xs font-normal text-[#9a96c8]">{"// HACK 2026"}</span>
+                Kane CLI Hack Day <span className="font-plex text-xs font-normal text-[#9a96c8]">{"// 2026"}</span>
               </p>
               <p className={`${mono} mt-1 text-[10px] text-[#cfcaf3]`}>
                 Mission control <span className="text-[#6e6a9a]">/ &nbsp;{spec.kicker}</span>
@@ -169,6 +170,8 @@ export default function Dashboard({ initial }: { initial: DashboardData }) {
           <Tile icon="↗" tone="purple" label="Builds validated" value={val("builds_validated")} note="distinct commit SHAs" />
           <Tile icon="⌁" tone="amber" label="Potential detections" value={val("bugs_detected")} note="not confirmed bugs" />
         </section>
+
+        {data.final && <FinalNumbers final={data.final} tz={tz} />}
 
         <OrgUsage org={data.org} />
 
@@ -347,6 +350,27 @@ const STATUS_TONE: Record<RunStatus, string> = {
   Unknown: "bg-[#3a3870]",
 };
 const RUN_STATUSES = Object.keys(STATUS_TONE) as RunStatus[];
+
+const FINAL_ICONS = ["✎", "▶", "⌁", "◇", "◆", "⌖"] as const;
+const FINAL_TONES = ["green", "purple", "amber", "green", "purple", "amber"] as const;
+
+// The event's final Kane CLI numbers, participants' orgs only. Hidden until an organizer saves them.
+function FinalNumbers({ final, tz }: { final: NonNullable<DashboardData["final"]>; tz: string }) {
+  const t = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz, timeZoneName: "short" });
+  return (
+    <section aria-label="Final numbers" className="rounded-2xl border border-[#262b4d] bg-[#0f1228] p-5">
+      <div className={`${mono} mb-4 flex flex-wrap justify-between gap-2 text-[11px]`}>
+        <span className="font-semibold">Final numbers · Kane CLI, participants only</span>
+        <span className="text-[#8b7cf6]">to {t.format(new Date(final.window.to))}</span>
+      </div>
+      <div className="grid gap-px overflow-hidden rounded-xl border border-[#262b4d] bg-[#262b4d] sm:grid-cols-2 lg:grid-cols-3">
+        {FINAL_STATS.map((s, i) => (
+          <Tile key={s.key} icon={FINAL_ICONS[i]} tone={FINAL_TONES[i]} label={s.label} value={fmt(final.totals[s.key])} note={s.note} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 // TestMu AI Insights totals for the event orgs (server-fetched, cached 60s).
 function OrgUsage({ org }: { org: OrgMetrics | null }) {
