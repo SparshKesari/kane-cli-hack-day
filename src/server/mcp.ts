@@ -450,6 +450,21 @@ export function buildMcpServer(auth: BearerAuth) {
   });
 
   tool(
+    "team_invite_create",
+    {
+      title: "Create a team join code",
+      description: "A join code for your team, shown once: any current member, while seats remain and the roster is open. A teammate enters it with team_join. Needs explicit confirmation.",
+      input: { explicit_confirmation: confirmField },
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("team_invite_create", "Create a join code", "Create a join code for your team: anyone who has it can join until it expires or the roster is locked.", "team_match");
+      const r = await A.createTeamInvite(ctx);
+      const team = r.team?.name ?? "your team";
+      return { message: `Join code for ${team}: ${r.code} (until ${r.expires_at}). Give it only to your teammates; they enter it with $hack-os in their Codex.`, data: r, links: r.team ? [{ label: "Team hub", url: r.team.hub_url }] : [], uiType: "team_match", fallbackText: `Join code for ${team}: ${r.code}` };
+    },
+  );
+
+  tool(
     "team_lock",
     {
       title: "Lock the final team",
@@ -842,6 +857,7 @@ export const MCP_TOOL_NAMES = [
   "readiness_report",
   "team_create",
   "team_join",
+  "team_invite_create",
   "team_lock",
   "idea_save",
   "idea_validate",

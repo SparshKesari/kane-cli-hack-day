@@ -222,6 +222,14 @@ export async function createTeam(ctx: Ctx, input: z.infer<typeof teamCreateSchem
   return { id: r.slug, team_id: r.teamId, slug: r.slug, state: r.state, hub_url: `/t/${r.slug}`, server_time: r.receipt.server_time, receipt: r.receipt };
 }
 
+/** A join code for the caller's team, shown once: any current member, while seats remain and the roster is open (teams.ts). The tool asked first. */
+export async function createTeamInvite(ctx: Ctx) {
+  if (!ctx.member.team_id) throw new AppError("CONFLICT", { userMessage: "Create or join a team first." });
+  const r = await teams.createInvite({ member: ctx.member, actor: ctx.actor }, ctx.member.team_id, {});
+  const t = await teamRow(ctx.member.team_id);
+  return { code: r.code, expires_at: r.expiresAt, team: t ? { slug: t.slug, name: t.name, hub_url: `/t/${t.slug}` } : null, receipt: r.receipt };
+}
+
 /** Captain only: this is the final team (roster locked, recruiting off, open invites revoked). The tool asked first. */
 export async function lockTeam(ctx: Ctx) {
   if (!ctx.member.team_id) throw new AppError("CONFLICT", { userMessage: "Create or join a team first." });
