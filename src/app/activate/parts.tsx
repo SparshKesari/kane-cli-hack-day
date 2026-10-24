@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Label, inputCls } from "@/components/forms/fields";
 import type { ActivationStepId } from "@/data/activation-steps";
-import { claimPlanAction, codexCodeAction, retryTeamInvitesAction, tickAction, type ActState } from "./actions";
+import { claimPlanAction, retryTeamInvitesAction, tickAction, type ActState } from "./actions";
 
 // Small client controls for the /activate checklist. Each posts a server
 // action; the page re-renders from the database afterwards.
@@ -55,18 +55,6 @@ export function ClaimPlanButton({ retry, label }: { retry: boolean; label?: stri
       </Submit>
       {state?.outcome === "in_progress" && <p className="basis-full font-plex text-sm text-lightgray">{state.message}</p>}
       {state && !state.outcome && <Note state={state} />}
-    </form>
-  );
-}
-
-export function GetCodeButton() {
-  const [state, setState] = useState<ActState>(null);
-  return (
-    <form action={async () => setState(await codexCodeAction())} className="flex flex-wrap items-center gap-3">
-      <Submit className={primary} pending="Getting your code…">
-        Get my Codex credit code
-      </Submit>
-      <Note state={state} />
     </form>
   );
 }

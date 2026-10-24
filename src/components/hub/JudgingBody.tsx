@@ -1,7 +1,7 @@
 import Rubric from "@/components/judging/Rubric";
 import { Fold, SectionHeading } from "@/components/ui/Section";
 import StepBlock, { Checklist } from "@/components/ui/StepBlock";
-import { evaluations, judging } from "@/data/hackday";
+import { evaluations, judging, judgingCriteria } from "@/data/hackday";
 
 // Both table rounds, the rubric, and the stage format.
 export default function JudgingBody() {
@@ -21,7 +21,7 @@ export default function JudgingBody() {
       <Fold id="rubric">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div>
-            <SectionHeading eyebrow="Rubric" dim="Same rubric," bright="Every track." intro="Your harness and how it uses Kane carry the most weight." />
+            <SectionHeading eyebrow="Rubric" dim="Same rubric," bright="Every track." intro={`Four criteria, 25 points each. Three gates first: ${judgingCriteria.gates.items.join("; ")}. ${judgingCriteria.gates.note}`} />
             <p className="mt-6 max-w-xl font-plex text-sm leading-relaxed text-lightgray">{judging.eligibilityNote}</p>
           </div>
           <Rubric />

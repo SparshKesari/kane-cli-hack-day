@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Sign in", robots: { index: false } }
 export default function PersonalLoginPage({ searchParams }: PageProps<"/passport/login">) {
   return (
     <main>
-      <PageHeader eyebrow="Sign in" dim="Welcome back," bright="Just you." intro="Use the email and password from your profile. Forgot it, or never set one? The check-in desk can give you a one-time code." />
+      <PageHeader eyebrow="Sign in" dim="Welcome back," bright="Just you." intro="Use the email and password from your profile. Forgot it, or never set one? The help desk can give you a one-time code." />
       <section className="py-16 sm:py-20">
         <div className="container-page max-w-md space-y-8">
           <Suspense fallback={<PersonalLoginForm next="/me" />}>

@@ -12,6 +12,7 @@ import * as ideas from "./ideas";
 import * as passport from "./passport";
 import * as story from "./story";
 import { getSubmissionContext } from "./submission";
+import * as teamPage from "./team-page";
 import * as teams from "./teams";
 
 // Adapters the MCP server (src/server/mcp.ts) calls for tools owned by other
@@ -47,13 +48,12 @@ export async function participantStatus(m: MemberRow) {
     query<{ code: string; status: string }>("select code, status from help_tickets where member_id = $1 and status not in ('resolved','closed','duplicate') order by created_at desc limit 3", [m.id]),
   ]);
   const act = activation[0] ?? null;
-  const next = !m.checked_in_at
-    ? { id: "check_in", label: "Check in at the desk (or have staff admit you as a walk-in)", href: "/passport" }
-    : !team
-      ? { id: "find_team", label: "Create or join a team", href: "/match" }
-      : act?.status !== "active" && !m.activated_at
-        ? { id: "activate", label: "Finish activation", href: "/activate" }
-        : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
+  // No desk step on event day: the first thing to do is find a team.
+  const next = !team
+    ? { id: "find_team", label: "Create or join a team", href: "/match" }
+    : act?.status !== "active" && !m.activated_at
+      ? { id: "activate", label: "Finish activation", href: "/activate" }
+      : { id: "build", label: "Report a Kane run from your harness", href: `/t/${team.slug}/proof` };
   return {
     member: { public_code: m.public_code, name: m.display_name ?? m.name, role: m.role, checked_in: !!m.checked_in_at, activated: !!m.activated_at },
     team: team ? { slug: team.slug, name: team.name, state: team.state, hub_url: `/t/${team.slug}` } : null,
@@ -474,3 +474,18 @@ export async function applyRenderCallback(input: z.infer<typeof renderCallbackSc
     return { result: { applied: true, status: input.status }, resourceId: input.job_id, payload: { delivery: deliveryId } };
   });
 }
+
+// ── team page (→ src/server/team-page.ts) ────────────────────────────────────
+
+/** team_page_get: the caller's team page, or a named team's (its members only). */
+export async function teamPageGet(ctx: Ctx, team?: string) {
+  return teamPage.getTeamPage(teamPage.mcpTeamRef(ctx.member, team), pageCaller(ctx));
+}
+
+/** team_page_update: the same idempotent upsert as PUT /api/v1/teams/{id|slug}/page. */
+export async function teamPageUpdate(ctx: Ctx, input: { team?: string } & Record<string, unknown>) {
+  const { team, ...body } = input;
+  return teamPage.updateTeamPage(teamPage.mcpTeamRef(ctx.member, team), pageCaller(ctx), body);
+}
+
+const pageCaller = (ctx: Ctx): teamPage.PageCaller => ({ member: ctx.member, staff: null, actor: ctx.actor, source: "mcp" });

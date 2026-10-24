@@ -9,7 +9,7 @@ import { displayValue, METRICS, type MetricName, type MetricValue } from "./defi
 // strip says so instead of showing zeros. Wrap in <Suspense> (it reads the DB
 // at request time).
 
-const SHOWN: MetricName[] = ["participants_checked_in", "teams_active", "kane_executions", "submissions_finalized"];
+const SHOWN: MetricName[] = ["participants_registered", "teams_active", "kane_executions", "submissions_finalized"];
 
 export default async function HomeStats() {
   await connection();

@@ -156,3 +156,9 @@ export function inspectEvidence(input: { kind: EvidenceKind; name: string; claim
 export function evidenceKindFor(kind: EvidenceKind, name: string): EvidenceKind {
   return extOf(name) === KANE_PACK_EXT ? "zip" : kind;
 }
+
+/** Whether the bytes carry the signature of this exact extension (an image or video type). */
+export function magicMatches(ext: string, b: Buffer) {
+  const check: Record<string, (b: Buffer) => boolean> = { png: isPng, jpg: isJpeg, jpeg: isJpeg, webp: isWebp, mp4: isMp4, webm: isWebm };
+  return !!check[ext]?.(b);
+}

@@ -3,7 +3,7 @@
  "info": {
   "title": "KANE HACK OS API",
   "version": "2.5.0",
-  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**140 operations**: 92 live in production, 24 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
+  "description": "Every Hack OS operation: the Codex skills, `kanehack` CLI, MCP and the website all call these.\n\n**147 operations**: 92 live in production, 31 new on this branch, 24 planned (return 501).\n\n### TestMu AI access key\nWhen `TESTMU_KEY_REQUIRED=true`, every non-public operation needs a TestMu AI access key:\n- **Browser:** connect once at `/api/v1/auth/testmu/start`. TestMu AI redirects back with the key, we verify it and set the `hd_testmu` cookie (the key itself is never stored).\n- **CLI / agents:** send `X-TestMu-Username` and `X-TestMu-Access-Key` (or `Authorization: Basic base64(username:access_key)`).\n\nA pairing bearer token (`kanehack pair`) still says *who* you are; the TestMu key says the call is allowed at all. Send both headers if you use both.\n\n### Envelope\nEvery JSON response uses the same envelope (`status`, `message`, `data`, `actions`, `error`, `fallback.text`…). Errors carry `error.code`, `next_action` and a `manual_route` web fallback."
  },
  "servers": [
   {
@@ -36,6 +36,9 @@
   },
   {
    "name": "event"
+  },
+  {
+   "name": "evidence"
   },
   {
    "name": "export"
@@ -2460,6 +2463,474 @@
     "x-status": "new",
     "x-access": "public",
     "security": []
+   }
+  },
+  "/api/v1/evidence/public": {
+   "get": {
+    "tags": [
+     "evidence"
+    ],
+    "operationId": "get_api_v1_evidence_public",
+    "summary": "[new] the team's public evidence objects, any status, newest first.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/evidence/public/route.ts`\n\n```text\nGET /api/v1/evidence/public: the team's public evidence objects, any status, newest first.\n  Team members see their own project. Judges, mentors and organizers pass ?project_id=.\n  Each object: { object_id, kind, status, sha256, size_bytes, content_type, filename, public_url,\n  run_id, commit_sha, reject_reason, upload_expires_at, created_at, completed_at, removed_at }.\n```",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ]
+   }
+  },
+  "/api/v1/evidence/public/{id}": {
+   "get": {
+    "tags": [
+     "evidence"
+    ],
+    "operationId": "get_api_v1_evidence_public_id",
+    "summary": "[new] read one public evidence object, or unpublish it.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/evidence/public/[id]/route.ts`\n\n```text\nGET|DELETE /api/v1/evidence/public/{PE-n}: read one public evidence object, or unpublish it.\n  GET     the object and its status (the team, or judges, mentors and organizers).\n  DELETE  { reason? }: a team member before the submission lock, an organizer at any time.\n          Deletes the public object and sets status removed.\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ]
+   },
+   "delete": {
+    "tags": [
+     "evidence"
+    ],
+    "operationId": "delete_api_v1_evidence_public_id",
+    "summary": "[new] read one public evidence object, or unpublish it.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/evidence/public/[id]/route.ts`\n\n```text\nGET|DELETE /api/v1/evidence/public/{PE-n}: read one public evidence object, or unpublish it.\n  GET     the object and its status (the team, or judges, mentors and organizers).\n  DELETE  { reason? }: a team member before the submission lock, an organizer at any time.\n          Deletes the public object and sets status removed.\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ]
+   }
+  },
+  "/api/v1/evidence/public/uploads": {
+   "post": {
+    "tags": [
+     "evidence"
+    ],
+    "operationId": "post_api_v1_evidence_public_uploads",
+    "summary": "[new] get a presigned S3 PUT for one participant-approved public file.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/evidence/public/uploads/route.ts`\n\n```text\nPOST /api/v1/evidence/public/uploads: get a presigned S3 PUT for one participant-approved public file.\n  { kind, filename, content_type, size_bytes, sha256, run_id? | kane_execution_id?, commit_sha?,\n    participant_approved: true, idempotency_key }   (or the Idempotency-Key header)\n  → { object_id: \"PE-n\", status: \"upload_required\", method: \"PUT\", url, headers, expires_at, max_bytes }\n  or { object_id, status: \"exists\", public_url, … } when the team already published this sha256.\nTeam members only. The URL lasts 10 minutes and signs content-type, content-length and\nx-amz-checksum-sha256, so S3 refuses any other body. Contract: docs/api/PUBLIC_EVIDENCE.md.\n```",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
+  "/api/v1/evidence/public/uploads/{id}/complete": {
+   "post": {
+    "tags": [
+     "evidence"
+    ],
+    "operationId": "post_api_v1_evidence_public_uploads_id_complete",
+    "summary": "[new] check the PUT bytes and publish them.",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/evidence/public/uploads/[id]/complete/route.ts`\n\n```text\nPOST /api/v1/evidence/public/uploads/{PE-n}/complete: check the PUT bytes and publish them.\n  → { object_id, status: \"public\", public_url, sha256, size_bytes, content_type, kind, run_id, commit_sha, receipt }\nThe server re-reads the upload, re-hashes it, checks the type and scans text for credentials.\nA failed check rejects these bytes for good (VALIDATION_FAILED with the reason). A missing\nupload is NOT_FOUND and stays pending. Completing a public object returns the same receipt.\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
    }
   },
   "/api/v1/help": {
@@ -11038,6 +11509,203 @@
      }
     },
     "x-status": "live",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "additionalProperties": true
+       }
+      }
+     },
+     "description": "JSON object; fields are listed in the description above."
+    }
+   }
+  },
+  "/api/v1/teams/{id}/page": {
+   "get": {
+    "tags": [
+     "teams"
+    ],
+    "operationId": "get_api_v1_teams_id_page",
+    "summary": "[new] The team submission page, shown at /ship/{slug} (contract: docs/api/TEAM_PAGE.md)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/teams/[id]/page/route.ts`\n\n```text\nGET|PUT /api/v1/teams/{id|slug}/page   The team submission page, shown at /ship/{slug} (contract: docs/api/TEAM_PAGE.md)\n  GET  readback: canonical_url, visibility, page_version, every field, resolved\n       public evidence, one_pager_url and statuses. Team members and staff.\n  PUT  idempotent upsert, every field optional (omitted = unchanged, null = clears):\n       { repo_url, commit_sha, one_pager_html, video: {public_evidence_id} | {url},\n         deck: {version} | {hosted: true}, evidence_ids: [\"PE-n\"], kane_run_ids,\n         share_links, expected_version, idempotency_key } (or the Idempotency-Key header).\n       Team members, or organizers (also after the lock). Stale expected_version → 409.\n       Never publishes: a person publishes in the browser (actions[].requires_human_confirmation).\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
+    "x-access": "testmu",
+    "security": [
+     {
+      "testmuKey": [],
+      "testmuUser": []
+     },
+     {
+      "testmuBasic": []
+     },
+     {
+      "testmuCookie": []
+     },
+     {
+      "staffCookie": []
+     }
+    ]
+   },
+   "put": {
+    "tags": [
+     "teams"
+    ],
+    "operationId": "put_api_v1_teams_id_page",
+    "summary": "[new] The team submission page, shown at /ship/{slug} (contract: docs/api/TEAM_PAGE.md)",
+    "description": "**Status:** NEW on testmu-api  \n**Access:** Requires a TestMu AI access key when TESTMU_KEY_REQUIRED=true: the hd_testmu cookie (browser), X-TestMu-Username + X-TestMu-Access-Key, or Basic auth. Staff cookies also pass. The handler then checks who you are (member, bearer token or staff role).  \n**Plan v2.5:** not in the plan (site-specific).  \n**Source:** `src/app/api/v1/teams/[id]/page/route.ts`\n\n```text\nGET|PUT /api/v1/teams/{id|slug}/page   The team submission page, shown at /ship/{slug} (contract: docs/api/TEAM_PAGE.md)\n  GET  readback: canonical_url, visibility, page_version, every field, resolved\n       public evidence, one_pager_url and statuses. Team members and staff.\n  PUT  idempotent upsert, every field optional (omitted = unchanged, null = clears):\n       { repo_url, commit_sha, one_pager_html, video: {public_evidence_id} | {url},\n         deck: {version} | {hosted: true}, evidence_ids: [\"PE-n\"], kane_run_ids,\n         share_links, expected_version, idempotency_key } (or the Idempotency-Key header).\n       Team members, or organizers (also after the lock). Stale expected_version → 409.\n       Never publishes: a person publishes in the browser (actions[].requires_human_confirmation).\n```",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Retries with the same key return the original result."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Envelope with status ok | needs_action | partial.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validation failed or a business rule refused it (envelope.error.code says which).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "TESTMU_KEY_REQUIRED (no or bad TestMu key) or UNAUTHENTICATED (not signed in).",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "FORBIDDEN, CONSENT_REQUIRED or similar.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "TESTMU_UNAVAILABLE or FEATURE_DISABLED.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope"
+        }
+       }
+      }
+     }
+    },
+    "x-status": "new",
     "x-access": "testmu",
     "security": [
      {

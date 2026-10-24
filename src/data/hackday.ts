@@ -15,7 +15,7 @@ export const event = {
 };
 
 export const ctas = {
-  register: { label: "Checked in? Start here →", href: "/register" },
+  register: { label: "Start here →", href: "/register" },
   login: { label: "Sign in", href: "/passport/login" },
 } satisfies Record<string, Link>;
 
@@ -31,7 +31,7 @@ export const setup: { id: string; title: string; body: string; value?: string; l
     body: "Use your registration email at testmuai.com. Your OpenAI credits and KaneAI Pro are matched by email.",
     link: { label: "testmuai.com", href: "https://www.testmuai.com" },
   },
-  { id: "coupon", title: "Redeem your OpenAI coupon", body: "[steps]" },
+  { id: "coupon", title: "Redeem your OpenAI coupon", body: "It comes by email to the address you registered with. Open it and follow its steps to add the credits to your OpenAI account." },
   {
     id: "install",
     title: "Set up your agent",
@@ -62,7 +62,7 @@ export type Slot = {
 };
 
 export const schedule: Slot[] = [
-  { start: "09:30", end: "10:15", title: "Check-in, breakfast", key: true },
+  { start: "09:30", end: "10:15", title: "Arrival, breakfast", key: true },
   { start: "10:15", end: "11:00", title: "Kickoff", note: "Kane CLI x OpenAI loop demo", key: true },
   { start: "11:00", title: "Team registration closes. Hackathon begins", deadline: true, href: "/submit#team", key: true },
   { start: "12:00", title: "Idea submission locks", deadline: true, href: "/submit#idea" },
@@ -294,47 +294,101 @@ export const evaluations = {
   },
 };
 
+// The published judging rubric: three gates, four criteria at 25 each. The
+// homepage fold shows it in full; `judging.rubric` below is built from it, so
+// the judge scorecard scores exactly what participants read.
+export const judgingCriteria = {
+  intro:
+    "Four criteria, 25 points each, 100 total. Every track is scored on the same rubric. Judges score at your table in the final evaluation round and again on stage for the top seven. GTM is scored from the links in your submission after submissions lock.",
+  gates: {
+    title: "Before scoring, three gates",
+    items: ["Code written today, repo public", "OpenAI used in the build", "Kane CLI evidence pack attached to your submission"],
+    note: "Miss a gate and you still demo and get feedback, but you cannot place.",
+  },
+  criteria: [
+    {
+      n: "01",
+      key: "kane_usage",
+      label: "Kane usage",
+      title: "Kane CLI usage and uniqueness of usage",
+      points: 25,
+      lead: "Kane doing real work in your project, not a check added at the end.",
+      parts: [
+        { name: "Proof, not presence", points: 8, body: "A failed run that found a bug plus the green rerun, or a green run across the real user journey. One login check scores low." },
+        { name: "Agent and Kane talked", points: 9, body: "Your coding agent ran Kane (skill or --agent), read the result, and changed what it did next. Visible in commits or run history." },
+        {
+          name: "Range",
+          points: 8,
+          body: "Credit for going past kane-cli run: tests as _test.md committed and replayed, generate or the assurance loop (ingest a spec, design tests, cover), exploration, mobile, API calls inside an objective, DevTools assertions, CI, or Kane used as part of the product itself (a gate, a grader, the eyes of another agent).",
+        },
+      ],
+    },
+    {
+      n: "02",
+      key: "idea",
+      label: "Idea",
+      title: "Uniqueness of idea",
+      points: 25,
+      parts: [
+        { name: "Problem is real and nameable", points: 7, body: "Who has it, why it hurts, in one sentence." },
+        { name: "Originality", points: 10, body: "Judged against the room and what already ships. A new angle on a known problem sits mid-band." },
+        { name: "Needs verification", points: 8, body: "Ideas where an untested agent would plausibly ship something broken, and Kane makes that visible, score highest. Testing that is decorative scores low." },
+      ],
+    },
+    {
+      n: "03",
+      key: "completion",
+      label: "Completion",
+      title: "Completion",
+      points: 25,
+      parts: [
+        { name: "Works live, end to end", points: 12, body: "A user loads it, completes the main flow, gets a result. Video-only or slides-only caps at 4." },
+        { name: "Scope honesty", points: 6, body: "What you claimed matches what runs." },
+        { name: "Repo quality", points: 7, body: "README with a run command, someone could clone it tonight, tests and evidence pack in the repo." },
+      ],
+    },
+  ],
+  gtm: {
+    n: "04",
+    key: "gtm",
+    label: "GTM",
+    title: "GTM",
+    points: 25,
+    when: "Scored from your submission links after lock",
+    lead: "Points are earned per asset. Each must be live and linked in your submission.",
+    assets: [
+      { asset: "Demo video with voiceover", points: 7, full: "2 to 4 minutes, leads with the Kane run report, shows one real flow, says what Kane caught. Voiceover required, editing not." },
+      { asset: "Deck", points: 4, full: "Problem, build, Kane in the loop, demo, what is next. Hosted or shared link." },
+      { asset: "Blog post", points: 4, full: "Explains the problem, the build, and what Kane caught, with the evidence pack or run screenshots. dev.to, Medium, Hashnode or your own site." },
+      { asset: "LinkedIn post", points: 3, full: "Tags the official TestMu AI LinkedIn page and uses the event hashtag. Multiple posts welcome; share every link, the best one is scored." },
+      { asset: "X post", points: 3, full: "Tags @kane_cli and uses the event hashtag. Threads count as one post; share every link." },
+      { asset: "Hacker News post", points: 2, full: "Show HN in your own words from your own account, links to your repo or demo. A flagged post still earns the points if the link is shared." },
+      { asset: "Reach bonus", points: 2, full: "Any reply, repost or comment from outside your team on any of the above by the time judges review." },
+    ],
+  },
+};
+
 export const judging = {
   shortlist: "Top 7 from the 4:00 scores, confirmed against the finalized submissions at 6:00.",
   stage: { demo: "3-minute demo", qa: "2 minutes of questions" },
-  // EVALUATION.md (D3). `key` is what judge_scores.category_scores stores;
-  // `label` is short enough for the Themis scale; `name` is the full category.
-  rubricVersion: "kane-hack-os-eval@1",
+  // `key` is what judge_scores.category_scores stores; `label` is short enough
+  // for the Themis scale; `inspect` lists the weighted parts judges look for.
+  // @2 is the 4 × 25 rubric (judgingCriteria); @1 was EVALUATION.md's 30/25/20/15/10.
+  rubricVersion: "kane-hack-os-eval@2",
   rubric: [
+    ...judgingCriteria.criteria.map((c) => ({
+      key: c.key,
+      label: c.label,
+      name: c.title,
+      points: c.points,
+      inspect: c.parts.map((p) => `${p.name} (${p.points})`).join(" · "),
+    })),
     {
-      key: "harness_kane",
-      label: "Harness + Kane",
-      name: "Harness innovation and Kane integration",
-      points: 30,
-      inspect: "Composability, relevance, original verification architecture, reusable decisions",
-    },
-    {
-      key: "validation_evidence",
-      label: "Validation proof",
-      name: "Validation quality and evidence",
-      points: 25,
-      inspect: "Real assertions, verifiable runs, traceability, bugs and gaps correctly identified",
-    },
-    {
-      key: "shipping_velocity",
-      label: "Ship velocity",
-      name: "Shipping velocity and automation",
-      points: 20,
-      inspect: "Closed loop, targeted checks, less manual effort, credible measured value",
-    },
-    {
-      key: "technical_execution",
-      label: "Tech execution",
-      name: "Technical execution and reliability",
-      points: 15,
-      inspect: "Functional creation, reproducible demo, resilience to common failures",
-    },
-    {
-      key: "creativity_demo",
-      label: "Creativity + demo",
-      name: "Creativity and demonstration",
-      points: 10,
-      inspect: "Novelty, clarity, demonstration quality and importance of the use case",
+      key: judgingCriteria.gtm.key,
+      label: judgingCriteria.gtm.label,
+      name: judgingCriteria.gtm.title,
+      points: judgingCriteria.gtm.points,
+      inspect: `${judgingCriteria.gtm.when}, per asset: ` + judgingCriteria.gtm.assets.map((a) => `${a.asset} (${a.points})`).join(" · "),
     },
   ],
   // Each category gets one anchor; points = anchor × weight / 5.

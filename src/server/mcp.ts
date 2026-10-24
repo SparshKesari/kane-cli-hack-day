@@ -10,6 +10,18 @@ import { AppError, parse, serverNow, siteUrl, toAppError, toEnvelope, z, zx, typ
 import { tokenActor, type BearerAuth } from "./auth";
 import { KANE_CAPABILITIES, proposeMilestone, recordRun, type KaneCaller } from "./kane";
 import * as A from "./mcp-adapters";
+import { PUBLIC_EVIDENCE_KINDS } from "./public-evidence";
+import {
+  completePublicEvidenceUpload,
+  listPublicEvidenceObjects,
+  objectsEnvelope,
+  receiptEnvelope,
+  removalEnvelope,
+  removePublicEvidence,
+  requestPublicEvidenceUpload,
+  uploadEnvelope,
+} from "./public-evidence-upload";
+import { teamPageEnvelope } from "./team-page";
 
 // The event MCP server (T-MCP-01…05). One McpServer per request (stateless
 // Streamable HTTP), bound to the member behind the bearer token from pairing.
@@ -159,7 +171,7 @@ export function buildMcpServer(auth: BearerAuth) {
       actions: [{ id: s.next_action.id, label: s.next_action.label, requires_human_confirmation: false, href: siteUrl(s.next_action.href) }],
       links: [{ label: "Open my passport", url: "/passport" }, ...(s.team ? [{ label: "Team hub", url: s.team.hub_url }] : [])],
       uiType: "builder_passport",
-      fallbackText: `${s.member.name} · ${s.member.checked_in ? "checked in" : "not checked in"} · ${s.team ? `team ${s.team.name}` : "no team"} · next: ${s.next_action.label} (${siteUrl(s.next_action.href)})`,
+      fallbackText: `${s.member.name} · ${s.team ? `team ${s.team.name}` : "no team"} · next: ${s.next_action.label} (${siteUrl(s.next_action.href)})`,
     };
   });
 
@@ -638,6 +650,93 @@ export function buildMcpServer(auth: BearerAuth) {
     },
   );
 
+  tool(
+    "public_evidence_request_upload",
+    {
+      title: "Request a public evidence upload",
+      description:
+        "Get a presigned S3 PUT for one participant-approved, public-safe file: screenshot, video, ndjson, report, testmd or log. Kane packs, HAR, HTML, SVG and PDF are refused. PUT the bytes with exactly data.headers before data.expires_at, then call public_evidence_complete. The same sha256 is the same object. Request again for a fresh URL.",
+      input: {
+        project_id: zx.id.optional(),
+        kind: z.enum(PUBLIC_EVIDENCE_KINDS),
+        filename: z.string(),
+        content_type: z.string(),
+        size_bytes: z.number().int().positive(),
+        sha256: z.string(),
+        run_id: z.union([z.number().int().positive(), z.string()]).optional(),
+        kane_execution_id: z.string().optional(),
+        commit_sha: z.string().optional(),
+        participant_approved: z.boolean().describe("Send true only after the participant approved publishing this exact file for anyone to read."),
+        idempotency_key: z.string().min(8).max(200),
+      },
+    },
+    async (args, ctx) => uploadEnvelope(await requestPublicEvidenceUpload(caller, args, { requestId: ctx.requestId })),
+  );
+
+  tool(
+    "public_evidence_complete",
+    {
+      title: "Complete a public evidence upload",
+      description: "After the PUT: the server re-hashes the upload, checks its type and scans text for credentials, then publishes it and returns the public URL. A failed check rejects those bytes for good.",
+      input: { object_id: z.string().trim().max(40) },
+    },
+    async (args, ctx) => receiptEnvelope(await completePublicEvidenceUpload(caller, args.object_id, { requestId: ctx.requestId })),
+  );
+
+  tool(
+    "public_evidence_list",
+    { title: "List public evidence", description: "Your team's public evidence objects with status (pending, public, rejected, removed) and public URLs.", input: {}, readOnly: true },
+    async () => objectsEnvelope((await listPublicEvidenceObjects(caller)).objects),
+  );
+
+  tool(
+    "public_evidence_remove",
+    {
+      title: "Remove public evidence",
+      description: "Unpublish one public evidence object (the public link stops working). Works before the submission lock and needs explicit confirmation.",
+      input: { object_id: z.string().trim().max(40), reason: z.string().max(300).optional(), explicit_confirmation: confirmField },
+      destructive: true,
+    },
+    async (args, ctx) => {
+      if (args.explicit_confirmation !== true) return confirmFirst("public_evidence_remove", `Remove ${args.object_id}`, `Remove ${args.object_id} from the public bucket. Its public link stops working.`, "kane_run", { object_id: args.object_id });
+      return removalEnvelope(await removePublicEvidence(caller, args.object_id, { reason: args.reason }, { requestId: ctx.requestId }));
+    },
+  );
+
+  tool(
+    "team_page_get",
+    {
+      title: "Get team page",
+      description: "Read the team submission page (shown at /ship/{slug}): canonical URL, visibility, page_version, repo, one-pager, video, deck, public evidence, Kane runs, share links and statuses. Contract: docs/api/TEAM_PAGE.md.",
+      input: { team: z.string().trim().max(64).optional().describe("Team id or slug. Defaults to your own team.") },
+      readOnly: true,
+    },
+    async (args, ctx) => A.teamPageGet(ctx, args.team).then(teamPageEnvelope),
+  );
+
+  tool(
+    "team_page_update",
+    {
+      title: "Update team page",
+      description:
+        "Idempotent upsert of the team submission page. Every field is optional: omitted stays, null clears. Pass expected_version from team_page_get and an idempotency_key so a retry returns the same receipt. Never publishes: a teammate publishes in the browser.",
+      input: {
+        team: z.string().trim().max(64).optional().describe("Team id or slug. Defaults to your own team."),
+        repo_url: z.string().nullable().optional().describe("https://github.com/{owner}/{repo}"),
+        commit_sha: z.string().nullable().optional().describe("Full 40-hex commit SHA"),
+        one_pager_html: z.string().nullable().optional().describe("Self-contained HTML, up to 256 KB. Served sandboxed at /ship/{slug}/one-pager."),
+        video: z.object({ public_evidence_id: z.string().optional(), url: z.string().optional() }).nullable().optional().describe("{public_evidence_id: \"PE-n\"} of kind video, or {url} on youtube.com, youtu.be, loom.com or vimeo.com"),
+        deck: z.object({ deck_id: z.number().int().optional(), version: z.number().int().optional(), hosted: z.boolean().optional() }).nullable().optional().describe("{version} of a saved deck, or {hosted: true} for /ship/{slug}/deck"),
+        evidence_ids: z.array(z.string()).nullable().optional().describe("Public evidence ids (PE-n) of this team"),
+        kane_run_ids: z.array(z.union([z.number().int(), z.string()])).nullable().optional().describe("This team's Kane runs (12 or KR-12)"),
+        share_links: z.array(z.string()).nullable().optional().describe("TestMu AI / Kane share links (https on lambdatest.com or testmuai.com). They expire after 7 days."),
+        expected_version: z.number().int().min(0).optional(),
+        idempotency_key: z.string().min(8).max(200).optional(),
+      },
+    },
+    async (args, ctx) => A.teamPageUpdate(ctx, args).then(teamPageEnvelope),
+  );
+
   return server;
 }
 
@@ -674,4 +773,10 @@ export const MCP_TOOL_NAMES = [
   "deck_update",
   "showcase_publish",
   "social_draft",
+  "public_evidence_request_upload",
+  "public_evidence_complete",
+  "public_evidence_list",
+  "public_evidence_remove",
+  "team_page_get",
+  "team_page_update",
 ] as const;

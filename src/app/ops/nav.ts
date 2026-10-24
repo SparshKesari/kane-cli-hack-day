@@ -4,7 +4,6 @@ import type { StaffRole } from "@/server/core";
 // Pages enforce this themselves with requireRole(); the nav only hides links.
 export const OPS_NAV: { href: string; label: string; roles: StaffRole[] }[] = [
   { href: "/ops", label: "Overview", roles: ["organizer"] },
-  { href: "/ops/checkin", label: "Check-in", roles: ["organizer", "mentor"] },
   { href: "/ops/roster", label: "Roster", roles: ["organizer"] },
   { href: "/ops/matchmaking", label: "Matchmaking", roles: ["organizer"] },
   { href: "/ops/activation", label: "Activation", roles: ["organizer"] },

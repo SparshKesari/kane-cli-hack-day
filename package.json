@@ -14,6 +14,9 @@
     "docs:api": "node --import ./tests/support/register.mjs scripts/gen-openapi.mts"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudfront": "^3.1156.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@vercel/blob": "^2.8.2",
     "@vercel/functions": "^3.10.2",

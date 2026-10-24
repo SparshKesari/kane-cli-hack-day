@@ -74,6 +74,18 @@ const nextConfig: NextConfig = {
       // browsers show them and PowerShell's irm decodes them as text (✓ marks included).
       { source: "/install.sh", headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }] },
       { source: "/install.ps1", headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }] },
+      // A team's one-pager (docs/api/TEAM_PAGE.md) gets the deck's custom-HTML sandbox (deck.ts sandboxDoc) plus https media.
+      {
+        source: "/ship/:slug/one-pager",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value:
+              "sandbox allow-scripts; default-src 'none'; img-src data: https:; media-src data: https:; style-src 'unsafe-inline'; font-src data:; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'self'; base-uri 'none'",
+          },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
     ];
   },
   turbopack: {

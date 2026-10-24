@@ -466,7 +466,7 @@ export async function checkGithubCommit(repoUrl: string | null, sha: string | nu
 // ── Clock ───────────────────────────────────────────────────────────────────
 
 /** Inside a transaction: is the submission window closed, by the DB clock? */
-async function lockState(db: Db) {
+export async function lockState(db: Db) {
   const [row] = await rowsOf<{ now: Date; locks_at: Date; locked: boolean }>(
     db,
     "select now() as now, submission_locks_at as locks_at, now() >= submission_locks_at as locked from hack_events where id = current_event_id()",
@@ -475,7 +475,7 @@ async function lockState(db: Db) {
   return row;
 }
 
-const lockedError = (c: { now: Date; locks_at: Date }) =>
+export const lockedError = (c: { now: Date; locks_at: Date }) =>
   new AppError("SUBMISSION_LOCKED", {
     userMessage: `Submissions locked at ${new Date(c.locks_at).toISOString()} (server time). Server time now: ${new Date(c.now).toISOString()}.`,
     details: { locks_at: new Date(c.locks_at).toISOString(), server_time: new Date(c.now).toISOString() },
@@ -1057,3 +1057,42 @@ export async function recordManualReceipt(staff: Staff, input: unknown, timezone
 }
 
 export type { MemberRow };
+
+// ── Team page (team-page.ts) ────────────────────────────────────────────────
+
+export type DraftPatch = Partial<Pick<SubmissionDraft, "repo_url" | "commit_sha" | "video_url" | "kane_run_ids">>;
+
+/**
+ * Inside the caller's transaction: merge page fields into the team's draft,
+ * the same row the Submit tab edits. Nothing is written when nothing changes.
+ * A change to a finalized submission is refused.
+ */
+export async function patchDraftTx(tx: PoolClient, project: ProjectRow, patch: DraftPatch, source: "web" | "mcp") {
+  const current = await currentSubmission(tx, project.id, true);
+  const live = current && current.status !== "withdrawn" ? current : null;
+  const base = current ? normalizeDraft(current.draft) : prefill(project, await progressDone(tx, project.team_id));
+  const changed = (Object.keys(patch) as (keyof DraftPatch)[]).filter((k) => stableStringify(patch[k]) !== stableStringify(base[k]));
+  if (!changed.length) return { submissionId: live ? Number(live.id) : null, changed, before: {}, after: {} };
+  if (live && isFrozen(live.status)) {
+    throw new AppError("CONFLICT", { userMessage: `Already finalized as ${live.receipt_code}. The submission can't change.`, details: { receipt_code: live.receipt_code, fields: changed } });
+  }
+  const draft: SubmissionDraft = { ...base, ...patch };
+  if (changed.includes("kane_run_ids") && draft.kane_run_ids.length) {
+    const ok = await rowsOf<{ id: number }>(tx, "select id from kane_runs where project_id = $1 and id = any($2::bigint[])", [project.id, draft.kane_run_ids]);
+    if (ok.length !== new Set(draft.kane_run_ids).size) throw new AppError("VALIDATION_FAILED", { userMessage: "One of the linked Kane runs isn't from this project." });
+  }
+  let id: number;
+  if (live) {
+    await tx.query("update submissions set draft = $2, status = 'draft', preflight = null where id = $1", [live.id, JSON.stringify(draft)]);
+    id = Number(live.id);
+  } else {
+    const { rows } = await tx.query<{ id: number }>(
+      `insert into submissions (project_id, team_id, status, draft, source, supersedes_id) values ($1, $2, 'draft', $3, $4, $5) returning id`,
+      [project.id, project.team_id, JSON.stringify(draft), source, current?.id ?? null],
+    );
+    id = Number(rows[0].id);
+  }
+  if (changed.includes("repo_url")) await tx.query("update projects set repo_url = $2, updated_at = now() where id = $1", [project.id, draft.repo_url]);
+  const pick = (d: SubmissionDraft) => Object.fromEntries(changed.map((k) => [k, d[k]]));
+  return { submissionId: id, changed, before: pick(base), after: pick(draft) };
+}

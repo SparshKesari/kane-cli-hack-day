@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import DegradedServiceAlert from "@/components/ui/DegradedServiceAlert";
 import { Eyebrow } from "@/components/ui/Section";
 import StatusPill from "@/components/ui/StatusPill";
-import { formatEventTime, getEvent } from "@/lib/event";
 import { getStaff } from "@/server/auth";
 import { getPassport, resolveBadgeToken, toPublicPassport } from "@/server/passport";
 import { BackSection, Chips, PassportBack, PassportFront } from "../../PassportCard";
@@ -13,7 +12,7 @@ export const metadata: Metadata = { title: "Badge", robots: { index: false, foll
 
 // What a badge QR opens. Anyone: the public passport (allow-listed DTO, no
 // email, no P-code, portrait only with consent). Staff: also the offline ID
-// and admission state, with a link to the check-in desk. Revoked, expired or
+// and admission state. Revoked, expired or
 // forged tokens fail closed.
 
 export default function BadgeScanPage({ params }: PageProps<"/passport/b/[token]">) {
@@ -42,7 +41,7 @@ async function Scan({ params }: Pick<PageProps<"/passport/b/[token]">, "params">
       </DegradedServiceAlert>
     );
   }
-  const [p, staff, ev] = await Promise.all([getPassport(hit.memberId), getStaff(), getEvent()]);
+  const [p, staff] = await Promise.all([getPassport(hit.memberId), getStaff()]);
   const pub = toPublicPassport(p);
 
   return (
@@ -77,17 +76,10 @@ async function Scan({ params }: Pick<PageProps<"/passport/b/[token]">, "params">
                 <dd>{p.member.admission_state.replace(/_/g, " ")}</dd>
               </div>
               <div>
-                <dt className="text-xs text-lightgray">Checked in</dt>
-                <dd>{p.member.checked_in_at ? formatEventTime(p.member.checked_in_at, ev) : "Not yet"}</dd>
-              </div>
-              <div>
                 <dt className="text-xs text-lightgray">Help</dt>
                 <dd>{p.help ? `${p.help.code} · ${p.help.status}` : "None open"}</dd>
               </div>
             </dl>
-            <Link href={`/ops/checkin?q=${encodeURIComponent(p.member.public_code ?? "")}`} className="mt-4 inline-flex min-h-11 items-center bg-bright px-4 text-ink hover:bg-lime">
-              Open in check-in →
-            </Link>
           </section>
         )}
         <div className="flex flex-wrap gap-2">

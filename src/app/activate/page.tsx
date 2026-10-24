@@ -6,14 +6,14 @@ import Button from "@/components/ui/Button";
 import CopyField from "@/components/ui/CopyField";
 import GreetingHeader from "@/components/ui/GreetingHeader";
 import StatusPill from "@/components/ui/StatusPill";
-import { ACTIVATION_STEPS, CODEX_REDEEM_INSTRUCTIONS, CODEX_REDEEM_URL, PLAN_MESSAGES, TESTMU_SIGNUP_URL, isPlaceholder, type ActivationStepId } from "@/data/activation-steps";
+import { ACTIVATION_STEPS, CODEX_BY_EMAIL, PLAN_MESSAGES, TESTMU_SIGNUP_URL, type ActivationStepId } from "@/data/activation-steps";
 import { getPersonalMember } from "@/server/auth";
 import { claimsOffHere, getActivationView, planClaimedMessage, planErrorMessage, type ActivationView } from "@/server/event-activation";
 import { flowState } from "@/server/flow";
 import { teamSyncMessage } from "@/lib/testmu-team";
 import { getTeamInfo } from "@/server/teams";
 import { teamSyncStatus } from "@/server/testmu-team";
-import { ClaimPlanButton, GetCodeButton, RetryTeamInvitesForm, TickButton } from "./parts";
+import { ClaimPlanButton, RetryTeamInvitesForm, TickButton } from "./parts";
 
 export const metadata: Metadata = { title: "Activate", robots: { index: false } };
 
@@ -64,7 +64,7 @@ async function Checklist({ searchParams }: Pick<PageProps<"/activate">, "searchP
           <StepCard key={s.id} n={s.n} title={s.title} body={s.body} done={view.ticks.has(s.id)} highlight={s.id === "testmu_signup" && view.plan?.status === "not_registered"} id={s.id}>
             {s.id === "testmu_signup" && <SignupStep done={step1} />}
             {s.id === "testmu_plan" && <PlanStep view={view} email={member.email} />}
-            {s.id === "codex_credits" && <CodexStep view={view} ready={step1} />}
+            {s.id === "codex_credits" && <CodexStep view={view} email={member.email} />}
           </StepCard>
         ))}
       </ol>
@@ -151,27 +151,19 @@ function PlanStep({ view, email }: { view: ActivationView; email: string }) {
   );
 }
 
-function CodexStep({ view, ready }: { view: ActivationView; ready: boolean }) {
-  if (!view.code) {
-    if (!ready) return <p className="font-plex text-sm text-lightgray">Finish step 1 first, then get your code here.</p>;
-    return <GetCodeButton />;
-  }
+/** Step 3: the coupon comes by email. A code handed out here before the switch stays visible. */
+function CodexStep({ view, email }: { view: ActivationView; email: string }) {
   return (
     <div className="space-y-4">
-      <div className="brackets border border-lime bg-lime-deep p-4" data-codex-code="assigned">
-        <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">Your OpenAI Codex credit code · only you see this</p>
-        <p className="mt-2 break-all font-dots text-3xl leading-tight font-black text-bright sm:text-4xl">{view.code.code}</p>
-        <CopyField value={view.code.code} className="mt-3" />
-      </div>
-      <p className="font-plex text-sm text-lightgray">{CODEX_REDEEM_INSTRUCTIONS}</p>
-      <div className="flex flex-wrap items-center gap-3">
-        {!isPlaceholder(CODEX_REDEEM_URL) && (
-          <a href={CODEX_REDEEM_URL} target="_blank" rel="noopener noreferrer" className={linkCls}>
-            Redeem on OpenAI ↗
-          </a>
-        )}
-        <TickButton step="codex_credits" done={view.ticks.has("codex_credits")} label="Credits enabled" />
-      </div>
+      <p className="font-plex text-sm text-bright">{CODEX_BY_EMAIL(email)}</p>
+      {view.code && (
+        <div className="brackets border border-lime bg-lime-deep p-4" data-codex-code="assigned">
+          <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lime">Your OpenAI Codex code · only you see this</p>
+          <p className="mt-2 break-all font-dots text-3xl leading-tight font-black text-bright sm:text-4xl">{view.code.code}</p>
+          <CopyField value={view.code.code} className="mt-3" />
+        </div>
+      )}
+      <TickButton step="codex_credits" done={view.ticks.has("codex_credits")} label="Credits enabled" />
     </div>
   );
 }

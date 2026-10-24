@@ -102,6 +102,11 @@ async function one<T extends Record<string, unknown>>(db: Q, sql: string, params
 
 /** Each metric's query. Kept separate so one failing table only holds that metric. */
 const COMPUTE: Record<MetricName, (db: Q, e: HackEvent, prev: Map<MetricName, Computed>) => Promise<Computed>> = {
+  async participants_registered(db, e) {
+    const r = await one(db, "select count(*) as value from members where event_id = $1 and deleted_at is null and role = 'participant'", [e.id]);
+    return { name: "participants_registered", value: num(r.value), denominator: null };
+  },
+
   async participants_checked_in(db, e) {
     const r = await one(
       db,
@@ -138,7 +143,7 @@ const COMPUTE: Record<MetricName, (db: Q, e: HackEvent, prev: Map<MetricName, Co
     return {
       name: "participants_activated",
       value: num(r.value),
-      denominator: prev.get("participants_checked_in")?.value ?? null,
+      denominator: prev.get("participants_registered")?.value ?? null,
       breakdown: { activated_without_receipt: num(r.without_receipt) },
     };
   },

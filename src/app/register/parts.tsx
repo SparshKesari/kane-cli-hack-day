@@ -45,7 +45,7 @@ export function ProfileStep({ defaults, signedIn, hasPassword }: { defaults: Pro
   const [state, action] = useActionState<ProfileState, FormData>(profileAction, null);
   const v = { ...defaults, ...(state?.values ?? {}) };
   const looking = state?.values ? state.values.looking === "yes" : defaults.looking;
-  // Checked in the browser on submit (same rules as the server); a field's message clears as soon as it's edited.
+  // Validated in the browser on submit (same rules as the server); a field's message clears as soon as it's edited.
   const [checked, setChecked] = useState<Record<string, string> | null>(null);
   const fe: Record<string, string> = checked ?? state?.fieldErrors ?? {};
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -221,7 +221,7 @@ function ProofFields() {
         </div>
       ) : (
         <div>
-          <Label htmlFor="r-proof-code" hint="From the check-in desk">
+          <Label htmlFor="r-proof-code" hint="From the help desk">
             One-time code
           </Label>
           <input id="r-proof-code" name="proof_code" autoComplete="one-time-code" placeholder="XXXX-XXXX" required className={`${inputCls} uppercase tracking-[0.2em]`} />

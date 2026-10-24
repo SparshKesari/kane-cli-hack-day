@@ -199,6 +199,17 @@ if want missing-gtm; then
   check "missing-gtm: a re-run puts hack-gtm back" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-gtm/SKILL.md" ]' "$LOG"
 fi
 
+# 8d. Installed from production's published 0.1.5 bundle (marked 0.1.5): a re-run brings this
+# version's skills. Same version number = skipped, so a changed bundle always needs a new version.
+if want from-published-015; then
+  fresh from-published-015
+  mkdir -p "$H/.agents/skills"
+  tar -xzf "$REPO/public/hack-skills-0.1.5.tgz" -C "$H/.agents/skills"
+  echo "0.1.5" > "$H/.agents/skills/hack-os/.bundle-version"
+  run_install --yes --site "$SITE"; RC=$?
+  check "from-published-015: a re-run replaces the 0.1.5 skills with this version's" '[ "$RC" -eq 0 ] && [ "$(cat "$H/.agents/skills/hack-os/.bundle-version")" = "$VERSION" ] && diff -r -q -x .bundle-version "$H/.agents/skills/hack-os" "$REPO/plugin/skills/hack-os" >/dev/null && diff -r -q "$H/.agents/skills/hack-gtm" "$REPO/plugin/skills/hack-gtm" >/dev/null' "$LOG"
+fi
+
 # 8b. Codex: an existing ~/.codex with its own config and the 0.1.2 skill copies. --yes connects it
 # (no token in config.toml, backup made, other servers kept), removes the duplicate skills, and a
 # re-run changes nothing. With CODEX_BIN_DIR (the real @openai/codex, kept off ORIG_PATH so the

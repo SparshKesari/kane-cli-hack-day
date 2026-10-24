@@ -48,7 +48,7 @@ async function Body({ searchParams }: Pick<PageProps<"/pair">, "searchParams">) 
         <div className="max-w-xl space-y-4 font-plex text-sm">
           <p className="text-bright">You&apos;re signed in with your team password. Pairing gives this device a token that acts as you, so it needs a personal sign-in.</p>
           <p className="text-lightgray">
-            Use a one-time code from the check-in desk or an organizer, or your personal password if you&apos;ve set one. Already signed in on another device personally? Make a code there under
+            Use a one-time code from the help desk or an organizer, or your personal password if you&apos;ve set one. Already signed in on another device personally? Make a code there under
             Passport → Sign-in and devices.
           </p>
           <div className="flex flex-wrap gap-3">
