@@ -103,7 +103,10 @@ test("hack-os and /start don't say the clock locks teams or ideas (#42): only a 
   for (const b of skills) {
     const md = readFileSync(`${b}/hack-os/SKILL.md`, "utf8") + readFileSync(`${b}/hack-os/references/idea.md`, "utf8");
     assert.doesNotMatch(md, /Idea locks 12:00|idea locks at 12:00|Team registration closes 11:00/i, b);
-    assert.match(readFileSync(`${b}/hack-os/references/idea.md`, "utf8"), /frozen/, b);
+    const idea = readFileSync(`${b}/hack-os/references/idea.md`, "utf8");
+    assert.match(idea, /frozen/, b);
+    // #48: a frozen idea saves now; the skill must not send people to the help desk for it.
+    assert.doesNotMatch(idea, /`idea_save` refuses/, b);
   }
   const start = startGuideMarkdown();
   assert.doesNotMatch(start, /teams are locked|idea locks/i);
