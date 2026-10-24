@@ -20,10 +20,11 @@ const nextConfig: NextConfig = {
       { source: "/content-hour", destination: "/me", permanent: false },
     ];
   },
-  // /{team-slug}/status is the short address the Codex hook pings. afterFiles, so
-  // any real page with that shape (/t/x is two segments deeper; /ship/status) still wins.
+  // /{team-slug}/status is the short address the Codex hook pings. A fallback
+  // rewrite, so it only applies when no page matches: /ship/status, /t/status and
+  // other dynamic pages of that shape keep their own route.
   async rewrites() {
-    return [{ source: "/:team/status", destination: "/api/v1/teams/:team/status" }];
+    return { beforeFiles: [], afterFiles: [], fallback: [{ source: "/:team/status", destination: "/api/v1/teams/:team/status" }] };
   },
   // Security headers (T-SEC-01). CSP keeps 'unsafe-inline' for scripts because
   // the App Router inlines its bootstrap; everything else is same-origin only.
