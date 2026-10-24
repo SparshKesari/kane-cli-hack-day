@@ -4,6 +4,7 @@
 //   - finalize twice returns the same receipt
 //   - after the submission deadline time drafts still save and finalize isn't locked
 //   - a manual receipt can be recorded when online finalize is unavailable
+//   - finalize keeps a story published in the Ship Studio, adding the submission's video
 //
 // Never point this at the live database. It refuses to run unless
 // QA_DATABASE_URL is set and differs from DATABASE_URL. The branch must have
@@ -143,4 +144,61 @@ test("a non-captain, or a team-password session, can't finalize", { skip }, asyn
   m.jar.clear();
   await m.session.setMemberSession({ memberId: ids.members[12], personal: false }); // captain, team password only
   await assert.rejects(m.sub.finalizeSubmission(`${tag}-t3`, { confirm_phrase: `${tag} team 3`, confirm: "on" }), (e: { code?: string }) => e.code === "UNAUTHENTICATED");
+});
+
+test("finalize keeps the story the team published in the Ship Studio and adds the submission's video", { skip }, async () => {
+  const slug = `${tag}-t4`;
+  const teamId = ids.teams[4];
+  await signInAsCaptain(4);
+  await m.db.query("insert into member_consents (member_id, category, granted, source) values ($1, 'activity_publication', true, 'web')", [ids.members[16]]);
+  const sha = "b".repeat(40);
+  await m.sub.getSubmissionContext(teamId);
+  const [p] = await m.db.query<{ id: number }>("select id from projects where team_id = $1", [teamId]);
+  const [run] = await m.db.query<{ id: number }>(
+    "insert into kane_runs (project_id, team_id, source, upstream_execution_id, status, commit_sha, source_verified, verification_state) values ($1, $2, 'kanehack_cli', $3, 'passed', $4, true, 'verified') returning id",
+    [p.id, teamId, `${tag}-run4`, sha],
+  );
+  // What a Studio publish leaves behind: a reviewed story version and a ship_page row whose consent receipt names the approver.
+  const shot = "https://cdn.example/qa-board.png";
+  const studio = {
+    schema_version: 1, project_id: String(p.id), slug, project_name: "QA Studio name", one_line_pitch: "The pitch the team reviewed.", creation_type: "tool",
+    problem: "", what_we_built: "", how_it_works: [], harness: { summary: "Studio harness", components: ["kane-cli run"], stages: ["Studio stage"] },
+    proof: [{ claim: "The claim the team reviewed.", confidence: "verified", source: "", run_id: String(run.id), evidence_id: null, commit_sha: sha }],
+    impact: [], limitations: ["Studio limitation"], links: { github: "https://github.com/example/qa-studio", demo: "", repo_commit: "", ship_page: `/ship/${slug}` },
+    team: [], visuals: [{ kind: "screenshot", approved: true, source: shot, alt_text: "Board" }], consent_reviewed: true, status: "approved",
+  };
+  const [sv] = await m.db.query<{ id: number }>("insert into project_stories (project_id, version, content, created_by) values ($1, 1, $2, $3) returning id", [p.id, JSON.stringify(studio), ids.members[16]]);
+  await m.db.query(
+    "insert into published_assets (project_id, kind, version, source_story_id, state, consent_receipt, published_by) values ($1, 'ship_page', 1, $2, 'public', $3, $4)",
+    [p.id, sv.id, JSON.stringify({ story_version: 1, approved_by: { member_id: ids.members[16], name: "QA 4.0" }, credited: [] }), ids.members[16]],
+  );
+  const video = "https://cdn.example/qa-demo.mp4";
+  await m.sub.saveDraft(slug, {
+    project_name: "QA submission name", project_type: "tool", one_line_pitch: "The submission pitch.", repo_url: "https://github.com/example/qa", commit_sha: sha,
+    demo_url: "https://example.com/qa", harness_summary: "Submission harness", kane_components: ["testrun"], limitations: "none known", kane_run_ids: [String(run.id)], video_url: video,
+  });
+  const fin = await m.sub.finalizeSubmission(slug, { confirm_phrase: `${tag} team 4`, confirm: "on", publish_showcase: "on", idempotency_key: `${tag}-final-4` });
+  assert.ok(fin.data.receipt_code);
+
+  const [live] = await m.db.query<{ content: typeof studio; basis: string | null }>(
+    `select s.content, a.consent_receipt->>'basis' as basis from published_assets a join project_stories s on s.id = a.source_story_id
+      where a.project_id = $1 and a.kind = 'ship_page' order by a.version desc limit 1`,
+    [p.id],
+  );
+  assert.equal(live.basis, "finalize_confirmation");
+  assert.equal(live.content.project_name, "QA Studio name");
+  assert.equal(live.content.one_line_pitch, "The pitch the team reviewed.");
+  assert.deepEqual(live.content.proof.map((x) => x.claim), ["The claim the team reviewed."]);
+  assert.deepEqual(live.content.harness.stages, ["Studio stage"]);
+  assert.deepEqual(live.content.visuals.map((v) => [v.kind, v.source]), [["screenshot", shot], ["video", video]]);
+  assert.equal(live.content.links.github, "https://github.com/example/qa-studio");
+  assert.equal(live.content.links.demo, "https://example.com/qa");
+
+  // Control: team 1 finalized above without a Studio story, so its page is still built from its submission.
+  const [t1] = await m.db.query<{ name: string }>(
+    `select s.content->>'project_name' as name from published_assets a join project_stories s on s.id = a.source_story_id
+      join projects p on p.id = a.project_id where p.team_id = $1 and a.kind = 'ship_page' order by a.version desc limit 1`,
+    [ids.teams[1]],
+  );
+  assert.equal(t1.name, "QA project");
 });

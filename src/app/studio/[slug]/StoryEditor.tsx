@@ -5,6 +5,7 @@ import { Toggle } from "@/components/forms/fields";
 import StatusPill from "@/components/ui/StatusPill";
 import { CONFIDENCES, CREATION_LABEL, CREATION_TYPES, type Story } from "@/components/ship-templates/model";
 import { reviewStory, type EvidenceOption, type RunOption } from "@/components/ship-templates/review";
+import { issueText } from "@/lib/issue-text";
 import { saveStoryAction } from "./actions";
 import { Field, IconButton, ListField, Panel, ResultLine, Select, newKey } from "./fields";
 
@@ -57,7 +58,7 @@ export default function StoryEditor({
         setDirty(false);
         setResult({ ok: true, message: `Saved as version ${r.data.version}.`, receipt: r.receipt?.id });
       } else {
-        setResult({ ok: false, message: [r.error.message, ...((r.error.details?.issues as { message: string }[] | undefined)?.slice(1).map((i) => i.message) ?? [])].join(" ") });
+        setResult({ ok: false, message: issueText(r.error) });
       }
     });
 
