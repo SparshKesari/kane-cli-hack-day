@@ -719,7 +719,7 @@ async function doctor(a) {
 
 // ── report ───────────────────────────────────────────────────────────────────
 
-const KIND_BY_EXT = { zip: "zip", png: "screenshot", jpg: "screenshot", jpeg: "screenshot", webp: "screenshot", mp4: "video", webm: "video", ndjson: "ndjson", jsonl: "ndjson", json: "report", pdf: "report", html: "report", md: "testmd", log: "log", txt: "log" };
+const KIND_BY_EXT = { zip: "zip", evidence: "zip", png: "screenshot", jpg: "screenshot", jpeg: "screenshot", webp: "screenshot", mp4: "video", webm: "video", ndjson: "ndjson", jsonl: "ndjson", json: "report", pdf: "report", html: "report", md: "testmd", log: "log", txt: "log" };
 
 async function askConsent(cfg) {
   if (cfg.consent === true) return true;
