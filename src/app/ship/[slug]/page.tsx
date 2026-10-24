@@ -24,6 +24,7 @@ import { getPublishedDeck } from "@/server/deck";
 import { listMilestones } from "@/server/kane";
 import { getShipTemplate, getPublishedStory as getPublicStory } from "@/server/story";
 import { kaneComponentLabel, loadDraftForShowcase } from "@/server/submission";
+import { onePagerEmbed } from "@/server/team-page";
 import Stage, { CopyUrl, type StageVideo } from "./Stage";
 
 // /ship/{slug}: the public showcase, Product × Proof in the site's own theme.
@@ -71,7 +72,11 @@ async function Ship({ params }: { params: PageProps<"/ship/[slug]">["params"] })
   // The deck link only shows when /ship/{slug}/deck will actually open: a
   // published (public/unlisted) page always has at least the default deck.
   const live = !view.preview && (view.mode === "public" || view.mode === "unlisted");
-  const [deck, template] = await Promise.all([live ? getPublishedDeck(found.project.slug).catch(() => null) : null, getShipTemplate(found.project.id)]);
+  const [deck, template, onePager] = await Promise.all([
+    live ? getPublishedDeck(found.project.slug).catch(() => null) : null,
+    getShipTemplate(found.project.id),
+    onePagerEmbed(found.project, view.viewer.canPreview).catch(() => null),
+  ]);
   // The team's chosen layout (T-SHIP-09) over the same public story DTO.
   // Product × Proof keeps this page's own, richer layout.
   if (live && template !== DEFAULT_TEMPLATE) {
@@ -80,6 +85,7 @@ async function Ship({ params }: { params: PageProps<"/ship/[slug]">["params"] })
       return (
         <>
           <ShipTemplate name={template} story={{ ...pub.story, hasDeck: !!deck }} />
+          <OnePager embed={onePager} name={pub.story.name} />
           <PublicMilestones projectId={found.project.id} />
           <div className="container-page pb-16">
             <SubmittedExtras extras={view.extras} />
@@ -90,7 +96,7 @@ async function Ship({ params }: { params: PageProps<"/ship/[slug]">["params"] })
   }
   return (
     <>
-      <ShipBody view={view} hasDeck={!!deck} />
+      <ShipBody view={view} hasDeck={!!deck} onePager={onePager} />
       {live && <PublicMilestones projectId={found.project.id} />}
     </>
   );
@@ -198,7 +204,7 @@ function RunPill({ r }: { r: EvidenceRun }) {
   return <StatusPill tone="unverified">Participant reported · {r.status}</StatusPill>;
 }
 
-function ShipBody({ view, hasDeck }: { view: ShowcaseView; hasDeck: boolean }) {
+function ShipBody({ view, hasDeck, onePager }: { view: ShowcaseView; hasDeck: boolean; onePager: OnePagerEmbed }) {
   const { story: s, project, runs } = view;
   const slug = project.slug;
   const name = s.project_name;
@@ -310,6 +316,8 @@ function ShipBody({ view, hasDeck }: { view: ShowcaseView; hasDeck: boolean }) {
           <Stat k="Repo" v={commit ? commit.slice(0, 7) : "—"} sub={s.links.github ? s.links.github.replace(/^https:\/\/(www\.)?/, "") : "Not public"} href={httpsOnly(s.links.repo_commit) ?? httpsOnly(s.links.github)} mono />
         </div>
       </section>
+
+      <OnePager embed={onePager} name={name} />
 
       {/* The creation */}
       {(s.problem || s.what_we_built || s.how_it_works.length > 0) && (
@@ -571,3 +579,24 @@ const hostOf = (u: string) => {
     return u;
   }
 };
+
+type OnePagerEmbed = Awaited<ReturnType<typeof onePagerEmbed>>;
+
+/** The team's one-pager in a sandboxed frame (opaque origin, scripts only), with a direct link. */
+function OnePager({ embed, name }: { embed: OnePagerEmbed; name: string }) {
+  if (!embed) return null;
+  return (
+    <section id="one-pager" className="border-b border-hairline py-12 sm:py-16">
+      <div className="container-page">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className={eyebrow}>One-pager · by the team</p>
+          <a href={embed.src} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-plex text-sm text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+            Open the one-pager ↗
+          </a>
+        </div>
+        {!embed.public && <p className="mt-2 font-plex text-xs text-lightgray">Only your team and staff see this version. Visitors see it after a teammate publishes the Ship Page.</p>}
+        <iframe src={embed.src} title={`${name} one-pager`} sandbox="allow-scripts" referrerPolicy="no-referrer" loading="lazy" className="mt-6 block h-[80vh] w-full border border-hairline bg-card" />
+      </div>
+    </section>
+  );
+}
