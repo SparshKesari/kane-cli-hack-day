@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Label, inputCls } from "@/components/forms/fields";
 import type { ActivationStepId } from "@/data/activation-steps";
-import { claimPlanAction, retryTeamInvitesAction, tickAction, type ActState } from "./actions";
+import { claimPlanAction, retryTeamInvitesAction, sendCouponAction, tickAction, type ActState } from "./actions";
 
 // Small client controls for the /activate checklist. Each posts a server
 // action; the page re-renders from the database afterwards.
@@ -55,6 +55,20 @@ export function ClaimPlanButton({ retry, label }: { retry: boolean; label?: stri
       </Submit>
       {state?.outcome === "in_progress" && <p className="basis-full font-plex text-sm text-lightgray">{state.message}</p>}
       {state && !state.outcome && <Note state={state} />}
+    </form>
+  );
+}
+
+/** Step 3: email the Codex coupon to the profile email. Pressing it again re-sends the same coupon. */
+export function SendCouponButton() {
+  const [state, setState] = useState<ActState>(null);
+  return (
+    <form action={async () => setState(await sendCouponAction())} className="flex flex-wrap items-center gap-3" data-codex-coupon-send>
+      <Submit className={state?.ok ? secondary : primary} pending="Sending…">
+        {state?.ok ? "Send it again" : "Email my Codex coupon"}
+      </Submit>
+      {state?.ok && state.message && <p className="basis-full font-plex text-sm text-lime">{state.message}</p>}
+      <Note state={state} />
     </form>
   );
 }

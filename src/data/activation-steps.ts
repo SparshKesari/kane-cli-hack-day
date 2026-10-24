@@ -13,7 +13,7 @@ export const TESTMU_SIGNUP_URL = "https://www.testmuai.com";
 
 /** Step 3 on /activate: where the coupon goes and what to do with it. */
 export const CODEX_BY_EMAIL = (email: string) =>
-  `Your OpenAI Codex coupon comes by email to ${email}. Open that email, redeem the coupon on OpenAI, then tick Credits enabled. Nothing after a while? Check spam, then ask at the help desk.`;
+  `Your OpenAI Codex coupon comes by email to ${email}: press Email my Codex coupon to send it. Open that email, redeem the coupon on OpenAI, then tick Credits enabled. Nothing after a minute? Check spam, press it again, then ask at the help desk.`;
 
 /** True while a value above is still a placeholder (the UI then hides a dead link). */
 export const isPlaceholder = (s: string) => /^\[[A-Z_]+\]/.test(s);

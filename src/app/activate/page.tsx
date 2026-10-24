@@ -13,7 +13,7 @@ import { flowState } from "@/server/flow";
 import { teamSyncMessage } from "@/lib/testmu-team";
 import { getTeamInfo } from "@/server/teams";
 import { teamSyncStatus } from "@/server/testmu-team";
-import { ClaimPlanButton, RetryTeamInvitesForm, TickButton } from "./parts";
+import { ClaimPlanButton, RetryTeamInvitesForm, SendCouponButton, TickButton } from "./parts";
 
 export const metadata: Metadata = { title: "Activate", robots: { index: false } };
 
@@ -160,6 +160,7 @@ function CodexStep({ view, email }: { view: ActivationView; email: string }) {
           <CopyField value={view.code.code} className="mt-3" />
         </div>
       )}
+      {!view.code && <SendCouponButton />}
       <TickButton step="codex_credits" done={view.ticks.has("codex_credits")} label="Credits enabled" />
     </div>
   );

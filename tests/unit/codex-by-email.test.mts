@@ -14,6 +14,7 @@ test("step 3 on /activate says the Codex coupon comes by email, with no code but
   const page = readFileSync("src/app/activate/page.tsx", "utf8");
   assert.doesNotMatch(page, /<GetCodeButton/, "no code handout on the page");
   assert.match(page, /CODEX_BY_EMAIL\(email\)/, "the page shows which address the coupon goes to");
+  assert.match(page, /<SendCouponButton/, "a button on the page sends the coupon email");
 });
 
 test("the /setup coupon step explains the email instead of a placeholder", () => {
