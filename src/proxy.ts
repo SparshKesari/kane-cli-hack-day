@@ -23,7 +23,9 @@ import { checkAccessKey, type VerifyResult } from "@/lib/testmu-verify";
 //                       (testmu_links fingerprint), else checked with TestMu when
 //                       TESTMU_VERIFY_URL is set; cached per instance. Valid → a
 //                       60-second signed principal is forwarded for getMember();
-//                       invalid → 401, whatever the switch says.
+//                       invalid → 401, whatever the switch says. A key nothing can
+//                       check (not ours, no verifier) is ignored while the switch
+//                       is off: kanehack sends Kane CLI's LT_* key on every call.
 //   switch on, API    → needs the hd_testmu cookie, valid key headers, or a staff cookie.
 //   switch on, page   → participant pages redirect to TestMu connect without the cookie.
 // Route handlers and server actions still authorize the person themselves; this
@@ -31,7 +33,8 @@ import { checkAccessKey, type VerifyResult } from "@/lib/testmu-verify";
 
 const OK_TTL_MS = 5 * 60_000;
 const BAD_TTL_MS = 30_000;
-type Checked = VerifyResult & { memberId?: number | null };
+/** "unverifiable": not a key we stored and no verifier to ask (production without TESTMU_VERIFY_URL). */
+type Checked = (VerifyResult | { ok: false; reason: "unverifiable"; detail: string }) & { memberId?: number | null };
 const cache = new Map<string, { at: number; result: Checked }>();
 
 async function checkKey(c: { username: string; accessKey: string }): Promise<Checked> {
@@ -42,9 +45,9 @@ async function checkKey(c: { username: string; accessKey: string }): Promise<Che
     return { ok: false, reason: "unavailable", detail: "key store unreachable" };
   }
   // Keys from activation are always in the store. With no verify endpoint configured
-  // in production there is nobody else to ask, so an unknown key is simply not accepted.
+  // in production there is nobody else to ask: the key can't be checked either way.
   const prod = process.env.VERCEL_ENV === "production" || process.env.HACKOS_ENV === "production";
-  if (prod && !process.env.TESTMU_VERIFY_URL?.trim()) return { ok: false, reason: "invalid", detail: "unknown key" };
+  if (prod && !process.env.TESTMU_VERIFY_URL?.trim()) return { ok: false, reason: "unverifiable", detail: "unknown key, no verifier" };
   return checkAccessKey(c);
 }
 
@@ -53,7 +56,7 @@ async function checkCached(c: { username: string; accessKey: string }) {
   const hit = cache.get(fp);
   if (hit && Date.now() - hit.at < (hit.result.ok ? OK_TTL_MS : BAD_TTL_MS)) return hit.result;
   const result = await checkKey(c);
-  if (result.ok || result.reason === "invalid") {
+  if (result.ok || result.reason !== "unavailable") {
     if (cache.size > 5000) cache.clear();
     cache.set(fp, { at: Date.now(), result });
   }
@@ -96,10 +99,14 @@ export async function proxy(req: NextRequest) {
   forwarded.delete(PRINCIPAL_HEADER); // only this proxy may set it
 
   const creds = kind === "api" || kind === "public_api" ? credentialsFrom(req.headers) : null;
-  if (creds) {
-    const r = await checkCached(creds);
+  const r = creds ? await checkCached(creds) : null;
+  // Keys optional and this one can't be checked: carry on as if none was sent (the pairing
+  // token, if any, still signs the person in). With the switch on it is refused below.
+  const ignoreKey = !!r && !r.ok && r.reason === "unverifiable" && !keyRequired();
+  if (ignoreKey && /^Basic\s/i.test(req.headers.get("authorization") ?? "")) forwarded.delete("authorization");
+  if (r && !ignoreKey) {
     if (!r.ok) {
-      return r.reason === "invalid"
+      return r.reason !== "unavailable"
         ? deny("TESTMU_KEY_REQUIRED", "That TestMu AI username and access key were not accepted.", pathname)
         : deny("TESTMU_UNAVAILABLE", "We couldn't check your TestMu AI access key right now.", pathname);
     }
