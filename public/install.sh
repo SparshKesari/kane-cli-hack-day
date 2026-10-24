@@ -357,7 +357,6 @@ fi
 # kanehack does the editing (and backs up ~/.codex/config.toml first). Codex's config gets the
 # URL plus `kanehack mcp-headers`, which prints the auth header when Codex connects: the token
 # itself is never written there or printed here. A different server with that name is left alone.
-AGENTS_SHOWN=""
 connect_agent() { # $1 codex  $2 display name  $3 where it's written
   rc=0; "${PREFIX}/bin/kanehack" connect "$1" --check >/dev/null 2>&1 || rc=$?
   case "$rc" in
@@ -374,19 +373,13 @@ connect_agent() { # $1 codex  $2 display name  $3 where it's written
 }
 if [ -z "$NO_AGENTS" ]; then
   if have codex || [ -d "$CODEX_DIR" ]; then
-    AGENTS_SHOWN=1
     if [ -n "$KH_HAVE" ] && [ -x "${PREFIX}/bin/kanehack" ]; then connect_agent codex Codex "${CODEX_DIR}/config.toml"
     else warn codex_mcp "not connected" "Install kanehack first (re-run this script), then: kanehack connect codex"; fi
   fi
 fi
 
 echo
-echo "Next, in this terminal:"
-echo "  1. ${KH} pair        link this machine to your passport (approve the code it shows in your browser)"
-echo "  2. ${KH} doctor      re-check your setup"
-echo "  3. ${KH} report -- kane-cli run \"Open ${SITE} and find the schedule\" --agent"
-echo "     (your first Kane run, sent to your team's Proof tab)"
-if [ -n "$AGENTS_SHOWN" ]; then echo 'Then in Codex: start a new session and type $hack-os'; fi
+echo 'Next: start a Codex session and enter $hack-os'
 echo "Web: ${SITE}/passport"
 if [ "$NO_TTY_SKIPS" -gt 0 ]; then
   SITE_ARG=""; [ "$SITE" != "$DEFAULT_SITE" ] && SITE_ARG=" --site ${SITE}"

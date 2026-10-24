@@ -66,7 +66,7 @@ if want yes-link-npm; then
   check "yes: the hack-gtm skill next to it" 'grep -q "^name: hack-gtm" "$H/.agents/skills/hack-gtm/SKILL.md"' "$LOG"
   check "yes: linked into npm's global bin" '[ -L "$NPMP/bin/kanehack" ] && grep -q "kanehack → $NPMP/bin/kanehack" "$LOG"' "$LOG"
   check "yes: \`kanehack\` resolves on PATH right away" '[ "$(HOME="$H" kanehack version)" = "$VERSION" ]' "$LOG"
-  check "yes: next steps say plain \`kanehack pair\`" 'grep -q "^  1. kanehack pair" "$LOG" && ! grep -q "\.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
+  check "yes: the next step is \$hack-os in a Codex session" 'grep -q "^Next: start a Codex session and enter \$hack-os" "$LOG" && ! grep -q "Next, in this terminal" "$LOG"' "$LOG"
   check "yes: --site saved as kanehack's server" 'grep -q "\"api\": \"$SITE\"" "$H/.kanehack/config.json"' "$LOG"
   check "yes: no profile edited" '[ ! -e "$H/.zshrc" ] && [ ! -e "$H/.bashrc" ] && [ ! -e "$H/.bash_profile" ]' "$LOG"
   check "yes: no re-run hint (nothing skipped)" '! grep -q "no terminal to ask" "$LOG"' "$LOG"
@@ -106,7 +106,7 @@ if want link-readonly; then
     TSHELL=/bin/bash run_install --yes --no-skills --site "$SITE"; RC=$?
     chmod 755 "$NPMP/bin"
     RC_FILE="$(rc_file)"
-    check "read-only npm bin: not linked, profile line added, full-path next steps" '[ "$RC" -eq 0 ] && [ ! -e "$NPMP/bin/kanehack" ] && grep -q "No folder on your PATH is writable" "$LOG" && grep -q "kanehack/bin" "$RC_FILE" && grep -q "^  1. $H/.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
+    check "read-only npm bin: not linked, profile line added, next step is \$hack-os" '[ "$RC" -eq 0 ] && [ ! -e "$NPMP/bin/kanehack" ] && grep -q "No folder on your PATH is writable" "$LOG" && grep -q "kanehack/bin" "$RC_FILE" && grep -q "^Next: start a Codex session" "$LOG"' "$LOG"
   fi
 fi
 
@@ -149,7 +149,7 @@ if want conflict; then
   PATH="$H/other:$NPMP/bin:$ORIG_PATH"
   TSHELL=/bin/zsh run_install --yes --no-skills --site "$SITE"; RC=$?
   check "conflict: no profile line that would shadow it" '[ ! -e "$H/.zshrc" ]' "$LOG"
-  check "conflict: other kanehack untouched, warned, full path, no link" '[ "$RC" -eq 0 ] && [ "$(cat "$H/other/kanehack" | tail -1)" = "echo not-ours" ] && grep -q "another kanehack is on PATH" "$LOG" && [ ! -e "$NPMP/bin/kanehack" ] && grep -q "^  1. $H/.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
+  check "conflict: other kanehack untouched, warned, no link" '[ "$RC" -eq 0 ] && [ "$(cat "$H/other/kanehack" | tail -1)" = "echo not-ours" ] && grep -q "another kanehack is on PATH" "$LOG" && [ ! -e "$NPMP/bin/kanehack" ]' "$LOG"
 fi
 
 # 8. Upgrade from 0.1.0 (installed the way installer 0.1.0 did).

@@ -30,11 +30,10 @@ test("hack-os tells people the coupon arrives by email", () => {
   }
 });
 
-test("the installer's next steps are terminal commands, and only $hack-os is in Codex", () => {
+test("the installer's next step is $hack-os in a Codex session, not terminal commands", () => {
   for (const file of ["public/install.sh", "public/install.ps1"]) {
     const src = readFileSync(file, "utf8");
-    assert.doesNotMatch(src, /from Codex, no terminal/, file);
-    assert.match(src, /Next, in this terminal:/, file);
-    assert.match(src, /Then in Codex: start a new session and type \$hack-os/, file);
+    assert.match(src, /Next: start a Codex session and enter \$hack-os/, file);
+    assert.doesNotMatch(src, /Next, in this terminal:|link this machine to your passport/, file);
   }
 });
