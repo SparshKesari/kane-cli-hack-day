@@ -3,12 +3,15 @@
 // upload is parsed, deduped and masked.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { claimErrorText, mapClaimResponse } from "../../src/lib/testmu-claim.ts";
+import { claimErrorText, mapClaimResponse, redactClaimBody } from "../../src/lib/testmu-claim.ts";
 import { maskCode, parseCodexCodes, splitCsvLine } from "../../src/lib/codex-codes.ts";
+import { ACTIVATION_STEPS, PLAN_MESSAGES } from "../../src/data/activation-steps.ts";
+import { readFileSync } from "node:fs";
 
-test("any 2xx is a claim", () => {
-  for (const s of [200, 201, 204]) assert.equal(mapClaimResponse(s, { ok: true }).outcome, "claimed");
-  assert.equal(mapClaimResponse(200, undefined).outcome, "claimed");
+test("a 2xx without a success code is not a claim (an empty body, an HTML page, a proxy)", () => {
+  for (const s of [200, 201, 204]) assert.equal(mapClaimResponse(s, { ok: true }).outcome, "error");
+  assert.equal(mapClaimResponse(200, undefined).outcome, "error");
+  assert.equal(mapClaimResponse(200, { status: "success" }).outcome, "error");
 });
 
 test("404 and 'user/account not found' 4xx answers mean: register with TestMu AI first", () => {
@@ -24,7 +27,6 @@ test("NON_SIGNEDUP means not signed up, even with a 2xx", () => {
   const body = { code: "NON_SIGNEDUP", message: "Claim recorded. Trial will be activated after signup." };
   for (const s of [200, 201, 202, 400, 404, 422]) assert.equal(mapClaimResponse(s, body).outcome, "not_registered");
   assert.match(mapClaimResponse(200, body).detail ?? "", /HTTP 200 · NON_SIGNEDUP · Claim recorded/);
-  assert.equal(mapClaimResponse(200, { status: "success" }).outcome, "claimed");
 });
 
 test("everything else is a plain error with a detail for staff", () => {
@@ -38,7 +40,81 @@ test("everything else is a plain error with a detail for staff", () => {
   assert.equal(mapClaimResponse(401, { message: "Unauthorized" }).outcome, "error");
   assert.equal(mapClaimResponse(429, {}).outcome, "error");
   const timeout = mapClaimResponse(null, undefined, "timeout");
-  assert.deepEqual(timeout, { outcome: "error", detail: "timeout" });
+  assert.deepEqual(timeout, { outcome: "error", detail: "timeout", reason: "retry" });
+});
+
+// The live API (Hack Day 2026 FE spec): POST {email, password, …}; several outcomes are HTTP 200.
+const live = (code: string, extra: Record<string, unknown> = {}) => ({ code, message: "m", user_id: 1, username: "jane", access_token: "tok-secret", organization_id: 7, ...extra });
+
+test("the live API's four success codes are a claim", () => {
+  for (const c of ["SIGNEDUP", "JOINED_TEAM", "ALREADY_CLAIMED", "ALREADY_ACTIVE"]) assert.equal(mapClaimResponse(200, live(c)).outcome, "claimed", c);
+});
+
+test("INELIGIBLE is not a claim, even with a 200", () => {
+  const r = mapClaimResponse(200, { code: "INELIGIBLE", message: "This account is not eligible for the Hack Day trial." });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "ineligible");
+});
+
+test("an unknown code with a 2xx is not a claim", () => {
+  assert.equal(mapClaimResponse(200, { code: "SOMETHING_NEW" }).outcome, "error");
+});
+
+test("a wrong password for an existing account says so", () => {
+  const r = mapClaimResponse(401, { code: "INVALID_CREDENTIALS", message: "Incorrect email or password." });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "wrong_password");
+});
+
+test("field errors come back to the person", () => {
+  const r = mapClaimResponse(422, { code: "INVALID_REQUEST", errors: { password: ["The password must be at least 8 characters."] } });
+  assert.equal(r.outcome, "error");
+  assert.equal(r.reason, "invalid");
+  assert.deepEqual(r.fields, ["The password must be at least 8 characters."]);
+});
+
+test("region, campaign end, rate limit and FAILED each say what happened", () => {
+  assert.equal(mapClaimResponse(403, { code: "REGION_NOT_SUPPORTED", message: "US only" }).reason, "region");
+  assert.equal(mapClaimResponse(410, { code: "CAMPAIGN_ENDED" }).reason, "ended");
+  assert.equal(mapClaimResponse(429, { message: "Too Many Attempts." }).reason, "rate_limited");
+  assert.equal(mapClaimResponse(502, { code: "FAILED" }).reason, "retry");
+  assert.equal(mapClaimResponse(null, undefined, "network error").reason, "retry");
+});
+
+test("ALREADY_ACTIVE is a claim that says no new trial was opened, for the person and for staff", () => {
+  const r = mapClaimResponse(200, live("ALREADY_ACTIVE"));
+  assert.equal(r.outcome, "claimed");
+  assert.equal(r.note, "already_active");
+  assert.match(r.detail ?? "", /ALREADY_ACTIVE/);
+  assert.equal(mapClaimResponse(200, live("SIGNEDUP")).note, undefined);
+});
+
+test("field messages survive redaction, so the page can show them after a reload", () => {
+  const stored = redactClaimBody({ code: "INVALID_REQUEST", errors: { password: ["The password must be at least 8 characters."] }, access_token: "tok-secret" });
+  assert.deepEqual(mapClaimResponse(422, stored).fields, ["The password must be at least 8 characters."]);
+  assert.ok(!JSON.stringify(stored).includes("tok-secret"));
+});
+
+test("credentials in the API's answer are never stored or shown to staff", () => {
+  const stored = JSON.stringify(redactClaimBody(live("SIGNEDUP", { nested: { password: "p", accessKey: "k" } })));
+  for (const s of ["tok-secret", "\"p\"", "\"k\""]) assert.ok(!stored.includes(s), `${s} in ${stored}`);
+  assert.match(stored, /"code":"SIGNEDUP"/);
+  assert.match(stored, /"username":"jane"/);
+  assert.ok(!(mapClaimResponse(401, { code: "INVALID_CREDENTIALS", access_token: "tok-secret" }).detail ?? "").includes("tok-secret"));
+});
+
+// A captain adds teammates on TestMu AI with their TestMu AI password, and organizers tell
+// captains that's their kaneclihack.sh password. So step 2 asks for that password, and a new
+// TestMu AI account is created with it.
+test("step 2 asks for the kaneclihack.sh password, so a new TestMu AI account gets the same one", () => {
+  const step2 = ACTIVATION_STEPS.find((s) => s.id === "testmu_plan")!;
+  assert.match(step2.body, /kaneclihack\.sh password/);
+  assert.match(step2.body, /already had a TestMu AI account/i);
+  const field = readFileSync("src/app/activate/parts.tsx", "utf8").match(/<input id="plan-pw"[^>]*>/)?.[0] ?? "";
+  assert.ok(field, "no #plan-pw field");
+  // The browser then offers the saved kaneclihack.sh password instead of suggesting a new one.
+  assert.match(field, /autoComplete="current-password"/);
+  assert.match(PLAN_MESSAGES.wrongPassword, /different password/);
 });
 
 test("claim error text flattens code, message and field errors", () => {

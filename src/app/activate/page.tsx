@@ -6,9 +6,9 @@ import Button from "@/components/ui/Button";
 import CopyField from "@/components/ui/CopyField";
 import GreetingHeader from "@/components/ui/GreetingHeader";
 import StatusPill from "@/components/ui/StatusPill";
-import { ACTIVATION_STEPS, CODEX_REDEEM_INSTRUCTIONS, CODEX_REDEEM_URL, PLAN_MESSAGES, TESTMU_SIGNUP_URL, isPlaceholder, type ActivationStepId } from "@/data/activation-steps";
+import { ACTIVATION_STEPS, CODEX_REDEEM_INSTRUCTIONS, CODEX_REDEEM_URL, TESTMU_SIGNUP_URL, isPlaceholder, type ActivationStepId } from "@/data/activation-steps";
 import { getPersonalMember } from "@/server/auth";
-import { getActivationView, type ActivationView } from "@/server/event-activation";
+import { getActivationView, planClaimedMessage, planErrorMessage, type ActivationView } from "@/server/event-activation";
 import { flowState } from "@/server/flow";
 import { ClaimPlanButton, GetCodeButton, TickButton } from "./parts";
 
@@ -115,7 +115,7 @@ function SignupStep({ done }: { done: boolean }) {
 function PlanStep({ view, email }: { view: ActivationView; email: string }) {
   const plan = view.plan;
   if (plan?.status === "claimed") {
-    return <p className="font-plex text-sm text-bright">{PLAN_MESSAGES.claimed}</p>;
+    return <p className="font-plex text-sm text-bright">{planClaimedMessage(plan)}</p>;
   }
   return (
     <div className="space-y-3">
@@ -135,11 +135,11 @@ function PlanStep({ view, email }: { view: ActivationView; email: string }) {
       )}
       {plan?.status === "error" && (
         <p role="alert" className="border-l-2 border-danger pl-3 font-plex text-sm text-danger">
-          {PLAN_MESSAGES.error}
+          {planErrorMessage(plan)}
         </p>
       )}
       <ClaimPlanButton retry={!!plan && plan.status !== "pending"} label={plan?.status === "not_registered" ? "Check again" : undefined} />
-      <p className="font-plex text-xs text-lightgray">Uses the email on your profile ({email}). Change it on your profile if it isn&apos;t the one you used for TestMu AI.</p>
+      <p className="font-plex text-xs text-lightgray">Uses the email on your profile ({email}). Change it on your profile if it isn&apos;t the one you use for TestMu AI. Your password goes straight to TestMu AI; we never store it.</p>
     </div>
   );
 }

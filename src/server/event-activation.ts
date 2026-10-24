@@ -2,11 +2,11 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { query } from "@/lib/db";
 import { maskCode, parseCodexCodes } from "@/lib/codex-codes";
-import { mapClaimResponse, type ClaimOutcome } from "@/lib/testmu-claim";
+import { mapClaimResponse, redactClaimBody, type ClaimOutcome, type ClaimResult } from "@/lib/testmu-claim";
 import { PLAN_MESSAGES, type ActivationStepId } from "@/data/activation-steps";
 import { memberActor, staffActor, type MemberRow, type Staff } from "./auth";
 import { AppError, maskEmail, transaction, withAudit, writeAudit, type Actor } from "./core";
-import { rateLimit } from "./ratelimit";
+import { enforceRateLimit } from "./ratelimit";
 
 // The event-day activation checklist (/activate), replacing the Kane-driven
 // ceremony for participants:
@@ -23,6 +23,8 @@ export const STEP_IDS: ActivationStepId[] = ["testmu_signup", "testmu_plan", "co
 export type PlanClaim = {
   status: "pending" | "claimed" | "not_registered" | "error";
   http_status: number | null;
+  /** The API's answer with its credentials removed (redactClaimBody). */
+  response: unknown;
   last_error: string | null;
   attempts: number;
   claimed_at: Date | null;
@@ -40,7 +42,7 @@ export type ActivationView = {
 export async function getActivationView(memberId: number): Promise<ActivationView> {
   const [ticks, plan, code] = await Promise.all([
     query<{ step: ActivationStepId }>("select step from activation_ticks where member_id = $1", [memberId]),
-    query<PlanClaim>("select status, http_status, last_error, attempts, claimed_at, last_attempt_at from testmu_plan_claims where member_id = $1", [memberId]),
+    query<PlanClaim>("select status, http_status, response, last_error, attempts, claimed_at, last_attempt_at from testmu_plan_claims where member_id = $1", [memberId]),
     query<{ code: string; assigned_at: Date; extra: Record<string, string> }>("select code, assigned_at, extra from codex_credit_codes where assigned_member_id = $1 and status = 'assigned'", [memberId]),
   ]);
   const set = new Set(ticks.map((t) => t.step));
@@ -102,8 +104,12 @@ type RawAnswer = { status: number | null; body: unknown; failure?: string };
 
 function stubAnswer(mode: string): RawAnswer {
   switch (mode) {
+    case "wrong_password":
+      return { status: 401, body: { code: "INVALID_CREDENTIALS", message: "Incorrect email or password." } };
+    case "ineligible":
+      return { status: 200, body: { code: "INELIGIBLE", message: "This account is not eligible for the Hack Day trial." } };
     case "not_registered":
-      // The real API's answer for an email with no TestMu AI account.
+      // The older API's answer for an email with no TestMu AI account.
       return { status: 200, body: { code: "NON_SIGNEDUP", message: "Claim recorded. Trial will be activated after signup." } };
     case "invalid":
       return { status: 422, body: { code: "INVALID_REQUEST", errors: { email: ["The email must be a valid email address."] } } };
@@ -112,19 +118,25 @@ function stubAnswer(mode: string): RawAnswer {
     case "timeout":
       return { status: null, body: undefined, failure: "timeout (stub)" };
     default:
-      return { status: 200, body: { status: "success", stub: true } };
+      return { status: 200, body: { code: "SIGNEDUP", message: "Trial activated.", username: "stub", access_token: "stub-token", stub: true } };
   }
 }
 
-async function callClaim(email: string): Promise<RawAnswer> {
+/** What the claim sends: the member's own profile (from the row) and the password they typed. */
+type ClaimInput = { email: string; password: string; name: string | null; linkedin: string | null; twitter: string | null; github: string | null };
+
+async function callClaim(input: ClaimInput): Promise<RawAnswer> {
   const t = claimTarget();
   if (t.kind === "stub") return stubAnswer(t.mode);
   try {
     const res = await fetch(t.url, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ email, source: "website", page_url: CLAIM_PAGE_URL }),
+      // Optional profile fields go only when set; the password is never stored or logged.
+      body: JSON.stringify({ ...Object.fromEntries(Object.entries(input).filter(([, v]) => v)), source: "website", page_url: CLAIM_PAGE_URL }),
       signal: AbortSignal.timeout(CLAIM_TIMEOUT_MS),
+      // A redirect means a wrong URL or a proxy page, never the API's answer.
+      redirect: "error",
       cache: "no-store",
     });
     const text = await res.text();
@@ -143,18 +155,53 @@ async function callClaim(email: string): Promise<RawAnswer> {
 
 export type ClaimView = { outcome: ClaimOutcome | "in_progress"; message: string };
 
+/** What the person sees after a claim that didn't go through (the stored status is only "error"). */
+function claimErrorMessage(r: ClaimResult) {
+  switch (r.reason) {
+    case "wrong_password":
+      return PLAN_MESSAGES.wrongPassword;
+    case "invalid":
+      return PLAN_MESSAGES.invalid(r.fields ?? []);
+    case "ineligible":
+      return PLAN_MESSAGES.ineligible;
+    case "region":
+      return PLAN_MESSAGES.region;
+    case "ended":
+      return PLAN_MESSAGES.ended;
+    case "rate_limited":
+      return PLAN_MESSAGES.rateLimited;
+    case "retry":
+      return PLAN_MESSAGES.retry;
+    default:
+      return PLAN_MESSAGES.error;
+  }
+}
+
+/** The message for a stored failed claim, worked out again from what TestMu AI answered. */
+export const planErrorMessage = (plan: PlanClaim) => claimErrorMessage(mapClaimResponse(plan.http_status, plan.response ?? undefined));
+
+const claimedMessage = (r: ClaimResult) => (r.note === "already_active" ? PLAN_MESSAGES.alreadyActive : PLAN_MESSAGES.claimed);
+
+/** The message for a stored claim ("Plan activated.", or that the account already had a plan). */
+export const planClaimedMessage = (plan: PlanClaim) => claimedMessage(mapClaimResponse(plan.http_status, plan.response ?? undefined));
+
 /**
  * Claim the hack-day plan for the signed-in member's own email (read from the
- * member row, never from input). Once claimed it never calls again. A failed
+ * member row, never from input) and the password they typed (their kaneclihack.sh
+ * one, or an existing TestMu AI account's), which goes to TestMu AI once and is
+ * never stored. Once claimed it never calls again. A failed
  * claim can be retried; attempts are rate-limited per member, and only one
  * runs at a time. Every attempt is audited (status and code, no email).
  */
-export async function claimPlan(member: MemberRow): Promise<ClaimView> {
+export async function claimPlan(member: MemberRow, password: string): Promise<ClaimView> {
   await requireTeam(member);
   const [row] = await query<{ status: string }>("select status from testmu_plan_claims where member_id = $1", [member.id]);
   if (row?.status === "claimed") return { outcome: "claimed", message: PLAN_MESSAGES.claimed };
-  const rl = await rateLimit(`testmu-claim:${member.id}`, { limit: 6, windowSec: 600 });
-  if (!rl.ok) throw new AppError("RATE_LIMITED", { userMessage: "Too many tries. Wait a few minutes, or ask at the help desk." });
+  if (typeof password !== "string" || password.length < 8 || password.length > 255) throw new AppError("VALIDATION_FAILED", { userMessage: PLAN_MESSAGES.passwordLength });
+  // Twelve tries per 10 minutes: enough for a few busy answers from TestMu AI (it allows 30 a
+  // minute per IP, and every claim comes from our servers) plus a mistyped password. TestMu AI
+  // also caps password tries at 5 a minute per email. The message says how long to wait.
+  await enforceRateLimit(`testmu-claim:${member.id}`, { limit: 12, windowSec: 600 });
 
   // Take the claim slot: one attempt at a time per member, never after success.
   const slot = await query<{ member_id: number }>(
@@ -171,11 +218,16 @@ export async function claimPlan(member: MemberRow): Promise<ClaimView> {
     return { outcome: "in_progress", message: "Activating… give it a few seconds, then reload." };
   }
 
-  const [{ email }] = await query<{ email: string }>("select email from members where id = $1", [member.id]);
-  const answer = await callClaim(email);
+  const [p] = await query<{ email: string; name: string | null; linkedin: string | null; x_handle: string | null; github_handle: string | null }>(
+    "select email, coalesce(display_name, name) as name, linkedin, x_handle, github_handle from members where id = $1",
+    [member.id],
+  );
+  const email = p.email;
+  const answer = await callClaim({ email, password, name: p.name, linkedin: p.linkedin, twitter: p.x_handle, github: p.github_handle });
   const mapped = mapClaimResponse(answer.status, answer.body, answer.failure);
   const status = mapped.outcome === "claimed" ? "claimed" : mapped.outcome;
-  const stored = answer.body === undefined ? null : JSON.stringify(answer.body).slice(0, 8000);
+  // The answer carries the account's credentials (access_token): store it without them.
+  const stored = answer.body === undefined ? null : JSON.stringify(redactClaimBody(answer.body)).slice(0, 8000);
 
   await transaction(async (tx) => {
     await tx.query(
@@ -185,7 +237,8 @@ export async function claimPlan(member: MemberRow): Promise<ClaimView> {
       [member.id, status, answer.status, stored, mapped.detail],
     );
     if (status === "claimed") {
-      await tx.query("insert into activation_ticks (member_id, step) values ($1, 'testmu_plan') on conflict do nothing", [member.id]);
+      // The claim creates or signs in to the TestMu AI account, so step 1 is done too.
+      await tx.query("insert into activation_ticks (member_id, step) values ($1, 'testmu_signup'), ($1, 'testmu_plan') on conflict do nothing", [member.id]);
       await syncActivated(tx, member.id);
     } else if (status === "not_registered") {
       // Step 1 needs doing again: un-tick it so it is highlighted.
@@ -197,9 +250,9 @@ export async function claimPlan(member: MemberRow): Promise<ClaimView> {
       tx,
     );
   });
-  if (status === "claimed") return { outcome: "claimed", message: PLAN_MESSAGES.claimed };
+  if (status === "claimed") return { outcome: "claimed", message: claimedMessage(mapped) };
   if (status === "not_registered") return { outcome: "not_registered", message: PLAN_MESSAGES.notRegistered(email) };
-  return { outcome: "error", message: PLAN_MESSAGES.error };
+  return { outcome: "error", message: claimErrorMessage(mapped) };
 }
 
 // ── Step 3: Codex credit codes ───────────────────────────────────────────────
