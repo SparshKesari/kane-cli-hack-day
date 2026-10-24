@@ -1,6 +1,6 @@
 #!/bin/sh
 # Kane CLI Hack Day installer: https://kaneclihack.sh/install.sh
-# Version: 0.1.9
+# Version: 0.1.10
 #
 # Read me before you run me. This script:
 #   - checks OS/arch, Node, Git, Chrome, OpenAI Codex CLI, Kane CLI, Kane auth,
@@ -32,9 +32,9 @@ set -eu
 # `curl … | zsh` works too: behave like sh (word splitting, globbing).
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
-KANEHACK_VERSION="0.1.9"
-KANEHACK_SHA256="90cfbb9581bf2284882272804608768f955d5afa48debd7c0d50396b492a8270"
-SKILLS_SHA256="5f38678bd2dd769f210cfce3b35c28cabb22be3f7ec4fee24680eefdb12b5e74"
+KANEHACK_VERSION="0.1.10"
+KANEHACK_SHA256="fbecc0af97545ae546eda28d680ca53af02bbbd656282f9fb9b96bc06c5a8e36"
+SKILLS_SHA256="a0579e787fd20f7b68d8f1d2669309a26c0b935fbaf84b2a528f4900dfe86fae"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -134,10 +134,15 @@ else
 fi
 
 if have kane-cli; then
-  pass kane_cli "$(bounded kane-cli --version 2>/dev/null | head -n1)"
+  KV=$(bounded kane-cli --version 2>/dev/null | head -n1)
+  # The hackathon runs on the release candidate (0.10.0-rc or newer): 0.0-0.9 gets the upgrade command.
+  case " $KV" in
+    *[!0-9.]0.[0-9].*) warn kane_cli "$KV: older than the hackathon's release candidate" "npm install -g @testmuai/kane-cli@rc" ;;
+    *) pass kane_cli "$KV" ;;
+  esac
   if bounded kane-cli whoami >/dev/null 2>&1; then pass kane_auth; else fail kane_auth "signed out" "kane-cli login"; fi
 else
-  fail kane_cli "missing" "npm i -g @testmuai/kane-cli   (no sudo: set an npm prefix in your home if it asks)"
+  fail kane_cli "missing" "npm install -g @testmuai/kane-cli@rc   (no sudo: set an npm prefix in your home if it asks)"
   warn kane_auth "skipped" "Install Kane CLI first"
 fi
 
