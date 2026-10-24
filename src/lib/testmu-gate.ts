@@ -128,8 +128,12 @@ export function publicApiPrefixes(env: Record<string, string | undefined> = proc
 
 export type PathKind = "open" | "public_api" | "api" | "page" | "other";
 
+/** /{team-slug}/status, rewritten to /api/v1/teams/{slug}/status (next.config.ts). Real two-segment pages excluded. */
+const TEAM_STATUS_ALIAS = /^\/(?!(?:api|ship|t|team|studio|ops|judge|photo|passport|help|submit|activate|match|live|dashboard|me|pair|readiness|register|setup|print|docs)\/)[\w-]+\/status\/?$/;
+
 export function classifyPath(pathname: string, env: Record<string, string | undefined> = process.env): PathKind {
   if (ALWAYS_OPEN.some((r) => r.test(pathname))) return "open";
+  if (TEAM_STATUS_ALIAS.test(pathname)) return "api";
   if (pathname.startsWith("/api/") || pathname === "/mcp" || pathname.startsWith("/mcp/")) {
     return publicApiPrefixes(env).some((p) => pathname === p.replace(/\/$/, "") || pathname.startsWith(p)) ? "public_api" : "api";
   }

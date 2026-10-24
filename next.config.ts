@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
       { source: "/content-hour", destination: "/me", permanent: false },
     ];
   },
+  // /{team-slug}/status is the short address the Codex hook pings. afterFiles, so
+  // any real page with that shape (/t/x is two segments deeper; /ship/status) still wins.
+  async rewrites() {
+    return [{ source: "/:team/status", destination: "/api/v1/teams/:team/status" }];
+  },
   // Security headers (T-SEC-01). CSP keeps 'unsafe-inline' for scripts because
   // the App Router inlines its bootstrap; everything else is same-origin only.
   // Images/connect allow https (Vercel Blob uploads and photos). HSTS only in

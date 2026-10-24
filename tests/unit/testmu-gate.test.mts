@@ -40,6 +40,14 @@ test("API routes and /mcp are gated; public aggregates are not unless configured
   assert.deepEqual(publicApiPrefixes({ TESTMU_KEY_PUBLIC_PATHS: "/api/v1/live/, nope" }), ["/api/v1/live/"]);
 });
 
+test("the /{team}/status hook alias is an API path; real pages of that shape are not", () => {
+  assert.equal(classifyPath("/orbit/status", {}), "api");
+  assert.equal(classifyPath("/team-orbit-2/status/", {}), "api");
+  assert.equal(classifyPath("/ship/status", {}), "other");
+  assert.equal(classifyPath("/t/status", {}), "page");
+  assert.equal(classifyPath("/orbit/status/x", {}), "other");
+});
+
 test("participant pages are gated; the landing page, Ship Pages, TV and ops are not", () => {
   for (const p of ["/register", "/team", "/t/orbit/idea", "/studio/orbit", "/passport", "/activate", "/setup"]) assert.equal(classifyPath(p, {}), "page", p);
   for (const p of ["/", "/ship/orbit", "/live", "/dashboard", "/ops/checkin", "/judge", "/privacy", "/teams-list"]) assert.equal(classifyPath(p, {}), "other", p);
