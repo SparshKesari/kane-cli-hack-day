@@ -3,7 +3,7 @@
 //   - invites: members only, 1 to 72 hours, dead codes all read NOT_FOUND, for_code, TEAM_FULL at the cap, revoke rights
 //   - join: the 5th member gets TEAM_FULL with nothing left behind, switching teams, solo to formed, replays
 //   - join race: parallel transactions for the last seat let exactly one in
-//   - after the team lock: create is roster_locked, invite and join are DEADLINE_PASSED
+//   - after the team lock time: rosters stay open (invite, join, leave) and activation opens
 //   - GET /api/v1/teams/{id|slug}: members get the roster, others the public subset
 //
 // Lock times come from a QA hack_events row that current_event_id() points at in this process only.
@@ -330,10 +330,11 @@ test("GET /api/v1/teams/{id|slug}: members get the roster, others the public sub
   assert.deepEqual([anon.status, anon.body.error.code], [401, "UNAUTHENTICATED"]);
 });
 
-test("after the team lock: create is roster_locked, invite and join are DEADLINE_PASSED", { skip }, async () => {
+// The team lock time no longer closes rosters (event day, 2026-10-24: people had to move between
+// teams after 11:00). Passing it only opens activation; a captain's own lock still closes a roster.
+test("after the team lock time: rosters stay open, and activation opens without a captain lock", { skip }, async () => {
   const cap = await person("lock-cap");
   const team = await create(cap, { name: `${tag} Lock` });
-  const code = (await m.teams.createInvite(cap, team.teamId, {})).code;
   const mate = await person("lock-mate");
   await join(mate, (await m.teams.createInvite(cap, team.teamId, {})).code);
   const joiner = await person("lock-joiner");
@@ -342,14 +343,16 @@ test("after the team lock: create is roster_locked, invite and join are DEADLINE
   await m.db.query("update hack_events set team_lock_at = now() - interval '1 minute' where id = $1", [eventId]);
   try {
     const lateTeam = await create(walkIn, { name: `${tag} Walk In` });
-    assert.equal(lateTeam.state, "roster_locked");
-    assert.equal((await m.teams.getTeamInfo({ id: lateTeam.teamId }))!.locked, true);
-    await rejectsWith(m.teams.createInvite(await who(cap), team.teamId, {}), "DEADLINE_PASSED");
-    await rejectsWith(join(joiner, code), "DEADLINE_PASSED");
-    assert.equal((await currentMemberships(joiner.member.id)).length, 0);
-    await rejectsWith(m.teams.leaveTeam(await who(mate)), "DEADLINE_PASSED");
+    assert.notEqual(lateTeam.state, "roster_locked");
+    const late = (await m.teams.getTeamInfo({ id: lateTeam.teamId }))!;
+    assert.equal(late.locked, false);
+    assert.ok(late.roster_locked_at, "stamped, so the team can go straight to activation");
+
+    await join(joiner, (await m.teams.createInvite(await who(cap), team.teamId, {})).code);
+    await m.teams.leaveTeam(await who(mate));
     const info = (await m.teams.getTeamInfo({ id: team.teamId }))!;
-    assert.deepEqual([info.locked, info.state, info.member_count], [true, "roster_locked", 2]);
+    assert.deepEqual([info.locked, info.state, info.member_count], [false, "formed", 2]);
+    assert.ok(info.roster_locked_at, "an existing team is stamped too");
   } finally {
     await m.db.query("update hack_events set team_lock_at = now() + interval '2 days' where id = $1", [eventId]);
   }

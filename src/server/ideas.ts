@@ -105,14 +105,13 @@ export type IdeaInput = { title: string; description: string; project_type: Proj
 const IDEA_SELECT = `
   select i.id, i.team_id, i.title, i.private_description, i.app_type, i.kane_plan, i.extra_info, i.public_summary, i.discovery_opt_in, i.project_type,
          i.qualification, i.status, i.frozen_at, i.updated_at, e.idea_lock_at,
-         (i.status = 'frozen' or now() >= e.idea_lock_at) as locked,
+         (i.status = 'frozen') as locked,
          coalesce((select max(r.revision) from idea_revisions r where r.idea_id = i.id), 0)::int as revision
     from ideas i join teams t on t.id = i.team_id
     join hack_events e on e.id = coalesce(t.event_id, current_event_id())`;
 
 /** The team's idea (private fields included: callers must be that team or organizer staff). */
 export async function getIdea(teamId: number): Promise<Idea | null> {
-  await syncIdeaFreeze();
   const [row] = await query<Idea>(`${IDEA_SELECT} where i.team_id = $1`, [teamId]);
   if (row) return row;
   // Teams made before 011 ran, or created elsewhere: make the row so the tab always works.
@@ -142,23 +141,8 @@ export async function latestAssessment(ideaId: number) {
   return row ?? null;
 }
 
-/** Freeze every idea once the idea lock passes (server clock). Lazy; the cron may call it too. */
-export async function syncIdeaFreeze() {
-  const rows = await query<{ id: number }>(
-    `update ideas i set status = 'frozen', frozen_at = now(), updated_at = now()
-       from teams t, hack_events e
-      where t.id = i.team_id and e.id = coalesce(t.event_id, current_event_id())
-        and i.status <> 'frozen' and now() >= e.idea_lock_at
-      returning i.id`,
-  ).catch((err) => {
-    console.error("[ideas] freeze sync failed", err);
-    return [];
-  });
-  for (const r of rows) {
-    await writeAudit({ type: "system", label: "idea lock" }, { action: "idea.freeze", resourceType: "idea", resourceId: r.id, reason: "Idea lock time reached" }).catch(() => {});
-  }
-  return rows.length;
-}
+// The idea lock time no longer freezes ideas (event day, 2026-10-24: teams kept refining after noon).
+// An idea frozen before that keeps its 'frozen' status.
 
 // ── Save (T-IDEA-01, T-IDEA-04) ──────────────────────────────────────────────
 
@@ -177,7 +161,7 @@ export const ideaSchema = z
   })
   .refine((v) => !v.discovery_opt_in || !!v.public_summary, { message: "Write a public summary before sharing it with other teams.", path: ["public_summary"] });
 
-/** Save a new revision. Any team member; refused after the idea lock. */
+/** Save a new revision. Any team member; refused only for an idea that is already frozen. */
 export async function saveIdea(who: ActingMember, teamId: number, input: unknown): Promise<{ idea: Idea; receipt: Receipt }> {
   const data = parse(ideaSchema, input);
   const cur = await getIdea(teamId);
