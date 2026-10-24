@@ -6,13 +6,13 @@ The blog is the long-form home for the project. Posts and HN point here; the dec
 
 ```yaml
 ---
-title: "<Project>: <what it does>, built in a day and tested in a real browser"
+title: "<Project>: <what it does>, built in 7 hours and tested in a real browser"
 description: "<under 160 characters, includes the product category, 'OpenAI' and 'Kane CLI'>"
 date: <YYYY-MM-DD>
 authors: [<names>]
 tags: [kane-cli, openai, hackathon, <domain>]
 canonical: <url or TODO>
-hero: <suggested image: the annotated screenshot of the step that failed, or the app's main screen>
+hero: <suggested image the person has approved: the annotated screenshot of the step that failed, or the app's main screen>
 ---
 ```
 
@@ -20,7 +20,7 @@ Title under 70 characters for search. Description is what shows on X and LinkedI
 
 ## TL;DR
 
-Three sentences directly under the title: what it is, what it is built with, what the proof is (link to the evidence pack or Ship Page).
+Three sentences directly under the title: what it is, what it is built with, what the proof is. Link the Ship Page, which lists the team's Kane runs (and the run report, if they published one with `kanehack publish`). Never link the evidence pack; it stays private.
 
 ## Section 1: What we built
 
@@ -28,7 +28,7 @@ Three sentences directly under the title: what it is, what it is built with, wha
 - The pitch in one sentence.
 - Who it is for and who it is not for.
 - Demo link and a hero screenshot or the showcase video embedded.
-- The hack day context (event, time limit, team) in one paragraph. Say "built with OpenAI, tested with Kane CLI" once here.
+- The hack day context in one paragraph: the event, the team, and the time box (hacking ran 11:00 to 18:00 Pacific on Saturday 24 October 2026; say fewer hours if they started later). Say "built with OpenAI, tested with Kane CLI" once here.
 
 ## Section 2: Use cases
 
@@ -55,7 +55,7 @@ Pull from `scripts/evidence_to_storyboard.py` output (`launch/video/storyboard.j
 Structure:
 
 1. The loop: how the team ran Kane CLI during the build (the actual command with `--agent`, how often, who read the output). One or two paragraphs.
-2. The first failure: the objective string, the step that failed, the annotated screenshot, what the failure record said, what the root cause turned out to be, the fix. This is the heart of the post.
+2. The first failure: the objective string, the step that failed, the annotated screenshot (only one the person has looked at and approved), what the failure record said, what the root cause turned out to be, the fix. This is the heart of the post.
 3. The pass: the passing run and its totals. Don't link or attach the evidence pack: it stays private (it holds network and console logs).
 4. What it changed about how you built: concrete behaviour, like "we stopped eyeballing the staging site and ran the flow after every merge".
 5. Limits and honest notes: what Kane CLI did not catch, where it was slow, what you would set up differently.
@@ -68,6 +68,10 @@ Link Kane CLI once to https://github.com/LambdaTest/kane-cli and once to the doc
 - How to run it locally (commands), or the demo URL.
 - Credits: teammates with links, the hack day, TestMu AI and OpenAI as text links.
 - Link to the Ship Page and deck.
+
+## Publish and link it
+
+The site scores a blog post on dev.to, Medium, Hashnode or the team's own site. The person picks one, pastes the post, uploads the approved images, checks every link in the preview, and publishes before 18:00 Pacific today. Then a signed-in teammate pastes the live URL into the Blog row on the Submit tab, ticks it and presses Save; until then it doesn't count. If they cross-post later, the first URL is the `canonical`.
 
 ## Style
 

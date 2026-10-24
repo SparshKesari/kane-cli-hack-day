@@ -8,8 +8,9 @@ import storyboardJson from "../public/storyboard.json";
 
 const storyboard = storyboardJson as unknown as Storyboard;
 
+// Showcase rounds each scene to whole frames, so the total is the sum of those, not the rounded sum.
 const totalFrames = (sb: Storyboard) =>
-  Math.round(sb.scenes.reduce((a, s) => a + (s.seconds ?? 4), 0) * sb.fps);
+  sb.scenes.reduce((a, s) => a + Math.round((s.seconds ?? 4) * sb.fps), 0);
 
 export const Root: React.FC = () => (
   <>

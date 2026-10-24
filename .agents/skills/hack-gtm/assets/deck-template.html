@@ -4,10 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{PROJECT}} deck</title>
-<meta property="og:title" content="{{PROJECT}}: {{PITCH}}">
-<meta property="og:description" content="Built with OpenAI, tested with Kane CLI at Kane CLI Hack Day.">
-<meta property="og:image" content="{{OG_IMAGE_URL}}">
-<meta name="twitter:card" content="summary_large_image">
 <style>
   :root { --bg:#0b0f14; --fg:#f4f6f8; --muted:#9aa5b1; --accent:#7cf2c4; --fail:#ff5c5c; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font-family: Inter, "SF Pro Display", "Segoe UI", system-ui, sans-serif; }
@@ -24,6 +20,10 @@
   img, video { max-width:100%; max-height:620px; border-radius:16px; border:2px solid rgba(255,255,255,.12); }
   .pill { display:inline-block; font-family:monospace; font-size:24px; padding:6px 18px; border-radius:999px; background:var(--accent); color:var(--bg); font-weight:700; }
   .pill.fail { background:var(--fail); }
+  .flow { display:flex; align-items:center; margin-top:24px; }
+  .node { border:2px solid var(--accent); border-radius:16px; padding:28px 32px; font-size:32px; text-align:center; min-width:200px; }
+  .edge { flex:1; position:relative; margin:0 10px; padding:0 12px 14px; border-bottom:3px solid var(--muted); text-align:center; font-size:22px; color:var(--muted); }
+  .edge::after { content:""; position:absolute; right:-2px; bottom:-9.5px; border-top:8px solid transparent; border-bottom:8px solid transparent; border-left:12px solid var(--muted); }
   .foot { position:absolute; bottom:48px; left:140px; right:140px; display:flex; justify-content:space-between; font-size:22px; color:var(--muted); }
   #help { position:fixed; bottom:16px; right:16px; font-size:14px; color:var(--muted); opacity:.6; }
   body.print #stage { position:static; display:block; }
@@ -32,6 +32,8 @@
 </style>
 </head>
 <body>
+<!-- Save as launch/deck/index.html. Copy hero.png and fail-annotated.png (images the person approved) into the same folder; the demo slide plays ../video/showcase.mp4.
+     Delete any img or video whose file isn't there, and drop a slide left with nothing to show. Never leave a broken reference. -->
 <div id="stage">
 
 <section class="slide">
@@ -57,14 +59,21 @@
 
 <section class="slide">
   <div class="kicker">Demo</div>
-  <video src="showcase.mp4" poster="hero.png" muted loop autoplay playsinline></video>
+  <video src="../video/showcase.mp4" poster="hero.png" muted loop autoplay playsinline></video>
 </section>
 
 <section class="slide">
   <div class="kicker">How it works</div>
-  <div class="two">
-    <h2>{{HOW_HEADLINE}}</h2>
-    <img src="architecture.png" alt="User, app, OpenAI layer, Kane CLI loop">
+  <h2>{{HOW_HEADLINE}}</h2>
+  <!-- Four nodes max, e.g. user, app, OpenAI layer, Kane CLI loop; each edge says what moves between them. -->
+  <div class="flow">
+    <div class="node">{{NODE_1}}</div>
+    <div class="edge">{{EDGE_1}}</div>
+    <div class="node">{{NODE_2}}</div>
+    <div class="edge">{{EDGE_2}}</div>
+    <div class="node">{{NODE_3}}</div>
+    <div class="edge">{{EDGE_3}}</div>
+    <div class="node">{{NODE_4}}</div>
   </div>
 </section>
 
@@ -97,6 +106,13 @@
   <p>{{LEARN_1}}</p>
   <p>{{LEARN_2}}</p>
   <p>{{LEARN_3}}</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">What's next</div>
+  <p>{{NEXT_1}}</p>
+  <p>{{NEXT_2}}</p>
+  <p>{{NEXT_3}}</p>
 </section>
 
 <section class="slide">

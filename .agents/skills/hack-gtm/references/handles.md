@@ -35,8 +35,8 @@ Describe what it did, in verbs: ran, opened, clicked, asserted, failed, passed, 
 
 ## Links to include, once each, across the kit
 
-- Ship Page: `https://kaneclihack.sh/ship/<team>` (X post 1)
+- Ship Page: `https://kaneclihack.sh/ship/<team>` (X post 1, the HN first comment, the blog), only once a teammate has published it; until then it is a 404
 - Deck: `https://kaneclihack.sh/ship/<team>/deck`, once published in the Studio (X post 1, optional)
-- Repo at submitted SHA
+- Repo at submitted SHA (the Show HN URL, unless the live demo is)
 - Kane CLI: https://github.com/LambdaTest/kane-cli (blog and HN)
 - Evidence pack: never linked or attached; it stays private

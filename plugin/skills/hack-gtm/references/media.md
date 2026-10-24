@@ -4,7 +4,7 @@ Applies to every image, video, carousel and PDF the kit produces. The test: woul
 
 ## One asset per post, chosen for the point of that post
 
-- X post 1: the showcase video (native upload) or the hero screenshot. Not both, not a collage.
+- X post 1: the showcase video (native upload) if it is ready, or the hero screenshot. Not both, not a collage. Don't hold the thread for the video.
 - X post 3 (the Kane moment): one annotated screenshot of the failed step. The red box from `annotated.png` is the whole story; do not add arrows, circles or captions on top.
 - LinkedIn: the video, or the deck as a PDF document post. Not the video and a carousel and three screenshots.
 - Blog: screenshots where they explain something; never a screenshot every paragraph. Three to six for a 2,000-word post.
@@ -12,7 +12,7 @@ Applies to every image, video, carousel and PDF the kit produces. The test: woul
 
 ## Keep product and proof assets honest
 
-- Screenshots are real screens from the app or the evidence pack. No mockups passed off as the product. No stock imagery.
+- Screenshots are real screens from the app or the evidence pack. A screenshot from a pack goes out only after the person has looked at it and said yes; the pack itself is never attached or linked. No mockups passed off as the product. No stock imagery.
 - No "before/after" composites unless both halves are real and from the same session.
 - Do not crop a failed run to look like a pass. If a screenshot shows an error, it shows an error.
 - Numbers in images match `run.yaml` and the brief. No rounding up.
@@ -30,7 +30,7 @@ Applies to every image, video, carousel and PDF the kit produces. The test: woul
 - Captions burned in, because autoplay is muted. No music unless the user supplies a licensed track; silence under voice-over is fine.
 - Voice-over is one voice, conversational, no sound effects, no "whoosh" transitions. Simple fades.
 - Thumbnail (if the platform asks for one): the hero screenshot with the project name, nothing else. No faces with open mouths, no arrows, no red circles.
-- Upload natively. A YouTube link in a LinkedIn post is a link card, not a video, and gets a fraction of the reach.
+- Upload natively. A YouTube link in a LinkedIn post is a link card, not a video, and gets a fraction of the reach. Native upload is for the posts only; the Submit tab still needs a link to the video (`kanehack publish`, YouTube or Loom; see SKILL.md, posting order).
 
 ## Image specifics
 
@@ -44,15 +44,16 @@ Applies to every image, video, carousel and PDF the kit produces. The test: woul
 - One X thread, one LinkedIn post per person, one HN submission. No reposting the same asset daily "for reach".
 - Do not tag people who were not involved. Tag TestMu AI, OpenAI (when real), teammates. Not judges, not other participants, not influencers.
 - Do not reply to unrelated threads with the project link. Do not post the link in other teams' threads.
-- Teammates share their own variant, hours apart, not the captain's post verbatim at the same minute.
+- Teammates share their own variant, spaced apart (and before 18:00 Pacific if it should count), not the captain's post verbatim at the same minute.
 - No hashtag walls. Three on LinkedIn, two on X, zero on HN.
 - No DMs with the link. No "would love your support" messages. No vote requests anywhere.
 - If a post flops, leave it. Deleting and reposting reads as manipulation on both platforms and HN detects it.
-- A 24-hour follow-up (the video, quoting the original) is the only scheduled repost in the kit.
+- One follow-up quoting the original with the video, when the video wasn't ready for post 1, is the only scheduled repost in the kit.
 
 ## Checklist before any asset ships
 
 - Is it real (from the app, the pack, or a screen recording)?
+- If it came from a pack, has the person looked at it and said yes?
 - Does it make one point?
 - Would it still make sense with the brand names removed?
 - Is the project the subject, with the tools as credit?
