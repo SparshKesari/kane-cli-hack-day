@@ -66,8 +66,21 @@ test("a core criterion at 0, or nothing shippable today, means rethink", async (
   assert.equal(await verdictOf({ clear_idea: 0, kane_flows_named: 1 }), "rethink");
 });
 
-test("uniqueness in the market never blocks", async () => {
-  assert.equal(await verdictOf({ unique_in_market: 0 }), "ready");
+test("an idea a shipped product already does means rethink, even with a strong plan", async () => {
+  // The scores a plain todo app got on 2026-10-24: everything else 2 or 3.
+  const todo = { clear_idea: 2, eligible: 2, shippable_today: 3, openai_in_build: 3, kane_flows_named: 3, kane_feasible: 3, agent_kane_loop: 2, unique_kane_usage: 2, unique_in_market: 0 };
+  assert.equal(await verdictOf(todo), "rethink");
+  assert.equal(await verdictOf({ unique_in_market: 0 }), "rethink");
+});
+
+test("a crowded idea whose difference is easy to copy is needs_work", async () => {
+  assert.equal(await verdictOf({ unique_in_market: 1 }), "needs_work");
+});
+
+test("market uniqueness that wasn't checked, or a clear wedge, doesn't hold an idea back", async () => {
+  assert.equal(await verdictOf({ unique_in_market: null }), "ready");
+  assert.equal(await verdictOf({ unique_in_market: 2 }), "ready");
+  assert.equal(await verdictOf({ unique_in_market: 3 }), "ready");
 });
 
 test("malformed validator output is refused and nothing is saved", async () => {

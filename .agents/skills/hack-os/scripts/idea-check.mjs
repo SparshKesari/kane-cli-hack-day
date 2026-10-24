@@ -37,12 +37,13 @@ function parse(text) {
   return r;
 }
 
-// The prompt's VERDICT rules. unique_in_market never blocks, so it's left out entirely.
+// The prompt's VERDICT rules. unique_in_market counts once scored: 0 (a shipped product already
+// does it) means rethink, 1 (crowded, easy to copy) needs_work; null (not checked) never counts.
 function verdict(criteria) {
   const score = Object.fromEntries(criteria.map((c) => [c.id, c.score]));
-  if (CORE.some((id) => score[id] === 0) || score.shippable_today === 0) return "rethink";
+  if (CORE.some((id) => score[id] === 0) || score.shippable_today === 0 || score.unique_in_market === 0) return "rethink";
   const other = IDS.filter((id) => id !== "unique_in_market" && !CORE.includes(id));
-  if (CORE.some((id) => score[id] === 1) || other.some((id) => score[id] === 0)) return "needs_work";
+  if (CORE.some((id) => score[id] === 1) || other.some((id) => score[id] === 0) || score.unique_in_market === 1) return "needs_work";
   return "ready";
 }
 
