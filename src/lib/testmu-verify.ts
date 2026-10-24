@@ -7,6 +7,7 @@ import type { KeyCredentials } from "./testmu-gate";
 //   TESTMU_VERIFY_URL   GET with Basic username:access_key; 2xx = valid, 401/403 = invalid.
 //                       The email is read from email | data.email | user.email | data.user.email.
 //   TESTMU_VERIFY_STUB  outside production with no URL: "valid" (default) | "invalid"
+//   TESTMU_VERIFY_STUB_EMAIL=1  let the stub treat an email-shaped username as verified (local only)
 
 export type VerifyResult =
   | { ok: true; username: string; email: string | null }
@@ -27,7 +28,10 @@ export async function checkAccessKey(c: KeyCredentials): Promise<VerifyResult> {
   if (!url) {
     if (isProduction()) return { ok: false, reason: "unavailable", detail: "TESTMU_VERIFY_URL is not set in production" };
     if ((process.env.TESTMU_VERIFY_STUB ?? "valid") === "invalid") return { ok: false, reason: "invalid", detail: "stub: invalid" };
-    return { ok: true, username: c.username, email: c.username.includes("@") ? c.username.toLowerCase() : null };
+    // The stub never vouches for an email (previews share the live DB, so that would let
+    // anyone act as any participant) unless TESTMU_VERIFY_STUB_EMAIL is set for local tests.
+    const vouch = process.env.TESTMU_VERIFY_STUB_EMAIL === "1" && c.username.includes("@");
+    return { ok: true, username: c.username, email: vouch ? c.username.toLowerCase() : null };
   }
   let res: Response;
   try {
