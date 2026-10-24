@@ -1,3 +1,4 @@
+import Link from "next/link";
 import CopyField from "@/components/ui/CopyField";
 import { startCommands } from "@/data/hackday";
 
@@ -13,6 +14,12 @@ export default function StartCommand({ id, className = "" }: { id?: string; clas
       <CopyField value={startCommands.windows} className="mt-2" />
       <p className="mt-4 font-plex text-sm leading-relaxed text-lightgray">
         2 · Then start a new Codex session and type <code className="text-bright">$hack-os</code>. It signs you up, sets up your team and gets your Codex coupon.
+      </p>
+      <p className="mt-3 font-plex text-sm leading-relaxed text-lightgray">
+        <Link href="/start" className="text-bright underline underline-offset-4 hover:text-lime">
+          The whole flow, step by step →
+        </Link>{" "}
+        Point your agent there for the full context.
       </p>
     </div>
   );
