@@ -52,7 +52,7 @@ export default function SetupPage() {
       <Step id="connect" n="03" title="Connect your agent" body="Points your agent at the event server, so the skills can read your status, record runs and open help tickets as you.">
         <Cmds cmds={CONNECT} />
       </Step>
-      <Step id="skills" n="04" title="Use the skills" body="Ask Codex in your own words and it picks the right skill, or type $hack-name. /skills lists them.">
+      <Step id="skills" n="04" title="Use the skill" body="Type $hack-os in Codex, or just ask in your own words. /skills lists it.">
         <div className="grid gap-10 lg:grid-cols-2">
           {SKILL_GROUPS.map((g) => (
             <div key={g.phase}>

@@ -72,7 +72,8 @@ $env:PATH = "$Npm;$OrigPath"
 $rc = RunPS "$Sb -Yes -Site '$Site'"
 Check "yes: exit 0" ($rc -eq 0) $Log
 Check "yes: kanehack $Version installed (sha256 verified)" ((KhVersion) -eq $Version -and (LogHas "sha256 verified")) $Log
-Check "yes: 12 skills in .agents\skills (where Codex reads them)" (@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 12) $Log
+Check "yes: the hack-os skill in .agents\skills (where Codex reads it), marked with this version" ((@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 2) -and (Test-Path (Join-Path $H ".agents\skills\hack-os\SKILL.md")) -and ((Get-Content (Join-Path $H ".agents\skills\hack-os\.bundle-version") -Raw).Trim() -eq $Version)) $Log
+Check "yes: the hack-gtm skill next to it" ((Get-Content (Join-Path $H ".agents\skills\hack-gtm\SKILL.md") -Raw) -match "(?m)^name: hack-gtm") $Log
 Check "yes: kanehack.cmd + sh shim in npm's prefix" ((Test-Path (Join-Path $Npm "kanehack.cmd")) -and (Test-Path (Join-Path $Npm "kanehack"))) $Log
 Check "yes: next steps say plain kanehack" ((LogHas "  1. kanehack pair") -and -not (LogHas '& "')) $Log
 Check "yes: -Site saved as kanehack's server" ((Get-Content (Join-Path $H ".kanehack\config.json") -Raw) -match [regex]::Escape($Site)) $Log
@@ -120,6 +121,22 @@ $before = KhVersion
 $rc = RunPS "$Sb -Yes -NoSkills -Site '$Site'"
 Check "upgrade: 0.1.0 -> $Version" ($before -eq "0.1.0" -and $rc -eq 0 -and (KhVersion) -eq $Version -and (LogHas "Upgrade the kanehack helper")) $Log
 
+# 6a. Upgrade over the 0.1.x skills: the 12 marked folders go, your own hack-foo stays.
+Fresh "upgrade-skills"
+$sk = Join-Path $H ".agents\skills"
+foreach ($s in "onboard", "doctor", "team", "idea", "harness", "verify", "progress", "help", "demo", "showcase", "gtm", "submit") {
+  New-Item -ItemType Directory -Force -Path (Join-Path $sk "hack-$s") | Out-Null
+  Set-Content -Path (Join-Path $sk "hack-$s\SKILL.md") -Value "old" -Encoding ASCII
+}
+Set-Content -Path (Join-Path $sk "hack-onboard\.bundle-version") -Value "0.1.0" -Encoding ASCII
+Set-Content -Path (Join-Path $sk "hack-gtm\stale.md") -Value "stale" -Encoding ASCII
+New-Item -ItemType Directory -Force -Path (Join-Path $sk "hack-foo") | Out-Null
+Set-Content -Path (Join-Path $sk "hack-foo\SKILL.md") -Value "mine" -Encoding ASCII
+$rc = RunPS "$Sb -Yes -NoPath -Site '$Site'"
+$left = (@(Get-ChildItem $sk -Directory -Filter "hack-*" | ForEach-Object { $_.Name } | Sort-Object)) -join " "
+Check "upgrade: the 12 bundled hack-* folders removed, your own hack-foo kept ($left)" ($rc -eq 0 -and $left -eq "hack-foo hack-gtm hack-os" -and ((Get-Content (Join-Path $sk "hack-foo\SKILL.md") -Raw).Trim() -eq "mine")) $Log
+Check "upgrade: hack-gtm is the new one, nothing left from the old copy" (((Get-Content (Join-Path $sk "hack-gtm\SKILL.md") -Raw) -match "(?m)^name: hack-gtm") -and -not (Test-Path (Join-Path $sk "hack-gtm\stale.md"))) $Log
+
 # 6b. Codex: an existing .codex with its own config and the 0.1.2 skill copies. -Yes connects it
 # (no token in config.toml, backup made, other servers kept), removes the duplicate skills, and a
 # re-run changes nothing. With CODEX_BIN_DIR (the real @openai/codex, kept off the default PATH)
@@ -136,7 +153,7 @@ $cfgText = Get-Content (Join-Path $cxd "config.toml") -Raw
 Check "codex: exit 0, asked and connected" ($rc -eq 0 -and (LogHas "Connect Codex to the event server") -and (LogHas "Codex -> kane-hack-event")) $Log
 Check "codex: config.toml has kane-hack-event with the helper, the other server, no token" (($cfgText -match '(?m)^\[mcp_servers\.kane-hack-event\]') -and $cfgText.Contains("url = `"$Site/mcp`"") -and ($cfgText -match 'http_headers_helper = .*mcp-headers') -and ($cfgText -match '(?m)^\[mcp_servers\.other\]') -and ($cfgText -notmatch 'khk_')) $Log
 Check "codex: config.toml backed up first" (@(Get-ChildItem $cxd -Filter "config.toml.kanehack-*.bak").Count -eq 1) $Log
-Check "codex: skills in .agents\skills, the 0.1.2 copies removed, other skills kept" ((@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 12) -and -not (Test-Path (Join-Path $cxd "skills\hack-onboard")) -and -not (Test-Path (Join-Path $cxd "skills\hack-verify")) -and (Test-Path (Join-Path $cxd "skills\my-own-skill\SKILL.md"))) $Log
+Check "codex: hack-os and hack-gtm in .agents\skills, the 0.1.2 copies removed, other skills kept" ((@(Get-ChildItem (Join-Path $H ".agents\skills") -Directory -Filter "hack-*").Count -eq 2) -and -not (Test-Path (Join-Path $cxd "skills\hack-onboard")) -and -not (Test-Path (Join-Path $cxd "skills\hack-verify")) -and (Test-Path (Join-Path $cxd "skills\my-own-skill\SKILL.md"))) $Log
 if ($env:CODEX_BIN_DIR) {
   $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; CODEX_HOME = $env:CODEX_HOME }
   $env:USERPROFILE = $H; $env:HOME = $H; $env:CODEX_HOME = $cxd
@@ -154,7 +171,7 @@ if ($env:CODEX_BIN_DIR) {
   } finally { Pop-Location; foreach ($envName in $saved.Keys) { [Environment]::SetEnvironmentVariable($envName, $saved[$envName]) }; foreach ($c in $copied) { Remove-Item -Recurse -Force $c } }
   Check "codex: codex mcp get kane-hack-event reads it (url, helper)" ($g.code -eq 0 -and $g.json.transport.url -eq "$Site/mcp" -and $g.json.transport.http_headers_helper) $Log
   $names = @($k.hack.PSObject.Properties)
-  Check "codex: Codex lists all 12 hack-* skills once each (roots: $($k.roots -join ', '))" ($names.Count -eq 12 -and -not ($names | Where-Object { $_.Value -ne 1 })) $Log
+  Check "codex: Codex lists hack-os and hack-gtm once each (roots: $($k.roots -join ', '))" ($names.Count -eq 2 -and $k.hack."hack-os" -eq 1 -and $k.hack."hack-gtm" -eq 1) $Log
 } else { Write-Host "# skip codex binary checks: CODEX_BIN_DIR not set" }
 $before = $cfgText
 $rc = RunPS "$Sb -Yes -Site '$Site'"
@@ -175,7 +192,7 @@ Fresh "tamper"
 New-Item -ItemType Directory -Force -Path $Npm | Out-Null
 $env:PATH = "$Npm;$OrigPath"
 $rc = RunPS "& ([scriptblock]::Create((irm 'http://localhost:3388/install.ps1'))) -Yes -Site 'http://localhost:3388'"
-Check "tampered skills tarball: non-zero exit, checksum mismatch, nothing installed" ($rc -ne 0 -and (LogHas "checksum mismatch") -and (LogHas "Nothing was installed") -and -not (Test-Path (Join-Path $H ".kanehack\bin")) -and -not (Test-Path (Join-Path $H ".agents\skills\hack-onboard"))) $Log
+Check "tampered skills tarball: non-zero exit, checksum mismatch, nothing installed" ($rc -ne 0 -and (LogHas "checksum mismatch") -and (LogHas "Nothing was installed") -and -not (Test-Path (Join-Path $H ".kanehack\bin")) -and -not (Test-Path (Join-Path $H ".agents\skills\hack-os"))) $Log
 Fresh "tamper-iex"
 $rc = RunPS "`$env:KANEHACK_YES = '1'; `$env:KANEHACK_SITE = 'http://localhost:3388'; try { irm 'http://localhost:3388/install.ps1' | iex } catch { Write-Host ('caught: ' + `$_) }; Write-Host 'host-still-alive'; exit 0"
 Check "tampered + irm | iex (KANEHACK_YES): error is catchable, the host keeps running" ((LogHas "host-still-alive") -and (LogHas "caught:")) $Log
