@@ -1,10 +1,11 @@
 # Kane's read-only APIs
 
-Two read-only HTTP APIs serve Kane's data about a team's work. Their app doesn't need them, and nothing in the event
-requires them. Offer them when a team wants to:
+Two read-only HTTP APIs serve Kane's data about a team's work. Read this page whenever you use the official Kane CLI
+skill for a team: what Kane runs, designs and explores is what these APIs show. Their app doesn't need them, and
+nothing in the event requires them. Offer them when a team wants to:
 
-- **track its progress:** the project's coverage, designed tests and runs, or an exploration's screens and findings as
-  it grows;
+- **track its progress, and show it to the event team:** the project's coverage, designed tests and runs, or an
+  exploration's screens and findings as it grows, for example at the final evaluation or in the demo;
 - **show Kane's results inside the app** it's building, for example a quality panel;
 - **build a companion app** beside it, for example a bot that posts new findings or a check on coverage before a merge.
 
