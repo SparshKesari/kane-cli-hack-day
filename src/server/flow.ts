@@ -135,6 +135,12 @@ async function saveProfileFields(memberId: number, data: ProfileData, x: string 
   });
 }
 
+/** Set the first password on an account that has none; false if another one got there first. */
+async function claimWithPassword(memberId: number, password: string) {
+  const rows = await query("update members set password_hash = $2 where id = $1 and password_hash is null returning id", [memberId, await hashPassword(password)]);
+  return rows.length > 0;
+}
+
 /** A desk code for `email`: a member sign-in code, or a desk activation code issued to this person. */
 async function proveWithCode(existing: { id: number; guest_id: number | null }, email: string, code: string) {
   try {
@@ -199,11 +205,15 @@ export async function submitProfile(input: unknown, viewer: MemberRow | null): P
     [data.email],
   );
   if (existing) {
-    // Never adopt an existing account on the email alone.
+    // Never adopt an existing account on the email alone. One with no password yet (made at desk
+    // check-in, or by a captain adding a teammate by email) takes the first password set for it:
+    // the same trust as a new sign-up, so `kanehack register` works after check-in.
     let ok = false;
-    if (data.proof_password && existing.password_hash) ok = await verifyPassword(data.proof_password, existing.password_hash);
+    const unclaimed = !existing.password_hash && !!data.password;
+    if (unclaimed) ok = await claimWithPassword(existing.id, data.password);
+    else if (data.proof_password && existing.password_hash) ok = await verifyPassword(data.proof_password, existing.password_hash);
     else if (data.proof_code) ok = await proveWithCode(existing, data.email, data.proof_code);
-    if (!data.proof_password && !data.proof_code) return { kind: "needs_proof" };
+    if (!unclaimed && !data.proof_password && !data.proof_code) return { kind: "needs_proof" };
     if (!ok) throw new AppError("UNAUTHENTICATED", { userMessage: PROOF_FAILED });
     await setMemberSession({ memberId: existing.id, personal: true });
     const [{ has }] = await query<{ has: boolean }>("select password_hash is not null as has from members where id = $1", [existing.id]);

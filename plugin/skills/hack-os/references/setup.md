@@ -25,6 +25,7 @@ Intel Mac: Kane CLI doesn't support it. Send them to the help desk for a loaner 
 2. Ask: "Have you already registered on kaneclihack.sh?"
    - No → `references/signup-team.md`: `kanehack register` saves the profile and signs this machine in.
    - Yes → `kanehack signin --email <their email> --json`. Exit 0 = signed in. 2 with `WRONG_PASSWORD` = the email or the saved password is wrong: check the email, or they run `kanehack password` again in their terminal. 3 = server unreachable: check the network.
+   - Checked in at the desk but never saved a profile? That's "No": checking in makes an account with no password, and `kanehack register` sets the saved one on it.
 
 **Fallback only** (sign-in keeps failing, or they'd rather approve in the browser): pair this machine.
 

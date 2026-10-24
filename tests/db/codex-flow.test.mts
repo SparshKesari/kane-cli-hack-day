@@ -88,6 +88,44 @@ test("kanehack signin: email + the stored password gives a token; a wrong passwo
   assert.equal(bad.env.data?.token ?? null, null);
 });
 
+// Desk check-in makes the account with no password. The first password kanehack register sends
+// claims it (no desk code); once it has one, a different password doesn't take it over.
+const passwordless = async (e: string, teamId: number | null = null) => {
+  const { emailHash } = await import("../../src/server/core.ts");
+  const [row] = await m.db.query<{ id: number }>(
+    "insert into members (team_id, name, email, email_hash, display_name, admission_state, checked_in_at) values ($1, 'Desk Person', $2, $3, 'Desk Person', 'admitted', now()) returning id",
+    [teamId, e, emailHash(e)],
+  );
+  return row.id;
+};
+const profile = (e: string, pw: string, name = "Desk Person") => ({ name, email: e, linkedin: "desk-person", x: "@deskperson", password: pw, proof_password: pw, client: "kanehack" });
+
+test("an account made at desk check-in (no password yet) takes the password kanehack register sends; signin then works", { skip }, async () => {
+  const desk = `${tag}.desk@example.test`;
+  const id = await passwordless(desk);
+  m.jar.clear();
+  const r = await read(await m.register.POST(post(profile(desk, PW))));
+  assert.equal(r.status, 200, JSON.stringify(r.env));
+  assert.equal(Number(r.env.data?.member_id), id, "the desk's account, not a new one");
+  assert.match(String(r.env.data?.token), /^khk_/);
+  const s = await read(await m.token.POST(post({ email: desk, password: PW })));
+  assert.equal(s.status, 200, JSON.stringify(s.env));
+  m.jar.clear();
+  const other = await read(await m.register.POST(post(profile(desk, "another-pass-99", "Someone Else"))));
+  assert.equal(other.status, 401, "it has a password now");
+  assert.equal((await m.auth.getMemberById(id))?.name, "Desk Person");
+});
+
+test("two first passwords for one account at once: only one claims it", { skip }, async () => {
+  const twin = `${tag}.twin@example.test`;
+  await passwordless(twin);
+  const flow = await import("../../src/server/flow.ts");
+  const out = await Promise.allSettled([flow.submitProfile(profile(twin, "first-pass-111"), null), flow.submitProfile(profile(twin, "second-pass-222"), null)]);
+  assert.deepEqual(out.map((o) => o.status).sort(), ["fulfilled", "rejected"]);
+  const winner = out[0].status === "fulfilled" ? "first-pass-111" : "second-pass-222";
+  assert.equal((await read(await m.token.POST(post({ email: twin, password: winner })))).status, 200, "the winner's password is the one kept");
+});
+
 test("kanehack claim: the TestMu AI plan is claimed with the token and the stored password", { skip }, async () => {
   let me = (await m.auth.getMemberById(memberId))!;
   await m.teams.createTeam({ member: me, actor: m.auth.memberActor(me) }, { name: `${tag} Codex`, track: "Web App" });
@@ -102,6 +140,18 @@ test("kanehack claim: the TestMu AI plan is claimed with the token and the store
   assert.equal(s.activation_steps?.testmu_plan, "claimed");
   assert.equal(s.activation_steps?.testmu_signup, true, "the claim ticks step 1");
   assert.equal(s.activation_steps?.codex_credits, false);
+});
+
+test("a teammate the captain added by email (no password yet) claims their account and stays on the team", { skip }, async () => {
+  const [{ team_id }] = await m.db.query<{ team_id: number }>("select team_id from members where id = $1", [memberId]);
+  const { addMember } = await import("../../src/lib/teams.ts");
+  const mate = `${tag}.mate@example.test`;
+  const id = await addMember(team_id, "Mate", mate);
+  m.jar.clear();
+  const r = await read(await m.register.POST(post(profile(mate, PW, "Mate"))));
+  assert.equal(r.status, 200, JSON.stringify(r.env));
+  assert.equal(Number(r.env.data?.member_id), id);
+  assert.equal((await m.auth.getMemberById(id))?.team_id, team_id);
 });
 
 // Everyone at the venue shares one public IP: a per-IP cap of 10 locked the room out after ten

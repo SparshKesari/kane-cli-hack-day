@@ -160,10 +160,20 @@ try {
     r = kh(["signin", "--json"]);
     check("signin with the wrong saved password → exit 2 WRONG_PASSWORD", r.code === 2 && r.json?.error?.code === "WRONG_PASSWORD", r.show);
     r = kh(["register", "--name", "Suite Person", "--email", "suite@demo.test", "--linkedin", "suite-person", "--x", "@suiteperson", "--json"]);
-    check("register an existing email with another password → exit 2, suggests signin", r.code === 2 && /kanehack signin --email suite@demo\.test/.test(r.err), r.show);
+    check(
+      "register an existing email with another password → exit 2 WRONG_PASSWORD with the server's reason, suggests signin, never pair",
+      r.code === 2 && r.json?.error?.code === "WRONG_PASSWORD" && /match this email/.test(r.err) && /kanehack signin --email suite@demo\.test/.test(r.err) && !/kanehack pair|Not signed in/.test(r.err),
+      r.show,
+    );
     writeFileSync(creds, JSON.stringify({ password: PW, testmu_password: "testmu-other-pass" }), { mode: 0o600 });
     r = kh(["signin", "--json"]);
     check("signin (email from config) → exit 0 signed_in", r.code === 0 && r.json?.status === "signed_in" && !/khk_/.test(r.out + r.err), r.show);
+    r = kh(["pair", "--json"]);
+    check("pair with a saved password signs in with that password: no browser code", r.code === 0 && r.json?.status === "signed_in" && !r.json?.user_code && !/pair\?code=/.test(r.out + r.err), r.show);
+    r = kh(["pair", "--email", "nobody@demo.test", "--json"]);
+    check("pair with a saved password and an unknown email → exit 2 WRONG_PASSWORD, suggests register", r.code === 2 && r.json?.error?.code === "WRONG_PASSWORD" && /kanehack register/.test(r.err), r.show);
+    r = kh(["pair", "--start", "--json"]);
+    check("pair --start still gives a browser code when a password is saved", r.code === 0 && /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(r.json?.user_code ?? ""), r.show);
     r = kh(["claim", "--json"]);
     check("claim uses the separate TestMu AI password when one is saved", r.code === 2 && r.json?.outcome === "error", r.show);
     r = kh(["password", "--forget", "--testmu", "--json"]);
