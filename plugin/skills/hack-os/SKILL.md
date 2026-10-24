@@ -52,6 +52,11 @@ Route from `participant_get_status` data: `member.checked_in` false → they che
 
 Team registration closes 11:00. Idea locks 12:00. Final evaluation 16:00–17:00 at the team's table. Submissions lock 18:00. All Pacific time; the server clock decides.
 
-## Submission, Ship Page, deck, video, evidence, X post
+## Submission and launch assets
 
-Not in this version of the skill yet. Send them to their team page `https://kaneclihack.sh/t/<team-slug>` (Submit tab), and run `node <skill>/scripts/state.mjs check-version` again later: a newer skill version adds these.
+What a team hands in (from the event team):
+
+- Project details: name, description, about, and how they used Kane CLI.
+- Launch assets: LinkedIn and X posts that tag the official accounts (several posts are fine; they share every link), a blog post, a Hacker News post, a deck, and a demo video with voice-over.
+
+The `$hack-gtm` skill drafts all of these from their project and their Kane evidence. Its drafts are samples: teams can write their own, in their own style. Nothing is posted without their yes, and they post it themselves. The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`; `references/build.md` has the steps.

@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Agent worktrees and tooling (separate checkouts, linted on their own).
     ".claude/**",
+    // hack-gtm's Remotion video project: participants install and build it themselves.
+    "plugin/skills/*/scripts/remotion/**",
+    ".agents/skills/*/scripts/remotion/**",
   ]),
 ]);
 

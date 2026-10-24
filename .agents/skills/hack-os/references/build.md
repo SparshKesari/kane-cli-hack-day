@@ -18,5 +18,7 @@ Keep your notes at `building` the whole time; help and test requests don't chang
 ## "Ready to submit"
 
 1. `node <skill>/scripts/state.mjs set-build ready`
-2. `node <skill>/scripts/state.mjs check-version`. If there's a newer skill, ask them to re-run the install command and start a new Codex session: it adds the submission steps.
-3. Otherwise call `submission_preflight`. "Already finalized" → tell them it's in and give the receipt. Otherwise show what it lists as missing and send them to the Submit tab on `https://kaneclihack.sh/t/<team-slug>`. Submissions lock at 18:00 Pacific; final evaluation is 16:00–17:00 at their table.
+2. `node <skill>/scripts/state.mjs check-version`. If there's a newer skill, ask them to re-run the install command and start a new Codex session, then carry on.
+3. Call `submission_preflight`. "Already finalized" → tell them it's in and give the receipt, and stop.
+4. Otherwise show what it lists as missing, and the list under "Submission and launch assets" in `SKILL.md`. For the posts, blog, Hacker News post, deck and video, hand over to `$hack-gtm`: tell them to type `$hack-gtm` (or ask "write our launch posts") and give it the project details you already know.
+5. The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`. Submissions lock at 18:00 Pacific; final evaluation is 16:00–17:00 at their table.

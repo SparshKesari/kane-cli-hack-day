@@ -1,12 +1,12 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "kane-hack-os",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Participant skills for Kane CLI Hack Day: setup, teams, ideas, harness design, Kane run proof, help, demo, showcase and submission. Uses the event MCP server at https://www.kaneclihack.sh/mcp with a token from `kanehack pair`.",
   "author": { "name": "TestMu AI" },
   "homepage": "https://kaneclihack.sh",
   "license": "UNLICENSED",
-  "skills": ["skills/hack-os"],
+  "skills": ["skills/hack-os", "skills/hack-gtm"],
   "mcp": "mcp.json",
   "requires": {
     "skills": ["@testmuai/kane-cli-skill"],

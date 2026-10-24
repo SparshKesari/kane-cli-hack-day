@@ -8,15 +8,17 @@ One participant skill, `hack-os`, plus the event MCP server for Kane CLI Hack Da
 
 | Path | What |
 |---|---|
-| `plugin.json` | Manifest (name `kane-hack-os`, version 0.1.0). Bump the version on every release. |
+| `plugin.json` | Manifest (name `kane-hack-os`, version 0.3.0) listing both skills. Bump the version on every release. |
 | `mcp.json` | The remote MCP server `kane-hack-event` → `https://www.kaneclihack.sh/mcp`, Streamable HTTP, bearer token from `KANEHACK_TOKEN`. |
 | `skills/hack-os/` | The skill: `SKILL.md`, one reference file per phase, and small helper scripts. Mirrored at `.agents/skills/hack-os`, where Codex finds it when it runs in this repo. |
+| `skills/hack-gtm/` | The launch kit, from the event team: X and LinkedIn posts, blog, Show HN post, HTML deck and a voiced demo video from the Kane evidence pack. Mirrored at `.agents/skills/hack-gtm`. Its `scripts/remotion` is a separate project the participant installs; the site's `tsc` and ESLint skip it. |
 | `hooks/README.md` | The optional, opt-in lifecycle hook (off by default). |
 | `GENERATIVE_UI_CONTRACT.md` | How tool envelopes map to UI cards and to plain text. |
 
 | Skill | MCP tools it uses |
 |---|---|
-| hack-os | participant_get_status, team_find, team_create, team_join, idea_validate, idea_check_overlap, help_diagnose, help_create, submission_preflight (plus `kanehack` for setup, sign-in and run reports) |
+| hack-os | participant_get_status, event_get_brief, team_find, team_create, team_join, idea_validate, idea_check_overlap, help_diagnose, help_create, submission_preflight (plus `kanehack` for setup, sign-in and run reports) |
+| hack-gtm | none: it writes drafts from the project brief and the Kane evidence pack; the person posts them |
 
 `social_publish` is an organizer action on the web and is deliberately **not** an MCP tool.
 

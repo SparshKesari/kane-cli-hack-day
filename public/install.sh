@@ -34,7 +34,7 @@ if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 
 KANEHACK_VERSION="0.1.5"
 KANEHACK_SHA256="4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
-SKILLS_SHA256="37495131cc943fbd66754b5630d067e3e7057b6fc81f96c1de062919f7e843bd"
+SKILLS_SHA256="83ad59c88fa2a63bd09ad7d1e64db44ad68ebe970784da9597eec3288aa11c88"
 DEFAULT_SITE="https://kaneclihack.sh"
 SITE="${KANEHACK_SITE:-$DEFAULT_SITE}"
 YES="${KANEHACK_YES:-}"
@@ -158,7 +158,7 @@ LEGACY_SKILLS="${CODEX_DIR}/skills"
 OLD_SKILLS="hack-onboard hack-doctor hack-team hack-idea hack-harness hack-verify hack-progress hack-help hack-demo hack-showcase hack-gtm hack-submit"
 # Missing, installed by an older bundle, or the old 12 still there: re-offer (the marker file names the bundle version).
 NEED_SKILLS="$({ skill_dirs | while IFS= read -r d; do
-  if [ ! -f "${d}/hack-os/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-os/.bundle-version" 2>/dev/null || [ -f "${d}/hack-onboard/.bundle-version" ]; then echo yes; fi
+  if [ ! -f "${d}/hack-os/SKILL.md" ] || [ ! -f "${d}/hack-gtm/SKILL.md" ] || ! grep -qx "$KANEHACK_VERSION" "${d}/hack-os/.bundle-version" 2>/dev/null || [ -f "${d}/hack-onboard/.bundle-version" ]; then echo yes; fi
 done; if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then echo yes; fi; } | head -n1)"
 if [ -z "$NEED_SKILLS" ]; then pass hack_skills "${KANEHACK_VERSION}"; else warn hack_skills "not found or older" "Offered below"; fi
 
@@ -187,7 +187,7 @@ fi
 if [ -n "$NEED_SKILLS" ]; then
   if [ -n "$NO_SKILLS" ]; then warn hack_skills "skipped (--no-skills)" "Re-run without --no-skills to add them"
   elif ! have curl; then warn hack_skills "skipped" "Install curl, then re-run"
-  elif ask "Install the Kane Hack OS skill (hack-os) into ${SKILL_DIRS}?"; then WANT_SKILLS=1
+  elif ask "Install the Kane Hack OS skills (hack-os, hack-gtm) into ${SKILL_DIRS}?"; then WANT_SKILLS=1
   else warn hack_skills "skipped" "Re-run this script when you're ready"; fi
 fi
 
@@ -228,19 +228,20 @@ if [ -n "$WANT_KH" ] || [ -n "$WANT_SKILLS" ]; then
     pass kanehack "${KANEHACK_VERSION} → ${PREFIX}/bin/kanehack (sha256 verified)"
   fi
   if [ -n "$WANT_SKILLS" ]; then
-    # Only hack-os is written; your other skills are left alone. The old bundle's 12 folders go
-    # only when its marker says we installed them.
+    # Only hack-os and hack-gtm are written; your other skills are left alone. The old bundle's 12
+    # folders go first, and only when its marker says we installed them: its hack-gtm is one of them.
     if ! skill_dirs | while IFS= read -r d; do
-      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$KANEHACK_VERSION" > "${d}/hack-os/.bundle-version" || exit 1
       if [ -f "${d}/hack-onboard/.bundle-version" ]; then
         for s in $OLD_SKILLS; do rm -rf "${d:?}/${s}"; done
       fi
+      mkdir -p "$d" && tar -xzf "$STGZ" -C "$d" && echo "$KANEHACK_VERSION" > "${d}/hack-os/.bundle-version" || exit 1
     done; then
       fail hack_skills "couldn't unpack" "Check that your skill folders are writable"
       exit 1
     fi
-    pass hack_skills "hack-os → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load it."
-    # Only the old 12, never hack-os: ~/.codex/skills may be the same folder as ~/.agents/skills.
+    pass hack_skills "hack-os, hack-gtm → ${SKILL_DIRS} (sha256 verified). Start a new Codex session to load it."
+    # Only the old 12. Checked now, not before the loop: when ~/.codex/skills is the same folder as
+    # ~/.agents/skills the loop has already removed the marker, so the fresh hack-gtm stays.
     if [ -f "${LEGACY_SKILLS}/hack-onboard/.bundle-version" ]; then
       for s in $OLD_SKILLS; do rm -rf "${LEGACY_SKILLS:?}/${s}"; done
       pass codex_skills "removed the old copies in ${LEGACY_SKILLS} (Codex reads ~/.agents/skills; two copies listed each skill twice)"

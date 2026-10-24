@@ -35,9 +35,9 @@ test("mirror in .agents/skills is identical", () => {
   for (const f of files()) assert.ok(readFileSync(join(SKILL, f)).equals(readFileSync(join(MIRROR, f))), `${f} differs`);
 });
 
-test("only hack-os ships", () => {
-  assert.deepEqual(readdirSync(join(root, "plugin/skills")).sort(), ["hack-os"]);
-  assert.deepEqual(readdirSync(join(root, ".agents/skills")).filter((d) => d.startsWith("hack-")).sort(), ["hack-os"]);
+test("hack-os and hack-gtm ship, nothing else", () => {
+  assert.deepEqual(readdirSync(join(root, "plugin/skills")).sort(), ["hack-gtm", "hack-os"]);
+  assert.deepEqual(readdirSync(join(root, ".agents/skills")).filter((d) => d.startsWith("hack-")).sort(), ["hack-gtm", "hack-os"]);
 });
 
 test("every file SKILL.md points at exists", () => {

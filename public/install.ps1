@@ -30,7 +30,7 @@ $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads cr
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $KanehackVersion = "0.1.5"
 $KanehackSha256 = "4de97b192d80fb4d18e53b112307fc0ca8019b1467ce5620049532c956470837"
-$SkillsSha256 = "37495131cc943fbd66754b5630d067e3e7057b6fc81f96c1de062919f7e843bd"
+$SkillsSha256 = "83ad59c88fa2a63bd09ad7d1e64db44ad68ebe970784da9597eec3288aa11c88"
 function EnvOn($name) { $v = [Environment]::GetEnvironmentVariable($name); [bool]($v -and ($v -notmatch '^(0|false|no)$')) }
 $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
@@ -120,7 +120,7 @@ $OldSkills = @("hack-onboard", "hack-doctor", "hack-team", "hack-idea", "hack-ha
 $hasLegacy = Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")
 function SkillsCurrent($d) {
   $marker = Join-Path $d "hack-os\.bundle-version"
-  (Test-Path (Join-Path $d "hack-os\SKILL.md")) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $KanehackVersion) -and -not (Test-Path (Join-Path $d "hack-onboard\.bundle-version"))
+  (Test-Path (Join-Path $d "hack-os\SKILL.md")) -and (Test-Path (Join-Path $d "hack-gtm\SKILL.md")) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $KanehackVersion) -and -not (Test-Path (Join-Path $d "hack-onboard\.bundle-version"))
 }
 $needSkills = $hasLegacy -or (@($skillDirs | Where-Object { -not (SkillsCurrent $_) }).Count -gt 0)
 if (-not $needSkills) { Pass "hack_skills" $KanehackVersion } else { Warn "hack_skills" "not found or older" "Offered below" }
@@ -156,7 +156,7 @@ else { Warn "kanehack" "skipped" "Re-run this script when you're ready" }
 
 if ($needSkills) {
   if ($NoSkills) { Warn "hack_skills" "skipped (-NoSkills)" "Re-run without -NoSkills to add them" }
-  elseif (Ask "Install the Kane Hack OS skill (hack-os) into $($skillDirs -join ', ')?") { $wantSkills = $true }
+  elseif (Ask "Install the Kane Hack OS skills (hack-os, hack-gtm) into $($skillDirs -join ', ')?") { $wantSkills = $true }
   else { Warn "hack_skills" "skipped" "Re-run this script when you're ready" }
 }
 
@@ -189,20 +189,21 @@ if ($wantKh -or $wantSkills) {
       Pass "kanehack" "$KanehackVersion → $cmdShim (sha256 verified)"
     }
     if ($wantSkills) {
-      # tar.exe ships with Windows 10 1803+. Only hack-os is written; the old bundle's 12 folders go
-      # only when its marker says we installed them.
+      # tar.exe ships with Windows 10 1803+. Only hack-os and hack-gtm are written. The old bundle's 12
+      # folders go first, and only when its marker says we installed them: its hack-gtm is one of them.
       foreach ($d in $skillDirs) {
+        if (Test-Path (Join-Path $d "hack-onboard\.bundle-version")) {
+          foreach ($s in $OldSkills) { $p = Join-Path $d $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
+        }
         New-Item -ItemType Directory -Force -Path $d | Out-Null
         tar -xzf $stgz -C $d
         if ($LASTEXITCODE -ne 0) { Fail "hack_skills" "tar failed in $d" "Ask at the help desk"; throw "kanehack installer: tar failed." }
         Set-Content -Path (Join-Path $d "hack-os\.bundle-version") -Value $KanehackVersion -Encoding ASCII
-        if (Test-Path (Join-Path $d "hack-onboard\.bundle-version")) {
-          foreach ($s in $OldSkills) { $p = Join-Path $d $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
-        }
       }
-      Pass "hack_skills" "hack-os → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load it."
-      if ($hasLegacy) {
-        # Only the old 12, never hack-os: .codex\skills may be the same folder as .agents\skills.
+      Pass "hack_skills" "hack-os, hack-gtm → $($skillDirs -join ', ') (sha256 verified). Start a new Codex session to load it."
+      # Only the old 12. Checked now, not from $hasLegacy: when .codex\skills is the same folder as
+      # .agents\skills the loop has already removed the marker, so the fresh hack-gtm stays.
+      if (Test-Path (Join-Path $legacySkills "hack-onboard\.bundle-version")) {
         foreach ($s in $OldSkills) { $p = Join-Path $legacySkills $s; if (Test-Path $p) { Remove-Item $p -Recurse -Force } }
         Pass "codex_skills" "removed the old copies in $legacySkills (Codex reads .agents\skills; two copies listed each skill twice)"
       }

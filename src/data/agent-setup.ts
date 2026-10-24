@@ -38,7 +38,7 @@ export const CONNECT: Cmd[] = [
   {
     label: "Codex",
     value: `export KANEHACK_TOKEN="$(kanehack token)"\ncodex mcp add kane-hack-event --url ${MCP_URL} --bearer-token-env-var KANEHACK_TOKEN`,
-    note: "The skill loads from ~/.agents/skills (the installer puts it there). Start a new Codex session, then type $hack-os.",
+    note: "The skills load from ~/.agents/skills (the installer puts them there). Start a new Codex session, then type $hack-os.",
   },
 ];
 
@@ -49,11 +49,11 @@ export const PROVE: Cmd[] = [
 
 export type SkillInfo = { name: string; does: string; ask: string };
 
-/** The one skill (plugin/skills/hack-os) and what to ask it, by when in the day you'd reach for it. */
+/** The two skills (plugin/skills/hack-os and hack-gtm) and what to ask them, by when in the day you'd reach for each. */
 export const SKILL_GROUPS: { phase: string; skills: SkillInfo[] }[] = [
   {
     phase: "Get set up",
-    skills: [{ name: "hack-os", does: "Checks your machine, signs you in with your TestMu AI key and connects Codex to the event, with the exact fix for anything missing.", ask: "Show my Hack Day status and do my next step." }],
+    skills: [{ name: "hack-os", does: "Checks your machine, pairs it with your passport and connects Codex to the event, with the exact fix for anything missing.", ask: "Show my Hack Day status and do my next step." }],
   },
   {
     phase: "Team and idea",
@@ -62,6 +62,10 @@ export const SKILL_GROUPS: { phase: string; skills: SkillInfo[] }[] = [
   {
     phase: "Build and prove",
     skills: [{ name: "hack-os", does: "Tests your project with Kane CLI and records runs on your team's Proof tab, failures included.", ask: "Test our login flow with Kane and record it." }],
+  },
+  {
+    phase: "Launch",
+    skills: [{ name: "hack-gtm", does: "Drafts your X and LinkedIn posts, blog, Show HN post, deck and a demo video with voice-over from your project and Kane evidence. Samples: you approve and post them yourself.", ask: "Write our launch posts." }],
   },
   {
     phase: "Stuck",

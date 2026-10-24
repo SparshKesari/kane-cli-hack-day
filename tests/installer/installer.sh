@@ -61,7 +61,8 @@ if want yes-link-npm; then
   run_install --yes --site "$SITE"; RC=$?
   check "yes: exit 0" '[ "$RC" -eq 0 ]' "$LOG"
   check "yes: kanehack $VERSION installed (sha256 verified)" '[ "$(installed_version)" = "$VERSION" ] && grep -q "sha256 verified" "$LOG"' "$LOG"
-  check "yes: the hack-os skill in ~/.agents/skills (where Codex reads it), marked with this version" '[ -f "$H/.agents/skills/hack-os/SKILL.md" ] && [ "$(cat "$H/.agents/skills/hack-os/.bundle-version")" = "$VERSION" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 1 ]' "$LOG"
+  check "yes: the hack-os skill in ~/.agents/skills (where Codex reads it), marked with this version" '[ -f "$H/.agents/skills/hack-os/SKILL.md" ] && [ "$(cat "$H/.agents/skills/hack-os/.bundle-version")" = "$VERSION" ] && [ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 2 ]' "$LOG"
+  check "yes: the hack-gtm skill next to it" 'grep -q "^name: hack-gtm" "$H/.agents/skills/hack-gtm/SKILL.md"' "$LOG"
   check "yes: linked into npm's global bin" '[ -L "$NPMP/bin/kanehack" ] && grep -q "kanehack → $NPMP/bin/kanehack" "$LOG"' "$LOG"
   check "yes: \`kanehack\` resolves on PATH right away" '[ "$(HOME="$H" kanehack version)" = "$VERSION" ]' "$LOG"
   check "yes: next steps say plain \`kanehack pair\`" 'grep -q "^  1. kanehack pair" "$LOG" && ! grep -q "\.kanehack/bin/kanehack pair" "$LOG"' "$LOG"
@@ -155,6 +156,7 @@ if want upgrade; then
   fresh upgrade
   mkdir -p "$H/.kanehack/cli" "$H/.kanehack/bin"
   for s in onboard doctor team idea harness verify progress help demo showcase gtm submit; do mkdir -p "$H/.agents/skills/hack-$s"; echo "old" > "$H/.agents/skills/hack-$s/SKILL.md"; done
+  echo "stale" > "$H/.agents/skills/hack-gtm/stale.md"
   echo "0.1.0" > "$H/.agents/skills/hack-onboard/.bundle-version"
   mkdir -p "$H/.agents/skills/hack-foo"; echo "mine" > "$H/.agents/skills/hack-foo/SKILL.md"
   HOME="$H" npm install --silent --no-audit --no-fund --prefix "$H/.kanehack/cli" "$REPO/public/kanehack-0.1.0.tgz" >/dev/null 2>&1
@@ -162,7 +164,8 @@ if want upgrade; then
   BEFORE="$(installed_version)"
   run_install --yes --site "$SITE"; RC=$?
   check "upgrade: 0.1.0 → $VERSION, old skills replaced" '[ "$BEFORE" = 0.1.0 ] && [ "$RC" -eq 0 ] && [ "$(installed_version)" = "$VERSION" ] && grep -q "Upgrade the kanehack helper" "$LOG" && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
-  check "upgrade: the 12 bundled hack-* folders removed, your own hack-foo kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | sed "s|.*/||" | tr "\n" " ")" = "hack-foo hack-os " ] && [ "$(cat "$H/.agents/skills/hack-foo/SKILL.md")" = mine ]' "$LOG"
+  check "upgrade: the 12 bundled hack-* folders removed, your own hack-foo kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | sed "s|.*/||" | tr "\n" " ")" = "hack-foo hack-gtm hack-os " ] && [ "$(cat "$H/.agents/skills/hack-foo/SKILL.md")" = mine ]' "$LOG"
+  check "upgrade: hack-gtm is the new one, nothing left from the old copy" 'grep -q "^name: hack-gtm" "$H/.agents/skills/hack-gtm/SKILL.md" && [ ! -e "$H/.agents/skills/hack-gtm/stale.md" ]' "$LOG"
 fi
 
 # 8a. ~/.codex/skills is a link to ~/.agents/skills: the legacy cleanup must not delete the fresh hack-os.
@@ -173,7 +176,27 @@ if want same-dir; then
   run_install --yes --site "$SITE"; RC=$?
   check "same-dir: hack-os installed and still there" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
   run_install --yes --site "$SITE"; RC=$?
-  check "same-dir: re-run keeps hack-os" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
+  check "same-dir: re-run keeps hack-os and hack-gtm" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ] && [ -f "$H/.agents/skills/hack-gtm/SKILL.md" ]' "$LOG"
+fi
+
+# 8b'. Same linked folder, upgrading over the 0.1.x skills: the new hack-gtm must survive both cleanups.
+if want same-dir-upgrade; then
+  fresh same-dir-upgrade
+  mkdir -p "$H/.agents/skills" "$H/.codex"
+  ln -s "$H/.agents/skills" "$H/.codex/skills"
+  for s in onboard doctor team idea harness verify progress help demo showcase gtm submit; do mkdir -p "$H/.agents/skills/hack-$s"; echo "old" > "$H/.agents/skills/hack-$s/SKILL.md"; done
+  echo "0.1.0" > "$H/.agents/skills/hack-onboard/.bundle-version"
+  run_install --yes --site "$SITE"; RC=$?
+  check "same-dir-upgrade: hack-os and the new hack-gtm, nothing else" '[ "$RC" -eq 0 ] && [ "$(ls -d "$H/.agents/skills"/hack-* | sed "s|.*/||" | tr "\n" " ")" = "hack-gtm hack-os " ] && grep -q "^name: hack-gtm" "$H/.agents/skills/hack-gtm/SKILL.md"' "$LOG"
+fi
+
+# 8c. The person deleted hack-gtm: a re-run puts it back.
+if want missing-gtm; then
+  fresh missing-gtm
+  run_install --yes --site "$SITE"; RC=$?
+  rm -r "$H/.agents/skills/hack-gtm"
+  run_install --yes --site "$SITE"; RC=$?
+  check "missing-gtm: a re-run puts hack-gtm back" '[ "$RC" -eq 0 ] && [ -f "$H/.agents/skills/hack-gtm/SKILL.md" ]' "$LOG"
 fi
 
 # 8b. Codex: an existing ~/.codex with its own config and the 0.1.2 skill copies. --yes connects it
@@ -192,14 +215,14 @@ if want codex; then
   check "codex: exit 0, asked and connected" '[ "$RC" -eq 0 ] && grep -q "Connect Codex to the event server" "$LOG" && grep -q "codex_mcp .*Codex → kane-hack-event" "$LOG"' "$LOG"
   check "codex: config.toml has kane-hack-event with the helper, the other server, no token" 'grep -q "^\[mcp_servers.kane-hack-event\]" "$CFG" && grep -qF "url = \"$SITE/mcp\"" "$CFG" && grep -q "http_headers_helper = .*mcp-headers" "$CFG" && grep -q "^\[mcp_servers.other\]" "$CFG" && ! grep -q "khk_" "$CFG"' "$LOG"
   check "codex: config.toml backed up first" '[ "$(ls "$H/.codex" | grep -c "config.toml.kanehack-.*\.bak")" = 1 ]' "$LOG"
-  check "codex: hack-os in ~/.agents/skills, the 0.1.2 copies in ~/.codex/skills removed, other skills kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 1 ] && [ ! -e "$H/.codex/skills/hack-onboard" ] && [ ! -e "$H/.codex/skills/hack-verify" ] && [ -f "$H/.codex/skills/my-own-skill/SKILL.md" ] && grep -q "removed the old copies" "$LOG"' "$LOG"
+  check "codex: hack-os and hack-gtm in ~/.agents/skills, the 0.1.2 copies in ~/.codex/skills removed, other skills kept" '[ "$(ls -d "$H/.agents/skills"/hack-* | wc -l | tr -d " ")" = 2 ] && [ ! -e "$H/.codex/skills/hack-onboard" ] && [ ! -e "$H/.codex/skills/hack-verify" ] && [ -f "$H/.codex/skills/my-own-skill/SKILL.md" ] && grep -q "removed the old copies" "$LOG"' "$LOG"
   check "codex: next steps mention \$hack-os" 'grep -qF "type \$hack-os" "$LOG"' "$LOG"
   if [ -n "${CODEX_BIN_DIR:-}" ]; then
     G="$(env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" get)"
     check "codex: codex mcp get kane-hack-event reads it (url, helper)" 'printf "%s\n" "$G" | grep -qF "\"url\":\"$SITE/mcp\"" && printf "%s\n" "$G" | grep -q "\"http_headers_helper\":\"<redacted>\""' "$LOG"
     mkdir -p "$WORK/empty-cwd"
     K="$(cd "$WORK/empty-cwd" && env HOME="$H" CODEX_HOME="$H/.codex" PATH="$PATH" node "$HERE/codex-probe.mjs" skills)"
-    check "codex: Codex lists hack-os once" 'printf "%s\n" "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===1&&h[\"hack-os\"]===1?0:1)})"' "$LOG"
+    check "codex: Codex lists hack-os and hack-gtm once each" 'printf "%s\n" "$K" | node -e "let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{const h=JSON.parse(s).hack;process.exit(Object.keys(h).length===2&&h[\"hack-os\"]===1&&h[\"hack-gtm\"]===1?0:1)})"' "$LOG"
   else echo "# skip codex binary checks: CODEX_BIN_DIR not set"; fi
   cp "$CFG" "$WORK/codex-before"
   run_install --yes --site "$SITE"; RC=$?
