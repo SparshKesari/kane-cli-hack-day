@@ -64,8 +64,10 @@ Team registration closes 11:00. Idea locks 12:00. Final evaluation 16:00–17:00
 What the event team asks for:
 
 - Project details: name, description, about, and how they used Kane CLI.
-- Launch assets: LinkedIn and X posts that tag the official accounts (several posts are fine; they share every link), a blog post, a Hacker News post, a deck, and a demo video with voice-over.
+- Launch assets: LinkedIn and X posts that tag the official accounts (several posts are fine; they share every link), a blog post, a Show HN post (`$hack-gtm` drafts the title and an outline; the author posts it in their own words), a deck, and a demo video with voice-over.
 
-The Submit tab won't finalize without these (what `submission_preflight` checks): project name and type, a one-line pitch, the repo, the exact commit SHA, a live URL or run command, a linked Kane CLI run report, a harness description, the Kane components used and known limitations. For the shipped prize the event also wants any two of video, blog, X post and HN post, live by 18:00 Pacific with their links on the Submit tab. Deck and video are never required. `submission_preflight` is the authority on what's missing; don't call something required when it isn't.
+The Submit tab won't finalize without these (what `submission_preflight` checks): project name and type, a one-line pitch, the repo, the exact commit SHA, a live URL or run command, a linked Kane CLI run report, a harness description, the Kane components used and known limitations. Deck and video are never required to finalize. `submission_preflight` is the authority on what finalizing needs; don't call something required when it isn't.
+
+The shipped prize is separate. It counts only from the Submit tab's "Shipped prize bundle" checklist: the three essentials (repo, live URL or run command, Kane CLI run report) plus any two of video, blog, X post and Show HN post. A signed-in teammate pastes each live link, ticks the row and presses Save, by 18:00 Pacific and before the captain finalizes: the receipt records whether the bundle was met at that moment. `submission_preflight` never checks those rows.
 
 The `$hack-gtm` skill drafts all of these from their project and their Kane evidence. Its drafts are samples: teams can write their own, in their own style. Nothing is posted without their yes, and they post it themselves. The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`; `references/build.md` has the steps.

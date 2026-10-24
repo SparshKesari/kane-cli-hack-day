@@ -60,3 +60,32 @@ test("ready to submit: the agent drafts the Submit tab's text fields for the cap
     assert.match(md, /git rev-parse HEAD/, b);
   }
 });
+
+test("the shipped prize counts only from the Submit tab's Shipped prize bundle, filled before the captain finalizes", () => {
+  for (const b of skills) {
+    const skill = readFileSync(`${b}/hack-os/SKILL.md`, "utf8");
+    assert.match(skill, /Shipped prize bundle/, b);
+    assert.match(skill, /never checks those rows/, b);
+    const md = readFileSync(`${b}/hack-os/references/build.md`, "utf8").split('## "Ready to submit"')[1];
+    assert.match(md, /Shipped prize bundle/, b);
+    assert.match(md, /before the captain finalizes/, b);
+  }
+  const start = startGuideMarkdown();
+  assert.match(start, /Shipped prize bundle/);
+  assert.match(start, /before the captain finalizes/);
+});
+
+test("hack-os and /start use hack-gtm's real names: launch/video/showcase.mp4, and a Show HN post the author writes", () => {
+  for (const b of skills) {
+    const both = readFileSync(`${b}/hack-os/SKILL.md`, "utf8") + readFileSync(`${b}/hack-os/references/build.md`, "utf8");
+    assert.doesNotMatch(both, /(?<!launch\/)video\/showcase\.mp4/, b);
+    assert.match(both, /launch\/video\/showcase\.mp4/, b);
+    assert.doesNotMatch(both, /Hacker News post/, b);
+    assert.match(both, /Show HN/, b);
+  }
+  const start = startGuideMarkdown();
+  assert.doesNotMatch(start, /(?<!launch\/)video\/showcase\.mp4/);
+  assert.match(start, /kanehack publish launch\/video\/showcase\.mp4/);
+  assert.match(start, /--yes --json/);
+  assert.doesNotMatch(start, /Hacker News post/);
+});
