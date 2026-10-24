@@ -12,6 +12,7 @@ import * as ideas from "./ideas";
 import * as passport from "./passport";
 import * as story from "./story";
 import { getSubmissionContext } from "./submission";
+import * as teamPage from "./team-page";
 import * as teams from "./teams";
 
 // Adapters the MCP server (src/server/mcp.ts) calls for tools owned by other
@@ -474,3 +475,18 @@ export async function applyRenderCallback(input: z.infer<typeof renderCallbackSc
     return { result: { applied: true, status: input.status }, resourceId: input.job_id, payload: { delivery: deliveryId } };
   });
 }
+
+// ── team page (→ src/server/team-page.ts) ────────────────────────────────────
+
+/** team_page_get: the caller's team page, or a named team's (its members only). */
+export async function teamPageGet(ctx: Ctx, team?: string) {
+  return teamPage.getTeamPage(teamPage.mcpTeamRef(ctx.member, team), pageCaller(ctx));
+}
+
+/** team_page_update: the same idempotent upsert as PUT /api/v1/teams/{id|slug}/page. */
+export async function teamPageUpdate(ctx: Ctx, input: { team?: string } & Record<string, unknown>) {
+  const { team, ...body } = input;
+  return teamPage.updateTeamPage(teamPage.mcpTeamRef(ctx.member, team), pageCaller(ctx), body);
+}
+
+const pageCaller = (ctx: Ctx): teamPage.PageCaller => ({ member: ctx.member, staff: null, actor: ctx.actor, source: "mcp" });

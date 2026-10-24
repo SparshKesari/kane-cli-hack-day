@@ -21,6 +21,7 @@ import {
   requestPublicEvidenceUpload,
   uploadEnvelope,
 } from "./public-evidence-upload";
+import { teamPageEnvelope } from "./team-page";
 
 // The event MCP server (T-MCP-01…05). One McpServer per request (stateless
 // Streamable HTTP), bound to the member behind the bearer token from pairing.
@@ -702,6 +703,40 @@ export function buildMcpServer(auth: BearerAuth) {
     },
   );
 
+  tool(
+    "team_page_get",
+    {
+      title: "Get team page",
+      description: "Read the team submission page (shown at /ship/{slug}): canonical URL, visibility, page_version, repo, one-pager, video, deck, public evidence, Kane runs, share links and statuses. Contract: docs/api/TEAM_PAGE.md.",
+      input: { team: z.string().trim().max(64).optional().describe("Team id or slug. Defaults to your own team.") },
+      readOnly: true,
+    },
+    async (args, ctx) => A.teamPageGet(ctx, args.team).then(teamPageEnvelope),
+  );
+
+  tool(
+    "team_page_update",
+    {
+      title: "Update team page",
+      description:
+        "Idempotent upsert of the team submission page. Every field is optional: omitted stays, null clears. Pass expected_version from team_page_get and an idempotency_key so a retry returns the same receipt. Never publishes: a teammate publishes in the browser.",
+      input: {
+        team: z.string().trim().max(64).optional().describe("Team id or slug. Defaults to your own team."),
+        repo_url: z.string().nullable().optional().describe("https://github.com/{owner}/{repo}"),
+        commit_sha: z.string().nullable().optional().describe("Full 40-hex commit SHA"),
+        one_pager_html: z.string().nullable().optional().describe("Self-contained HTML, up to 256 KB. Served sandboxed at /ship/{slug}/one-pager."),
+        video: z.object({ public_evidence_id: z.string().optional(), url: z.string().optional() }).nullable().optional().describe("{public_evidence_id: \"PE-n\"} of kind video, or {url} on youtube.com, youtu.be, loom.com or vimeo.com"),
+        deck: z.object({ deck_id: z.number().int().optional(), version: z.number().int().optional(), hosted: z.boolean().optional() }).nullable().optional().describe("{version} of a saved deck, or {hosted: true} for /ship/{slug}/deck"),
+        evidence_ids: z.array(z.string()).nullable().optional().describe("Public evidence ids (PE-n) of this team"),
+        kane_run_ids: z.array(z.union([z.number().int(), z.string()])).nullable().optional().describe("This team's Kane runs (12 or KR-12)"),
+        share_links: z.array(z.string()).nullable().optional().describe("TestMu AI / Kane share links (https on lambdatest.com or testmuai.com). They expire after 7 days."),
+        expected_version: z.number().int().min(0).optional(),
+        idempotency_key: z.string().min(8).max(200).optional(),
+      },
+    },
+    async (args, ctx) => A.teamPageUpdate(ctx, args).then(teamPageEnvelope),
+  );
+
   return server;
 }
 
@@ -742,4 +777,6 @@ export const MCP_TOOL_NAMES = [
   "public_evidence_complete",
   "public_evidence_list",
   "public_evidence_remove",
+  "team_page_get",
+  "team_page_update",
 ] as const;
