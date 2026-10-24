@@ -49,8 +49,8 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
     await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`codex-coupon:${hash}`]);
     // Theirs already: sent before (to any of their roster rows), or handed to their member by the old /activate
     // flow or a staff reassignment. A code already on a roster row wins, so linking never gives a row two codes.
-    const { rows: mine } = await tx.query<{ id: number; code: string; email_count: number }>(
-      `select id, code, email_count from codex_credit_codes
+    const { rows: mine } = await tx.query<{ id: number; code: string; extra: Record<string, unknown>; email_count: number }>(
+      `select id, code, extra, email_count from codex_credit_codes
         where status = 'assigned' and event_id = current_event_id()
           and (assigned_guest_id = any($1::bigint[]) or ($2::bigint is not null and assigned_member_id = $2))
         order by (assigned_guest_id is not null) desc, assigned_at, id limit 1`,
@@ -60,11 +60,11 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
       await tx.query("update codex_credit_codes set assigned_guest_id = coalesce(assigned_guest_id, $2) where id = $1", [mine[0].id, guest.id]);
       return mine[0];
     }
-    const { rows } = await tx.query<{ id: number; code: string; email_count: number }>(
+    const { rows } = await tx.query<{ id: number; code: string; extra: Record<string, unknown>; email_count: number }>(
       `update codex_credit_codes set status = 'assigned', assigned_guest_id = $1, assigned_member_id = $2, assigned_at = now(), assigned_by = 'email'
         where id = (select id from codex_credit_codes where status = 'available' and event_id = current_event_id()
                      order by id for update skip locked limit 1)
-        returning id, code, email_count`,
+        returning id, code, extra, email_count`,
       [guest.id, memberId],
     );
     if (rows[0]) await writeAudit(actor, { action: "codex_code.assign", resourceType: "codex_credit_code", resourceId: rows[0].id, payload: { guest_id: guest.id, member_id: memberId, code_suffix: rows[0].code.slice(-4), by: "email" } }, tx);
@@ -75,7 +75,8 @@ export async function requestCodexCoupon(rawEmail: unknown): Promise<CouponResul
     return { outcome: "out_of_codes", resent: false, emailHint };
   }
 
-  const mail = couponEmail({ name: guest.name, code: got.code });
+  // The pool CSV can carry a redemption link per code (a `link` column, kept in `extra`).
+  const mail = couponEmail({ name: guest.name, code: got.code, link: got.extra?.link });
   try {
     const transport = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.secure, requireTLS: smtp.requireTLS, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 });
     await transport.sendMail({ from: smtp.from, to: email, subject: mail.subject, text: mail.text, html: mail.html });
