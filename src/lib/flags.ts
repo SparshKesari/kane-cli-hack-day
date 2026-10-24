@@ -20,6 +20,7 @@ export const FLAGS = {
   social_publish: "Publishing approved posts to X",
   video: "60s video automation",
   mcp: "Event MCP server (/mcp)",
+  public_evidence: "Public evidence uploads (/api/v1/evidence/public, MCP public_evidence_*)",
 } as const;
 
 export type Flag = keyof typeof FLAGS;
@@ -36,6 +37,7 @@ const DEFAULTS: Record<Flag, boolean> = {
   social_publish: false,
   video: false,
   mcp: true,
+  public_evidence: true,
 };
 
 const TTL = 15_000;
