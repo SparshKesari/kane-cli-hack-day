@@ -35,7 +35,8 @@ fresh() {
 }
 # run_install <args…>: curl | $SHX -s -- args, no TTY (stdout to a file), the way an agent runs it.
 run_install() {
-  curl -fsSL "$SITE/install.sh" | env HOME="$H" NPM_CONFIG_PREFIX="$NPMP" PATH="$PATH" SHELL="${TSHELL-/bin/sh}" "$SHX" -s -- "$@" >"$LOG" 2>&1
+  # KANEHACK_NO_KANE: no real Kane CLI install in these scenarios (scenario "kane" fakes npm and npx).
+  curl -fsSL "$SITE/install.sh" | env HOME="$H" NPM_CONFIG_PREFIX="$NPMP" PATH="$PATH" SHELL="${TSHELL-/bin/sh}" KANEHACK_NO_KANE="${NO_KANE_ENV-1}" "$SHX" -s -- "$@" >"$LOG" 2>&1
 }
 installed_version() { [ -x "$H/.kanehack/bin/kanehack" ] && HOME="$H" "$H/.kanehack/bin/kanehack" version 2>/dev/null; }
 rc_file() { if [ "$(uname -s)" = Darwin ]; then echo "$H/.bash_profile"; else echo "$H/.bashrc"; fi; }
@@ -283,18 +284,54 @@ fi
 # 11. Interactive, under a real pseudo-terminal, answering each prompt after it appears.
 # (CI is unset for these: with CI set the installer never asks, by design. TERM is set because
 # bash sets an unset TERM to "dumb", and the installer rightly turns colors off for that.)
+# Kane CLI: every --yes run installs or updates the release candidate and the official Kane skill;
+# --no-kane and a run with no terminal leave them alone. npm (for kane-cli only) and npx are faked.
+if want kane; then
+  fresh kane
+  REAL_NPM="$(command -v npm)"
+  FAKE="$H/fakebin"; mkdir -p "$FAKE" "$NPMP/bin"
+  cat > "$FAKE/npm" <<FAKENPM
+#!/bin/sh
+case " \$* " in
+  *" @testmuai/kane-cli@rc "*) echo "npm \$*" >> "$H/kane.log"; printf '#!/bin/sh\ncase "\$1" in --version) echo "kane-cli 0.10.0-rc.1" ;; esac\nexit 0\n' > "$NPMP/bin/kane-cli"; chmod +x "$NPMP/bin/kane-cli"; exit 0 ;;
+esac
+exec "$REAL_NPM" "\$@"
+FAKENPM
+  cat > "$FAKE/npx" <<FAKENPX
+#!/bin/sh
+echo "npx \$*" >> "$H/kane.log"
+case " \$* " in *" @testmuai/kane-cli-skill "*) mkdir -p "\$HOME/.agents/skills/kane-cli" && echo "# kane-cli" > "\$HOME/.agents/skills/kane-cli/SKILL.md" && echo 0.1.3 > "\$HOME/.agents/skills/kane-cli/VERSION" ;; esac
+exit 0
+FAKENPX
+  chmod +x "$FAKE/npm" "$FAKE/npx"
+  PATH="$FAKE:$NPMP/bin:$ORIG_PATH"
+  NO_KANE_ENV=""
+  run_install --yes --site "$SITE"; RC=$?
+  check "kane: --yes runs npm install -g @testmuai/kane-cli@rc" '[ "$RC" -eq 0 ] && grep -q "^npm install -g --silent --no-audit --no-fund @testmuai/kane-cli@rc" "$H/kane.log"' "$LOG"
+  check "kane: and installs the official Kane skill, unattended" 'grep -q "^npx --yes @testmuai/kane-cli-skill install" "$H/kane.log"' "$LOG"
+  check "kane: the check shows the release candidate and the skill" 'grep -q "kane_cli *kane-cli 0.10.0-rc.1" "$LOG" && grep -q "kane_skill *0.1.3" "$LOG"' "$LOG"
+  run_install --yes --site "$SITE"
+  check "kane: every run updates it again" '[ "$(grep -c "kane-cli@rc" "$H/kane.log")" = 2 ]' "$LOG"
+  rm -f "$H/kane.log"
+  run_install --site "$SITE"
+  check "kane: no terminal and no --yes: nothing installed" '[ ! -e "$H/kane.log" ]' "$LOG"
+  run_install --yes --no-kane --site "$SITE"
+  check "kane: --no-kane: nothing installed" '[ ! -e "$H/kane.log" ]' "$LOG"
+  unset NO_KANE_ENV
+fi
+
 if want interactive; then
   if [ -n "${SKIP_INTERACTIVE:-}" ] || ! command -v python3 >/dev/null 2>&1; then echo "# skip interactive: no python3 for the pty driver"
   else
     fresh interactive-yes
     mkdir -p "$NPMP/bin"
-    CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$NPMP/bin:$ORIG_PATH' SHELL=/bin/sh $SHX -s -- --site '$SITE'"
+    CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$NPMP/bin:$ORIG_PATH' SHELL=/bin/sh KANEHACK_NO_KANE=1 $SHX -s -- --site '$SITE'"
     python3 "$HERE/interactive.py" "y,y,y" "$CMD" >"$LOG" 2>&1; RC=$?
     check "interactive yes,yes,yes: exit 0 after 3 prompts" '[ "$RC" -eq 0 ] && grep -q "prompts answered: 3" "$LOG"' "$LOG"
     check "interactive yes,yes,yes: installed, skills, linked" '[ "$(installed_version)" = "$VERSION" ] && [ -L "$NPMP/bin/kanehack" ] && [ -f "$H/.agents/skills/hack-os/SKILL.md" ]' "$LOG"
     check "interactive: colors on a terminal" 'grep -q "$ESC" "$LOG"' "$LOG"
     fresh interactive-no
-    CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$ORIG_PATH' SHELL=/bin/sh $SHX -s -- --site '$SITE'"
+    CMD="curl -fsSL '$SITE/install.sh' | env -u CI -u NO_COLOR TERM=xterm HOME='$H' NPM_CONFIG_PREFIX='$NPMP' PATH='$ORIG_PATH' SHELL=/bin/sh KANEHACK_NO_KANE=1 $SHX -s -- --site '$SITE'"
     python3 "$HERE/interactive.py" "n,n" "$CMD" >"$LOG" 2>&1; RC=$?
     check "interactive no,no: nothing installed, no re-run hint" '[ "$RC" -eq 0 ] && grep -q "prompts answered: 2" "$LOG" && [ ! -e "$H/.kanehack" ] && ! grep -q "no terminal to ask" "$LOG"' "$LOG"
   fi

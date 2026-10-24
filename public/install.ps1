@@ -20,10 +20,11 @@
 #   & ([scriptblock]::Create((irm https://www.kaneclihack.sh/install.ps1))) -Yes
 # Options (or environment variables): -Yes (KANEHACK_YES=1) · -NoPath (KANEHACK_NO_PATH=1)
 # · -NoSkills (KANEHACK_NO_SKILLS=1) · -NoAgents (KANEHACK_NO_AGENTS=1: don't connect
-# Codex to the event server) · -Site URL (KANEHACK_SITE).
+# Codex to the event server) · -NoKane (KANEHACK_NO_KANE=1: don't install or update Kane CLI
+# and its skill) · -Site URL (KANEHACK_SITE).
 # A failed download, checksum or install stops with an error (a non-zero exit for
 # `powershell -File` / `pwsh -c`); it never closes your PowerShell window.
-param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [string]$Site)
+param([switch]$Yes, [switch]$NoPath, [switch]$NoSkills, [switch]$NoAgents, [switch]$NoKane, [string]$Site)
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads crawl with the progress bar on
@@ -36,6 +37,7 @@ $Yes = $Yes -or (EnvOn "KANEHACK_YES")
 $NoPath = $NoPath -or (EnvOn "KANEHACK_NO_PATH")
 $NoSkills = $NoSkills -or (EnvOn "KANEHACK_NO_SKILLS")
 $NoAgents = $NoAgents -or (EnvOn "KANEHACK_NO_AGENTS")
+$NoKane = $NoKane -or (EnvOn "KANEHACK_NO_KANE")
 # The www host directly: Windows PowerShell 5.1 doesn't follow the apex's 308 redirect.
 $DefaultSite = "https://www.kaneclihack.sh"
 if (-not $Site) { $Site = if ($env:KANEHACK_SITE) { $env:KANEHACK_SITE } else { $DefaultSite } }
@@ -96,6 +98,29 @@ elseif (Ask "OpenAI Codex CLI is not installed. Install it now (npm i -g @openai
   Remove-Item $codexLog -ErrorAction SilentlyContinue
 }
 else { Warn "codex" "not installed" "npm i -g @openai/codex   (then: codex login)" }
+
+# Kane CLI: the hackathon runs on its release candidate. Every run installs or updates it
+# (npm install -g @testmuai/kane-cli@rc) and the official Kane CLI skill for Codex
+# (npx @testmuai/kane-cli-skill), after a yes. -NoKane skips both.
+if (-not $NoKane -and (Have npm) -and (Ask "Install or update Kane CLI (the hackathon's release candidate) and its Codex skill now (npm install -g @testmuai/kane-cli@rc, then npx @testmuai/kane-cli-skill)?")) {
+  $kaneLog = Join-Path ([IO.Path]::GetTempPath()) "kanehack-kane.log"
+  # Native stderr (npm warnings) must not become a terminating error here (Windows PowerShell 5.1).
+  $savedEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  try {
+    & npm install -g --silent --no-audit --no-fund "@testmuai/kane-cli@rc" *> $kaneLog
+    if ($LASTEXITCODE -eq 0) {
+      $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+    } else {
+      Get-Content $kaneLog | Write-Host
+      Warn "kane_cli" "npm install failed" "See the npm output above, then: npm install -g @testmuai/kane-cli@rc"
+    }
+    & npx --yes "@testmuai/kane-cli-skill" install *> $kaneLog
+    if ($LASTEXITCODE -ne 0) { Get-Content $kaneLog | Write-Host; Warn "kane_skill" "install failed" "npx @testmuai/kane-cli-skill" }
+  } finally {
+    $ErrorActionPreference = $savedEap
+    Remove-Item $kaneLog -ErrorAction SilentlyContinue
+  }
+}
 
 if (Have kane-cli) {
   $kv = [string]((kane-cli --version) | Select-Object -First 1)
