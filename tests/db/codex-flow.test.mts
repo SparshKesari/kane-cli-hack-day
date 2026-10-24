@@ -174,6 +174,26 @@ test("a shared venue IP doesn't lock people out of register or signin; guessing 
   assert.equal(codes[10], 429, "the 11th guess for one email is rate limited");
 });
 
+// The captain gets a join code in Codex (team_invite_create), not on the /team page; a new
+// participant joins with it through team_join. No team, or a locked roster, gets no code.
+test("team_invite_create: a join code in Codex that team_join accepts", { skip }, async () => {
+  const ctxOf = (mem: import("../../src/server/auth.ts").MemberRow) => ({ member: mem, actor: m.auth.memberActor(mem), requestId: "test" });
+  const cap = (await m.auth.getMemberById(memberId))!;
+  const inv = await m.A.createTeamInvite(ctxOf(cap));
+  assert.match(inv.code, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  assert.ok(inv.team?.slug && Date.parse(inv.expires_at) > Date.now(), JSON.stringify(inv));
+  m.jar.clear();
+  const reg = await read(await m.register.POST(post(profile(`${tag}.joiner@example.test`, PW, "Joiner"))));
+  const joiner = (await m.auth.getMemberById(Number(reg.env.data?.member_id)))!;
+  await m.A.joinTeam(ctxOf(joiner), inv.code);
+  assert.equal((await m.auth.getMemberById(joiner.id))?.team_id, cap.team_id, "joined the captain's team");
+  m.jar.clear();
+  const reg2 = await read(await m.register.POST(post(profile(`${tag}.teamless@example.test`, PW, "Teamless"))));
+  const teamless = (await m.auth.getMemberById(Number(reg2.env.data?.member_id)))!;
+  await assert.rejects(m.A.createTeamInvite(ctxOf(teamless)), /team first/);
+  assert.ok((m.mcp.MCP_TOOL_NAMES as readonly string[]).includes("team_invite_create"));
+});
+
 test("event tools: tick step 3, save the idea, lock the team", { skip }, async () => {
   const me = (await m.auth.getMemberById(memberId))!;
   const ctx = { member: me, actor: m.auth.memberActor(me), requestId: "test" };
@@ -186,6 +206,7 @@ test("event tools: tick step 3, save the idea, lock the team", { skip }, async (
   await m.A.lockTeam(ctx);
   const [t] = await m.db.query<{ state: string }>("select state from teams where id = $1", [me.team_id]);
   assert.equal(t.state, "roster_locked");
+  await assert.rejects(m.A.createTeamInvite({ ...ctx, member: (await m.auth.getMemberById(memberId))! }), /locked/);
 
   for (const name of ["activation_tick", "idea_save", "team_lock"]) assert.ok((m.mcp.MCP_TOOL_NAMES as readonly string[]).includes(name), name);
 });

@@ -17,3 +17,11 @@ test("hack-os: when this session can't escalate, the person reruns the installer
     assert.match(md, /new Codex session/, base);
   }
 });
+
+test("hack-os: the captain gets join codes in Codex with team_invite_create, not on the /team page", () => {
+  for (const base of ["plugin/skills", ".agents/skills"]) {
+    const md = readFileSync(`${base}/hack-os/references/signup-team.md`, "utf8");
+    assert.match(md, /`team_invite_create`/, base);
+    assert.doesNotMatch(md, /gets join codes for teammates on `?https:\/\/kaneclihack\.sh\/team/, base);
+  }
+});
