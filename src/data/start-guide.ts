@@ -170,9 +170,9 @@ export const startGuide: GuideSection[] = [
         steps: [
           "Say `$hack-os ready to submit`. It runs `submission_preflight` and lists what's missing.",
           "`$hack-gtm` drafts your launch posts, blog, a Show HN title and outline (you post it in your own words), deck and demo video. They're samples; you post them yourself.",
-          "The Submit tab won't finalize without: project name and type, a one-line pitch, the repo, the exact commit SHA, a live URL or run command, a linked Kane CLI run report (tick your runs under Evidence), a harness description, the Kane components used and known limitations.",
+          "The Submit tab needs four things to finalize: project name, project description, a one-liner pitch and the GitHub repo URL (no commit SHA). Everything else is an optional link: showcase page, LinkedIn post(s), X post(s), blog link(s), deck, video and Hacker News post. Several posts go in one field, separated by commas.",
           "The shipped prize counts only from the Shipped prize bundle on your Submit tab, and preflight never checks it: the repo, a live URL or run command and a Kane CLI run report, plus any two of video, blog, X post and Show HN post. A signed-in teammate pastes each live link, ticks the row and presses Save, by 18:00 and before the captain finalizes.",
-          "The demo video field takes a link. Put `launch/video/showcase.mp4` on YouTube or Loom, or run `kanehack publish launch/video/showcase.mp4` for a public link (it asks first; an agent adds `--yes --json` only after you say yes), and paste the link into Demo video URL and the bundle's Video row.",
+          "The demo video field takes a link. Put `launch/video/showcase.mp4` on YouTube or Loom, or run `kanehack publish launch/video/showcase.mp4` for a public link (it asks first; an agent adds `--yes --json` only after you say yes), and paste the link into Video and the bundle's Video row.",
           "The captain finalizes on the Submit tab, `https://kaneclihack.sh/t/<team-slug>/submit`.",
         ],
       },

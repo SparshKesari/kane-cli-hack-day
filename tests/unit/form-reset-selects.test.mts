@@ -7,9 +7,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const SAVED_SELECTS: [file: string, name: string, value: string][] = [
-  ["src/app/t/[slug]/submit/SubmissionForm.tsx", "project_type", "draft.project_type"],
-];
+// The Submit tab's project-type select went with the 2026-10-24 submission form (it has no selects
+// now); list any select that shows a saved value here.
+const SAVED_SELECTS: [file: string, name: string, value: string][] = [];
+
+test("the submission form has no select left that would need a key", () => {
+  assert.doesNotMatch(readFileSync("src/app/t/[slug]/submit/SubmissionForm.tsx", "utf8"), /<select/);
+});
 
 test("selects that show a saved value remount when the saved value changes", () => {
   for (const [file, name, value] of SAVED_SELECTS) {

@@ -79,6 +79,12 @@ const urlLines = (maxItems: number) =>
     (v) => splitLines(v).map((s) => String(s).trim()).filter(Boolean),
     z.array(zx.httpsUrl).max(maxItems, `Up to ${maxItems} links`),
   );
+// Several links in one field: separated by commas, spaces or new lines.
+const urlList = (maxItems: number) =>
+  z.preprocess(
+    (v) => arr(v).flatMap((s) => String(s).split(/[\s,]+/)).map((s) => s.trim()).filter(Boolean),
+    z.array(zx.httpsUrl).max(maxItems, `Up to ${maxItems} links`),
+  );
 
 export const DraftSchema = z.object({
   project_name: optStr(80),
@@ -107,7 +113,17 @@ export const DraftSchema = z.object({
   ),
   devpost_url: optUrl,
   social_links: urlLines(6),
+  // The final submission form (since 2026-10-24 16:40 PT): these plus project_name,
+  // one_line_pitch, repo_url and video_url. The fields above stay for older drafts.
+  project_description: optStr(3000),
+  showcase_url: optUrl,
+  linkedin_posts: urlList(10),
+  x_posts: urlList(10),
+  blog_links: urlList(10),
+  deck_url: optUrl,
+  hn_url: optUrl,
 });
+export type DraftKey = keyof typeof DraftSchema.shape;
 export type SubmissionDraft = z.output<typeof DraftSchema>;
 
 export const EMPTY_DRAFT: SubmissionDraft = DraftSchema.parse({});
@@ -121,40 +137,18 @@ export function normalizeDraft(raw: unknown): SubmissionDraft {
 /** The submit form posts flat fields; this turns them into the draft shape. */
 export function draftInputFromForm(form: FormData) {
   const get = (k: string) => form.get(k);
-  const all = (k: string) => form.getAll(k).map(String);
-  const shotPaths = all("screenshot_path");
-  const shotAlts = all("screenshot_alt");
-  const impact = [0, 1, 2]
-    .map((i) => ({
-      claim: String(get(`impact_claim_${i}`) ?? "").trim(),
-      measure: get(`impact_measure_${i}`),
-      unit: get(`impact_unit_${i}`),
-      baseline: get(`impact_baseline_${i}`),
-      source: get(`impact_source_${i}`),
-    }))
-    .filter((r) => r.claim);
   return {
     project_name: get("project_name"),
-    project_type: get("project_type"),
+    project_description: get("project_description"),
     one_line_pitch: get("one_line_pitch"),
-    problem: get("problem"),
-    what_we_built: get("what_we_built"),
-    how_it_works: get("how_it_works"),
-    harness_summary: get("harness_summary"),
-    harness_stages: [0, 1, 2, 3].map((i) => String(get(`harness_stage_${i}`) ?? "")),
-    kane_components: all("kane_components"),
     repo_url: get("repo_url"),
-    commit_sha: get("commit_sha"),
-    demo_url: get("demo_url"),
-    run_command: get("run_command"),
+    showcase_url: get("showcase_url"),
+    linkedin_posts: get("linkedin_posts"),
+    x_posts: get("x_posts"),
+    blog_links: get("blog_links"),
+    deck_url: get("deck_url"),
     video_url: get("video_url"),
-    screenshots: shotPaths.map((path, i) => ({ path, alt: shotAlts[i] ?? "" })),
-    kane_run_ids: all("kane_run_ids"),
-    evidence_refs: get("evidence_refs"),
-    limitations: get("limitations"),
-    impact,
-    devpost_url: get("devpost_url"),
-    social_links: get("social_links"),
+    hn_url: get("hn_url"),
   };
 }
 
@@ -397,53 +391,23 @@ export function preflight(d: SubmissionDraft, runs: KaneRunRef[], opts: { credit
   const add = (id: string, label: string, required: boolean, ok: boolean, detail?: string, uncertain = false) =>
     items.push({ id, label, required, state: !ok ? "missing" : uncertain ? "uncertain" : "ok", detail });
 
-  const linked = runs.filter((r) => d.kane_run_ids.includes(r.id));
-  const verifiedPass = linked.some((r) => r.status === "passed" && r.source_verified);
-  const shaInRuns = !!d.commit_sha && linked.some((r) => r.commit_sha?.toLowerCase() === d.commit_sha);
+  // The final submission form: name, description, pitch and the GitHub repo are required;
+  // every link is optional. Runs and credits no longer gate finalizing (kept in the signature).
+  void runs;
   const onGithub = !!d.repo_url && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+/i.test(d.repo_url);
 
   add("project_name", "Project name", true, !!d.project_name);
-  add("project_type", "Project type", true, !!d.project_type);
-  add("one_line_pitch", "One-line pitch", true, !!d.one_line_pitch);
-  add("repo_url", "Repository URL", true, !!d.repo_url, onGithub ? undefined : "Not a github.com repo; judges will check it by hand.", !onGithub);
-  add(
-    "commit_sha",
-    "Exact commit SHA (40 hex)",
-    true,
-    !!d.commit_sha,
-    opts.github === "missing"
-      ? "GitHub says this commit doesn't exist in that repo (or the repo is private)."
-      : !shaInRuns && d.commit_sha
-        ? "No linked Kane run reports this commit."
-        : undefined,
-    opts.github === "missing" || (!!d.commit_sha && !shaInRuns),
-  );
-  add("demo", "Live demo URL or run command", true, !!(d.demo_url || d.run_command));
-  add(
-    "kane_evidence",
-    "Kane run report / evidence",
-    true,
-    linked.length > 0 || d.evidence_refs.length > 0,
-    linked.length === 0 ? "Only links, no reported Kane run: shown as participant reported." : !verifiedPass ? "No passing run from a verified channel yet." : undefined,
-    !verifiedPass,
-  );
-  add("harness_summary", "Harness description", true, !!d.harness_summary);
-  add("kane_components", "Kane components used", true, d.kane_components.length > 0);
-  add("limitations", "Known limitations", true, d.limitations.length > 0);
+  add("project_description", "Project description", true, !!d.project_description);
+  add("one_line_pitch", "One-liner pitch", true, !!d.one_line_pitch);
+  add("repo_url", "GitHub repo URL", true, !!d.repo_url, onGithub ? undefined : "Not a github.com repo; judges will check it by hand.", !onGithub);
 
-  add("problem", "Problem", false, !!d.problem);
-  add("what_we_built", "What we built", false, !!d.what_we_built);
-  add("how_it_works", "How it works (steps)", false, d.how_it_works.length > 0);
-  add("harness_stages", "4-step harness flow", false, d.harness_stages.filter(Boolean).length > 0);
-  add("screenshots", "Screenshots", false, d.screenshots.length > 0);
-  add("video_url", "Demo video", false, !!d.video_url);
-  const unsourced = d.impact.filter((i) => i.measure !== null && !i.source).length;
-  add("impact", "Measured impact", false, d.impact.length > 0, unsourced ? `${unsourced} number(s) without a source will show as qualitative.` : undefined, unsourced > 0);
-  add("credits", "Team credits (consent)", false, opts.creditedCount > 0, opts.creditedCount ? undefined : "Nobody has agreed to be named yet; the page will show no names.");
-  add("devpost_url", "Devpost link", false, !!d.devpost_url);
-  if (linked.some((r) => r.status === "running")) {
-    items.push({ id: "running", label: "Linked run still running", required: false, state: "uncertain", detail: "Its result will show as reported until it ends." });
-  }
+  add("showcase_url", "Showcase page", false, !!d.showcase_url);
+  add("linkedin_posts", "LinkedIn post(s)", false, d.linkedin_posts.length > 0);
+  add("x_posts", "X post(s)", false, d.x_posts.length > 0);
+  add("blog_links", "Blog link(s)", false, d.blog_links.length > 0);
+  add("deck_url", "Deck", false, !!d.deck_url);
+  add("video_url", "Video", false, !!d.video_url);
+  add("hn_url", "Hacker News post", false, !!d.hn_url);
   const missing = items.filter((i) => i.required && i.state === "missing").map((i) => i.label);
   return { ok: missing.length === 0, items, missing, github: opts.github };
 }
@@ -513,20 +477,23 @@ async function teamMember(slug: string, as?: ActingAs, opts: { personal?: boolea
 /** Save the draft. Refused after the lock and once finalized. */
 export async function saveDraft(slug: string, input: unknown, as?: ActingAs): Promise<{ data: { submissionId: number }; receipt: Receipt }> {
   const { team, actor, source } = await teamMember(slug, as);
-  const draft = parse(DraftSchema, input);
+  const parsed = parse(DraftSchema, input);
+  // Only the fields that were sent change: the rest of a saved draft (older fields the form
+  // no longer shows, screenshots) is kept, so a save never wipes them.
+  const sent = Object.keys(input && typeof input === "object" ? input : {}).filter((k): k is DraftKey => k in DraftSchema.shape);
   const project = await ensureProject(team.id);
 
   const prefix = mediaPrefix(project.id);
-  if (draft.screenshots.some((s) => !s.path.startsWith(prefix) || s.path.includes("..") || !/^[\w./-]+$/.test(s.path))) {
+  if (parsed.screenshots.some((s) => !s.path.startsWith(prefix) || s.path.includes("..") || !/^[\w./-]+$/.test(s.path))) {
     throw new AppError("VALIDATION_FAILED", { userMessage: "A screenshot didn't come from this project's upload folder. Upload it again." });
   }
 
   return transaction(async (tx) => {
     const clock = await lockState(tx);
 
-    if (draft.kane_run_ids.length) {
-      const ok = await rowsOf<{ id: number }>(tx, "select id from kane_runs where project_id = $1 and id = any($2::bigint[])", [project.id, draft.kane_run_ids]);
-      if (ok.length !== new Set(draft.kane_run_ids).size) throw new AppError("VALIDATION_FAILED", { userMessage: "One of the linked Kane runs isn't from this project." });
+    if (parsed.kane_run_ids.length) {
+      const ok = await rowsOf<{ id: number }>(tx, "select id from kane_runs where project_id = $1 and id = any($2::bigint[])", [project.id, parsed.kane_run_ids]);
+      if (ok.length !== new Set(parsed.kane_run_ids).size) throw new AppError("VALIDATION_FAILED", { userMessage: "One of the linked Kane runs isn't from this project." });
     }
 
     const current = await currentSubmission(tx, project.id, true);
@@ -535,6 +502,8 @@ export async function saveDraft(slug: string, input: unknown, as?: ActingAs): Pr
     }
     let id: number;
     const before = current && current.status !== "withdrawn" ? current.draft : undefined;
+    const base = before !== undefined ? normalizeDraft(before) : prefill(project, await progressDone(tx, team.id));
+    const draft: SubmissionDraft = { ...base, ...Object.fromEntries(sent.map((k) => [k, parsed[k]])) };
     if (current && current.status !== "withdrawn") {
       await tx.query("update submissions set draft = $2, status = 'draft', preflight = null where id = $1", [current.id, JSON.stringify(draft)]);
       id = Number(current.id);

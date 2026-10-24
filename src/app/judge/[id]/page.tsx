@@ -180,6 +180,13 @@ const SNAPSHOT_LABELS: Record<string, string> = {
   kane_components: "Kane components",
   evidence_ids: "Evidence ids",
   limitations: "Limitations",
+  project_description: "Description",
+  showcase_url: "Showcase page",
+  linkedin_posts: "LinkedIn posts",
+  x_posts: "X posts",
+  blog_links: "Blog",
+  deck_url: "Deck",
+  hn_url: "Hacker News",
 };
 
 function value(v: unknown): string {
