@@ -415,6 +415,10 @@ export async function finalizeSubmission(ctx: Ctx) {
     receipt_code: frozen ? s!.receipt_code : null,
     preflight_ok: ctxNow.preflight.ok,
     missing: ctxNow.preflight.missing,
+    // All 11 submission fields as saved, so the captain confirms the exact contents (null / [] = not given).
+    fields: Object.fromEntries(
+      (["project_name", "project_description", "one_line_pitch", "repo_url", "showcase_url", "linkedin_posts", "x_posts", "blog_links", "deck_url", "video_url", "hn_url"] as const).map((k) => [k, ctxNow.draft[k]]),
+    ),
     url: frozen ? `/submit/receipt/${s!.receipt_code}` : `/t/${team.slug}/submit#finalize`,
   };
 }

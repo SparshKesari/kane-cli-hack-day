@@ -1,12 +1,12 @@
 import { toAppError } from "@/server/core";
-import { getReceipt } from "@/server/submission";
+import { getFullReceipt } from "@/server/submission";
 
 // The frozen receipt as a JSON file, for the team's records and for judges.
 // Same access as the receipt page: the team, judges and organizers.
 export async function GET(_request: Request, ctx: RouteContext<"/submit/receipt/[code]/json">) {
   const { code } = await ctx.params;
   try {
-    const r = await getReceipt(code);
+    const r = await getFullReceipt(code);
     const body = {
       receipt_code: r.code,
       status: r.status,

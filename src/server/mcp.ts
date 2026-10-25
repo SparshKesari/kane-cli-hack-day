@@ -704,7 +704,9 @@ export function buildMcpServer(auth: BearerAuth) {
         return confirmFirst(
           "submission_finalize",
           "Captain: finalize the submission",
-          "Finalize the submission (irreversible). The captain confirms the exact saved contents and types the team name as confirm_phrase.",
+          `Finalize the submission (irreversible). Show the captain all 11 saved fields, with "none" for an empty one: ${Object.entries(r.fields)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") || "none" : (v ?? "none")}`)
+            .join("; ")}. Ask whether to add any link first (submission_save), then the captain confirms and types the team name as confirm_phrase.`,
           "submission_receipt",
           r,
         );
