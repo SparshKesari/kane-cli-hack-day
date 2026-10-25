@@ -5,7 +5,7 @@ import { pool, query } from "@/lib/db";
 import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { logActivity } from "@/lib/teams";
 import { PERSONAL_SIGN_IN, getMember, getStaff, hasRole, memberActor, randomCode, requirePersonalMember, requireTeamMember, staffActor, type MemberRow, type Staff } from "./auth";
-import { AppError, idempotent, parse, sha256, siteUrl, stableStringify, transaction, writeAudit, z, zx, type Actor, type Receipt } from "./core";
+import { AppError, idempotent, parse, sha256, stableStringify, transaction, writeAudit, z, zx, type Actor, type Receipt } from "./core";
 import {
   CREDIT_CONSENT,
   PROJECT_TYPES,
@@ -602,12 +602,9 @@ async function newReceiptCode(db: Db) {
  * showcase story from the same draft, unless the team opted out.
  */
 export async function finalizeSubmission(slug: string, input: unknown, as?: ActingAs): Promise<{ data: FinalizeResult; receipt: Receipt }> {
-  // The irreversible step happens in the browser, by the captain, signed in as
-  // themselves (SPEC §2). Agents (MCP / bearer) get a hand-off link instead,
-  // so a prompt-injected agent can't lock a team's submission early.
-  if (as && as.source !== "web") {
-    throw new AppError("FORBIDDEN", { userMessage: `Finalizing is done by your team captain in the browser: ${siteUrl(`/t/${slug}/submit#finalize`)}` });
-  }
+  // The irreversible step is the captain's: signed in as themselves in the browser, or from their
+  // own Codex session (the paired token is theirs) through submission_finalize, which needs the team
+  // name typed and the captain's explicit yes to the exact contents (since 2026-10-24 17:00 PT).
   const { team, member, actor, source } = await teamMember(slug, as, { personal: true });
   const [cap] = await query<{ captain_id: number | null }>("select captain_id from teams where id = $1", [team.id]);
   if (cap?.captain_id && Number(cap.captain_id) !== Number(member.id)) {

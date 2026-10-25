@@ -14,7 +14,7 @@ import * as help from "./help";
 import * as ideas from "./ideas";
 import * as passport from "./passport";
 import * as story from "./story";
-import { getSubmissionContext } from "./submission";
+import { finalizeSubmission as finalizeAs, getSubmissionContext, saveDraft } from "./submission";
 import * as teamPage from "./team-page";
 import * as teams from "./teams";
 
@@ -363,7 +363,7 @@ export async function submissionPreflight(m: MemberRow, projectId?: number | nul
     saved: !!c.submission,
     requirements: c.preflight.items.map((i) => ({ id: i.id, label: i.label, required: i.required, state: i.state, ok: i.state !== "missing", detail: i.detail ?? null })),
     ready: c.preflight.ok && !c.locked && !frozen && !!c.submission,
-    missing: [...(c.submission ? [] : ["Save your draft on the Submit tab first"]), ...c.preflight.missing],
+    missing: [...(c.submission ? [] : ["Save the submission first (submission_save, or the Submit tab)"]), ...c.preflight.missing],
     warnings: [
       ...c.preflight.items.filter((i) => i.state === "uncertain").map((i) => `${i.label}: ${i.detail ?? "uncertain"}`),
       ...(linked.length && !linked.some((r) => r.source_verified) ? ["No source-verified Kane run linked: judges will see your runs as UNVERIFIED."] : []),
@@ -381,9 +381,30 @@ export async function submissionPreflight(m: MemberRow, projectId?: number | nul
  * immutable snapshot, signed receipt, and the showcase story published from
  * the same draft (unless publish_showcase is false).
  */
+/** Save the team's submission fields from the session: only the fields sent change (submission.ts saveDraft). */
+export async function submissionSave(ctx: Ctx, fields: Record<string, unknown>) {
+  const team = await myTeam(ctx.member);
+  const sent = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+  const r = await saveDraft(team.slug, sent, { member: ctx.member, actor: ctx.actor, source: "mcp" });
+  return { submission_id: r.data.submissionId, saved_fields: Object.keys(sent), ...(await submissionPreflight(ctx.member)) };
+}
+
+/**
+ * Finalize from the captain's own session: the same checks as the Submit tab (captain only, team
+ * name typed, preflight complete). The tool only calls this after the captain's explicit yes.
+ */
+export async function finalizeSubmissionAsCaptain(ctx: Ctx, input: { confirm_phrase?: string; publish_showcase?: boolean; idempotency_key?: string }) {
+  const team = await myTeam(ctx.member);
+  const r = await finalizeAs(
+    team.slug,
+    { confirm_phrase: input.confirm_phrase ?? "", confirm: true, publish_showcase: input.publish_showcase === true, ...(input.idempotency_key ? { idempotency_key: input.idempotency_key } : {}) },
+    { member: ctx.member, actor: ctx.actor, source: "mcp" },
+  );
+  return { team_slug: team.slug, already_finalized: !!r.data.already, receipt_code: r.data.receipt_code, finalized_at: r.data.finalized_at, url: `/submit/receipt/${r.data.receipt_code}` };
+}
+
 export async function finalizeSubmission(ctx: Ctx) {
-  // Finalizing is irreversible, so agents never do it: the captain finishes it
-  // in the browser (submission.ts refuses non-web callers too). Hand off.
+  // Where things stand before finalizing: the receipt if it's done, otherwise what preflight needs.
   const team = await myTeam(ctx.member);
   const ctxNow = await getSubmissionContext(team.id);
   const s = ctxNow.submission;
