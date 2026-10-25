@@ -252,6 +252,45 @@ export function buildMcpServer(auth: BearerAuth) {
     },
   );
 
+  const links = z.union([z.array(z.string().trim().max(500)).max(10), z.string().max(5000)]).optional();
+  tool(
+    "submission_save",
+    {
+      title: "Save the submission",
+      description:
+        "Save the team's final-submission fields (the same draft as the Submit tab). Only the fields you send change. Required to finalize: project_name, project_description, one_line_pitch, repo_url (GitHub; no commit SHA). Optional https links: showcase_url, linkedin_posts, x_posts, blog_links (each a list, or one string separated by commas), deck_url, video_url, hn_url. Show the exact values and get the participant's yes first.",
+      input: {
+        project_name: z.string().trim().max(80).optional(),
+        project_description: z.string().trim().max(3000).optional(),
+        one_line_pitch: z.string().trim().max(170).optional(),
+        repo_url: z.string().trim().max(500).optional(),
+        showcase_url: z.string().trim().max(500).optional(),
+        linkedin_posts: links,
+        x_posts: links,
+        blog_links: links,
+        deck_url: z.string().trim().max(500).optional(),
+        video_url: z.string().trim().max(500).optional(),
+        hn_url: z.string().trim().max(500).optional(),
+        explicit_confirmation: confirmField,
+      },
+    },
+    async (args, ctx) => {
+      const { explicit_confirmation, ...fields } = args;
+      const names = Object.entries(fields).filter(([, v]) => v !== undefined).map(([k]) => k);
+      if (!names.length) throw new AppError("VALIDATION_FAILED", { userMessage: "Send at least one submission field." });
+      if (explicit_confirmation !== true) return confirmFirst("submission_save", "Save the submission", `Save these submission fields: ${names.join(", ")}.`, "submission_receipt", fields);
+      const r = await A.submissionSave(ctx, fields);
+      return {
+        status: r.ready ? "ok" : "partial",
+        message: `Saved ${r.saved_fields.join(", ")}. ${r.ready ? "Ready to finalize: the captain confirms, then submission_finalize." : `Still missing: ${r.missing.join(", ")}.`}`,
+        data: r,
+        links: [{ label: "Submit tab", url: `/t/${r.team_slug}/submit` }],
+        uiType: "submission_receipt",
+        fallbackText: [...r.requirements.map((q) => `${q.state === "ok" ? "✓" : q.state === "uncertain" ? "?" : "✗"} ${q.label}`), `Due ${r.locks_at}`].join("\n"),
+      };
+    },
+  );
+
   tool(
     "deck_get",
     { title: "Get deck", description: "The latest (or a given) deck version, publish state and render status.", input: { project_id: zx.id.optional(), version: z.number().int().positive().optional() }, readOnly: true },
@@ -634,12 +673,12 @@ export function buildMcpServer(auth: BearerAuth) {
   tool(
     "submission_finalize",
     {
-      title: "Finalize submission (hand-off)",
+      title: "Finalize submission",
       description:
-        "Finalizing the official submission is irreversible, so it is never done by an agent. This returns the link where the team captain finalizes in the browser (typed team name + confirmation), plus what preflight still needs. If the team already finalized, it returns the receipt link.",
+        "Finalize the team's official submission. Irreversible: only the team captain, from their own session, with the team name typed exactly as confirm_phrase, and only after the captain said yes to the exact saved contents (send explicit_confirmation: true then). Without it, returns what preflight still needs and asks for confirmation. If the team already finalized, returns the receipt. The Submit tab in the browser is the fallback.",
       input: { confirm_phrase: z.string().trim().max(120).optional(), publish_showcase: z.boolean().optional(), idempotency_key: z.string().min(8).max(200).optional(), explicit_confirmation: confirmField },
     },
-    async (_args, ctx) => {
+    async (args, ctx) => {
       const r = await A.finalizeSubmission(ctx);
       if (r.already_finalized) {
         return {
@@ -651,15 +690,34 @@ export function buildMcpServer(auth: BearerAuth) {
           fallbackText: `RECEIPT ${r.receipt_code} · ${siteUrl(r.url)}`,
         };
       }
-      const actions: EnvelopeAction[] = [{ id: "finalize_in_browser", label: "Captain: finalize in the browser", requires_human_confirmation: true, href: siteUrl(r.url) }];
+      if (!r.preflight_ok) {
+        return {
+          status: "needs_action",
+          message: `Still missing: ${r.missing.join(", ")}. Save them with submission_save, then finalize.`,
+          data: r,
+          links: [{ label: "Submit tab", url: r.url }],
+          uiType: "submission_receipt",
+          fallbackText: `Still missing: ${r.missing.join(", ")}`,
+        };
+      }
+      if (args.explicit_confirmation !== true || !args.confirm_phrase) {
+        return confirmFirst(
+          "submission_finalize",
+          "Captain: finalize the submission",
+          "Finalize the submission (irreversible). The captain confirms the exact saved contents and types the team name as confirm_phrase.",
+          "submission_receipt",
+          r,
+        );
+      }
+      const f = await A.finalizeSubmissionAsCaptain(ctx, args);
       return {
-        status: "needs_action",
-        message: `${r.preflight_ok ? "Ready." : `Still missing: ${r.missing.join(", ")}.`} The team captain finalizes in the browser at ${siteUrl(r.url)} (agents can't finalize).`,
-        data: r,
-        actions,
-        links: [{ label: "Submit tab", url: r.url }],
+        status: "ok",
+        message: `${f.already_finalized ? "Already finalized" : "Finalized"}. Receipt ${f.receipt_code} (server time ${f.finalized_at}).`,
+        data: f,
+        evidence: [{ kind: "submission_receipt", id: f.receipt_code, confidence: "verified" }],
+        links: [{ label: `Receipt ${f.receipt_code}`, url: f.url }],
         uiType: "submission_receipt",
-        fallbackText: `Captain: finalize at ${siteUrl(r.url)}`,
+        fallbackText: `RECEIPT ${f.receipt_code} · ${siteUrl(f.url)}`,
       };
     },
   );
@@ -868,6 +926,7 @@ export const MCP_TOOL_NAMES = [
   "kane_record_run",
   "milestone_propose",
   "help_create",
+  "submission_save",
   "submission_finalize",
   "demo_generate",
   "deck_update",

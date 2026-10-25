@@ -23,6 +23,8 @@ type Mods = {
   help: typeof import("../../src/server/help.ts");
   sub: typeof import("../../src/server/submission.ts");
   session: typeof import("../../src/lib/session.ts");
+  auth: typeof import("../../src/server/auth.ts");
+  A: typeof import("../../src/server/mcp-adapters.ts");
   jar: Map<string, string>;
 };
 let m: Mods;
@@ -33,14 +35,16 @@ before(async () => {
   if (skip) return;
   process.env.DATABASE_URL = QA;
   process.env.SESSION_SECRET ||= "qa-session-secret-not-for-production";
-  const [db, help, sub, session, headers] = await Promise.all([
+  const [db, help, sub, session, auth, A, headers] = await Promise.all([
     import("../../src/lib/db.ts"),
     import("../../src/server/help.ts"),
     import("../../src/server/submission.ts"),
     import("../../src/lib/session.ts"),
+    import("../../src/server/auth.ts"),
+    import("../../src/server/mcp-adapters.ts"),
     import("../support/stubs/next-headers.mjs"),
   ]);
-  m = { db, help, sub, session, jar: headers.jar };
+  m = { db, help, sub, session, auth, A, jar: headers.jar };
   // 5 teams × 4 members, plus two mentors.
   for (let t = 0; t < 5; t++) {
     const [team] = await db.query<{ id: number }>(
@@ -233,4 +237,32 @@ test("finalize keeps the story the team published in the Ship Studio and adds th
     [ids.teams[1]],
   );
   assert.equal(t1.name, "QA project");
+});
+
+test("the Codex session submits (submission_save / submission_finalize): anyone saves, only the captain finalizes, with the team name", { skip }, async () => {
+  const ctxOf = (mem: import("../../src/server/auth.ts").MemberRow) => ({ member: mem, actor: m.auth.memberActor(mem), requestId: "test" });
+  const cap = (await m.auth.getMemberById(ids.members[12]))!; // team 3's captain
+  const mate = (await m.auth.getMemberById(ids.members[13]))!;
+  const saved = await m.A.submissionSave(ctxOf(mate), {
+    project_name: "Agent project", project_description: "Saved from a Codex session.", one_line_pitch: "From the session.", repo_url: "https://github.com/example/agent",
+    x_posts: "https://x.com/a/status/1, https://x.com/a/status/2", deck_url: undefined,
+  });
+  assert.deepEqual(saved.saved_fields, ["project_name", "project_description", "one_line_pitch", "repo_url", "x_posts"]);
+  assert.equal(saved.ready, true, JSON.stringify(saved.missing));
+
+  await assert.rejects(m.A.finalizeSubmissionAsCaptain(ctxOf(mate), { confirm_phrase: `${tag} team 3` }), (e: { code?: string }) => e.code === "FORBIDDEN");
+  await assert.rejects(m.A.finalizeSubmissionAsCaptain(ctxOf(cap), { confirm_phrase: "not the team" }), (e: { code?: string }) => e.code === "VALIDATION_FAILED");
+  const f = await m.A.finalizeSubmissionAsCaptain(ctxOf(cap), { confirm_phrase: `${tag} team 3`, idempotency_key: `${tag}-agent-final` });
+  assert.ok(f.receipt_code);
+  assert.equal(f.already_finalized, false);
+  const [row] = await m.db.query<{ source: string; status: string; x: string[] }>(
+    "select source, status, immutable_snapshot->'submission'->'x_posts' as x from submissions where receipt_code = $1",
+    [f.receipt_code],
+  );
+  assert.equal(row.status, "finalized");
+  assert.deepEqual(row.x, ["https://x.com/a/status/1", "https://x.com/a/status/2"]);
+  const again = await m.A.finalizeSubmissionAsCaptain(ctxOf(cap), { confirm_phrase: `${tag} team 3` });
+  assert.equal(again.receipt_code, f.receipt_code);
+  assert.equal(again.already_finalized, true);
+  assert.equal((await m.A.finalizeSubmission(ctxOf(mate))).already_finalized, true);
 });
