@@ -179,7 +179,6 @@ async function Receipt({ params }: { params: PageProps<"/submit/receipt/[code]">
 
       {!manual && (
         <Block title="Prize eligibility (separate from the submission)">
-          <Row k="Shipped minimum" v={s.prize?.shipped_minimum ? "Met at finalize" : "Not met at finalize"} />
           <Row k="Checklist items done" v={s.prize?.progress_done?.join(", ") || "—"} />
           <Row k="Pinned showcase story" v={s.pins?.story_version ? `version ${s.pins.story_version}` : "—"} />
           <Row k="Pinned deck" v={s.pins?.deck_version ? `version ${s.pins.deck_version}` : "none approved at finalize"} />

@@ -211,7 +211,7 @@ function PreflightList({ items }: { items: PreflightItem[] }) {
 
 function Finalized({ ctx, slug, canEdit }: { ctx: SubmissionContext; slug: string; canEdit: boolean }) {
   const s = ctx.submission!;
-  const snap = (s.immutable_snapshot ?? {}) as { prize?: { shipped_minimum?: boolean }; submission?: { commit_sha?: string | null; repo_url?: string | null } };
+  const snap = (s.immutable_snapshot ?? {}) as { submission?: { commit_sha?: string | null; repo_url?: string | null } };
   return (
     <section className="py-12 sm:py-16">
       <div className="container-page grid gap-10 lg:grid-cols-2">
@@ -221,11 +221,10 @@ function Finalized({ ctx, slug, canEdit }: { ctx: SubmissionContext; slug: strin
           <dl className="mt-6 space-y-3 font-plex text-sm">
             <Row k="Finalized (server time)" v={when.format(new Date(s.finalized_at!))} />
             {s.received_at && <Row k="Received by staff" v={when.format(new Date(s.received_at))} />}
-            <Row k="Source" v={s.source === "manual_offline" ? "Manual (offline backup)" : "Web"} />
+            <Row k="Source" v={s.source === "manual_offline" ? "Manual (offline backup)" : s.source === "mcp" ? "Codex session" : "Web"} />
             <Row k="Repository" v={snap.submission?.repo_url ?? "—"} mono />
-            <Row k="Commit" v={snap.submission?.commit_sha ?? "—"} mono />
+            {snap.submission?.commit_sha && <Row k="Commit" v={snap.submission.commit_sha} mono />}
             <Row k="Snapshot SHA-256" v={s.snapshot_sha256 ?? "—"} mono />
-            <Row k="Shipped prize bundle" v={snap.prize?.shipped_minimum ? "Met at finalize" : "Not met at finalize"} />
           </dl>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href={`/submit/receipt/${s.receipt_code}`} className="inline-flex min-h-11 items-center bg-bright px-4 font-plex text-sm text-ink hover:bg-lime">
