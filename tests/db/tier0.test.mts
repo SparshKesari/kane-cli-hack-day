@@ -261,6 +261,9 @@ test("the Codex session submits (submission_save / submission_finalize): anyone 
   );
   assert.equal(row.status, "finalized");
   assert.deepEqual(row.x, ["https://x.com/a/status/1", "https://x.com/a/status/2"]);
+  // Listed publicly by default, like the Submit tab's toggle: the skill never sends publish_showcase.
+  const [shown] = await m.db.query<{ showcase_state: string }>("select p.showcase_state from submissions s join projects p on p.id = s.project_id where s.receipt_code = $1", [f.receipt_code]);
+  assert.equal(shown.showcase_state, "public");
   const again = await m.A.finalizeSubmissionAsCaptain(ctxOf(cap), { confirm_phrase: `${tag} team 3` });
   assert.equal(again.receipt_code, f.receipt_code);
   assert.equal(again.already_finalized, true);
