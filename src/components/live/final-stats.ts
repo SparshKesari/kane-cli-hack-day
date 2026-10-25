@@ -18,9 +18,16 @@ export type FinalStats = {
   data_generated: string;
   window: { from: string; to: string };
   totals: StatCounts;
-  teams: { slug: string; name: string; orgs: number; counts: StatCounts }[];
+  /** `id` is the team's id; saves made before it was added have only the slug. */
+  teams: { id?: number; slug: string; name: string; orgs: number; counts: StatCounts }[];
   /** Each org with a participant in it: its team, whether it was found by a TestMu AI claim/team sync or by email, the participants' names, how many users the page lists in it, and whether it counted (orgs shared with non-participants don't). */
   orgs: { org: string; team: { slug: string; name: string } | null; via: "testmu" | "email"; participants: string[]; users: number | null; counted: boolean; counts: StatCounts }[];
   matched: { orgs: number; by_org_id: number; by_email: number; shared_skipped: number; team_conflicts: number; participants: number; participants_matched: number };
   imported_at?: string;
 };
+
+/** One team's saved numbers, for its Ship Page: matched by team id, else by slug; null when the team has none. */
+export function teamNumbers(stats: Pick<FinalStats, "teams"> | null, teamId: number, slug: string): StatCounts | null {
+  const t = stats?.teams.find((x) => (x.id != null ? x.id === teamId : x.slug === slug));
+  return t?.counts ?? null;
+}

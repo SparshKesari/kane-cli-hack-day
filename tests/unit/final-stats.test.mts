@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildFinalStats, countsByOrg, matchOrgs, parseUsageFiles, type Participant } from "../../src/server/final-stats.ts";
+import { teamNumbers } from "../../src/components/live/final-stats.ts";
 
 // Shaped like the usage page's files: arrays keyed by org id, counts at fixed positions.
 const latest = {
@@ -86,7 +87,7 @@ test("final stats total only participant orgs, per team and overall", () => {
   const s = buildFinalStats(files, people, new Map([[1, { slug: "kestrel", name: "Kestrel" }]]));
   // Orgs 100 + 200 + 300; org 400 (500 runs) is left out.
   assert.deepEqual(s.totals, { tests_authored: 8, test_runs: 32, bugs_caught: 4, use_cases: 5, assurance_commands: 5, explorations: 2 });
-  assert.deepEqual(s.teams, [{ slug: "kestrel", name: "Kestrel", orgs: 2, counts: { tests_authored: 8, test_runs: 32, bugs_caught: 4, use_cases: 4, assurance_commands: 5, explorations: 0 } }]);
+  assert.deepEqual(s.teams, [{ id: 1, slug: "kestrel", name: "Kestrel", orgs: 2, counts: { tests_authored: 8, test_runs: 32, bugs_caught: 4, use_cases: 4, assurance_commands: 5, explorations: 0 } }]);
   assert.equal(s.data_generated, "2026-10-25T01:05:00Z");
   assert.deepEqual(s.window, { from: "2026-10-24T00:00:00Z", to: "2026-10-25T01:05:00Z" });
   assert.deepEqual(s.matched, { orgs: 3, by_org_id: 2, by_email: 1, shared_skipped: 1, team_conflicts: 0, participants: 3, participants_matched: 3 });
@@ -114,4 +115,14 @@ test("each org is listed with its team, how it was found, its participants and w
 test("files that aren't the usage page's are refused with what was expected", () => {
   assert.throws(() => parseUsageFiles("{}", JSON.stringify(emails)), (e: { code?: string; userMessage?: string }) => e.code === "VALIDATION_FAILED" && /latest\.json/.test(e.userMessage ?? ""));
   assert.throws(() => parseUsageFiles(JSON.stringify(latest), "not json"), (e: { code?: string; userMessage?: string }) => e.code === "VALIDATION_FAILED" && /emails\.json/.test(e.userMessage ?? ""));
+});
+
+test("a team's Ship Page numbers: its own row by team id (or slug, for saves without ids), else none", () => {
+  const files = parseUsageFiles(JSON.stringify(latest), JSON.stringify(emails));
+  const s = buildFinalStats(files, people, new Map([[1, { slug: "kestrel", name: "Kestrel" }]]));
+  assert.equal(teamNumbers(s, 1, "renamed")?.test_runs, 32);
+  assert.equal(teamNumbers({ ...s, teams: s.teams.map((t) => ({ ...t, id: undefined })) }, 1, "kestrel")?.test_runs, 32);
+  // A team with no matched org, and no saved numbers at all, show nothing.
+  assert.equal(teamNumbers(s, 2, "heron"), null);
+  assert.equal(teamNumbers(null, 1, "kestrel"), null);
 });

@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import PageHeader from "@/components/ui/PageHeader";
+import { FINAL_STATS, type FinalStats } from "@/components/live/final-stats";
 import StatusPill from "@/components/ui/StatusPill";
 import { isEnabled } from "@/lib/flags";
+import { getFinalStats } from "@/server/final-stats";
 import { PROJECT_TYPES, PROJECT_TYPE_LABEL, listGallery, type ProjectType } from "@/server/showcase";
 
 export const metadata: Metadata = {
@@ -42,13 +44,14 @@ async function Projects({ searchParams }: { searchParams: PageProps<"/ship">["se
   const type = isType(raw) ? raw : null;
   // Organizer kill switch (T-005): the whole public showcase goes offline.
   if (!(await isEnabled("ship_pages"))) return <ShowcaseOffline />;
-  const [cards, all] = await Promise.all([listGallery(type), type ? listGallery(null) : null]);
+  const [cards, all, final] = await Promise.all([listGallery(type), type ? listGallery(null) : null, getFinalStats()]);
   const counts = new Map<string, number>();
   for (const c of all ?? cards) counts.set(c.type, (counts.get(c.type) ?? 0) + 1);
   const total = (all ?? cards).length;
 
   return (
     <div className="space-y-10">
+      {final && <KaneTotals final={final} />}
       <nav aria-label="Filter by project type" className="flex flex-wrap gap-2">
         <Chip href="/ship" on={!type}>
           All · {total}
@@ -101,6 +104,25 @@ async function Projects({ searchParams }: { searchParams: PageProps<"/ship">["se
         </ul>
       )}
     </div>
+  );
+}
+
+/** The event's final Kane CLI numbers (participants' orgs only), once an organizer saves them. */
+function KaneTotals({ final }: { final: FinalStats }) {
+  return (
+    <section aria-label="Kane CLI across the event">
+      <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">
+        Kane CLI across the event · {final.teams.length} {final.teams.length === 1 ? "team" : "teams"}
+      </p>
+      <dl className="mt-4 grid grid-cols-2 gap-px border border-hairline bg-hairline sm:grid-cols-3 lg:grid-cols-6">
+        {FINAL_STATS.map((s) => (
+          <div key={s.key} className="bg-ink p-4">
+            <dt className="min-h-8 font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">{s.label}</dt>
+            <dd className="mt-2 font-display text-3xl tracking-[-0.03em] text-bright tabular-nums">{final.totals[s.key].toLocaleString("en-US")}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 

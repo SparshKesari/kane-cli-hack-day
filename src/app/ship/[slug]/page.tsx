@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { FINAL_STATS, teamNumbers } from "@/components/live/final-stats";
 import { DEFAULT_TEMPLATE, ShipTemplate } from "@/components/ship-templates";
 import StatusPill from "@/components/ui/StatusPill";
 import { Eyebrow } from "@/components/ui/Section";
@@ -21,6 +22,7 @@ import {
   visualSrc,
 } from "@/server/showcase";
 import { getPublishedDeck } from "@/server/deck";
+import { getFinalStats } from "@/server/final-stats";
 import { listMilestones } from "@/server/kane";
 import { getShipTemplate, getPublishedStory as getPublicStory } from "@/server/story";
 import { kaneComponentLabel, loadDraftForShowcase } from "@/server/submission";
@@ -87,6 +89,7 @@ async function Ship({ params }: { params: PageProps<"/ship/[slug]">["params"] })
           <ShipTemplate name={template} story={{ ...pub.story, hasDeck: !!deck }} />
           <OnePager embed={onePager} name={pub.story.name} />
           <PublicMilestones projectId={found.project.id} />
+          <KaneCliNumbers teamId={found.project.team_id} slug={found.project.slug} />
           <div className="container-page pb-16">
             <SubmittedExtras extras={view.extras} />
           </div>
@@ -98,6 +101,7 @@ async function Ship({ params }: { params: PageProps<"/ship/[slug]">["params"] })
     <>
       <ShipBody view={view} hasDeck={!!deck} onePager={onePager} />
       {live && <PublicMilestones projectId={found.project.id} />}
+      {live && <KaneCliNumbers teamId={found.project.team_id} slug={found.project.slug} />}
     </>
   );
 }
@@ -128,6 +132,34 @@ async function PublicMilestones({ projectId }: { projectId: number }) {
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The team's final Kane CLI numbers, once an organizer saves them in /ops/final-stats: usage on
+ * the TestMu AI orgs matched to this team. Nothing shows before that, or for a team with no
+ * matched org. `slug` is the project's, which is the team's.
+ */
+async function KaneCliNumbers({ teamId, slug }: { teamId: number; slug: string }) {
+  const stats = await getFinalStats();
+  const counts = teamNumbers(stats, teamId, slug);
+  if (!stats || !counts) return null;
+  return (
+    <section id="kane-cli" className="scroll-mt-24 border-t border-dashed border-hairline py-16 sm:py-20">
+      <div className="container-page">
+        <p className={eyebrow}>Kane CLI · on the day</p>
+        <dl className="mt-6 grid grid-cols-2 gap-px border border-hairline bg-hairline sm:grid-cols-3 lg:grid-cols-6">
+          {FINAL_STATS.map((s) => (
+            <div key={s.key} className="bg-ink p-4">
+              <dt className={`${eyebrow} min-h-8`}>{s.label}</dt>
+              <dd className="mt-2 font-display text-3xl tracking-[-0.03em] text-bright tabular-nums">{counts[s.key].toLocaleString("en-US")}</dd>
+              <dd className="mt-1 font-plex text-xs text-lightgray">{s.note}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-4 font-plex text-xs text-lightgray">Kane CLI usage on the team&apos;s TestMu AI orgs during the event, counted to {dateFmt.format(new Date(stats.window.to))}.</p>
       </div>
     </section>
   );

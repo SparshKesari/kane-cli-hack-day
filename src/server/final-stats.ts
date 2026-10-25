@@ -161,7 +161,7 @@ export function buildFinalStats(files: UsageFiles, participants: Participant[], 
     window: { from: files.latest.window.from, to: files.latest.window.to },
     totals,
     teams: [...perTeam]
-      .map(([id, t]) => ({ ...teams.get(id)!, orgs: t.orgs, counts: t.counts }))
+      .map(([id, t]) => ({ id, ...teams.get(id)!, orgs: t.orgs, counts: t.counts }))
       .sort((a, b) => b.counts.test_runs - a.counts.test_runs || a.slug.localeCompare(b.slug)),
     orgs,
     matched: {
