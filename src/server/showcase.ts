@@ -109,6 +109,14 @@ const githubCommitUrl = (repo: string | null, sha: string | null) => {
 };
 
 /** Build the canonical story from a submission draft. Pure; no I/O. */
+/** Trimmed to at most `max` characters, cut at a word with "…" when longer. */
+const clipAtWord = (text: string | null | undefined, max: number) => {
+  const t = text?.trim() ?? "";
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > max / 2 ? cut.lastIndexOf(" ") : cut.length).trimEnd()}…`;
+};
+
 export function buildStory(input: {
   projectId: number;
   slug: string;
@@ -154,7 +162,8 @@ export function buildStory(input: {
     one_line_pitch: d.one_line_pitch ?? "",
     creation_type: d.project_type,
     problem: d.problem ?? "",
-    what_we_built: d.what_we_built ?? "",
+    // The final form's description (since 16:40 PT on the day), else an older draft's text.
+    what_we_built: clipAtWord(d.project_description, 2000) || d.what_we_built || "",
     how_it_works: d.how_it_works,
     harness: { summary: d.harness_summary ?? "", components: d.kane_components, stages: d.harness_stages.filter(Boolean) },
     proof,
@@ -359,12 +368,40 @@ export type ShowcaseView = {
   extras: SubmissionExtras | null;
 };
 
-export type SubmissionExtras = { run_command: string | null; devpost_url: string | null; social_links: string[] };
+export type SubmissionExtras = {
+  run_command: string | null;
+  devpost_url: string | null;
+  showcase_url: string | null;
+  deck_url: string | null;
+  /** Launch posts: LinkedIn, X, Hacker News and older drafts' social links, each once. */
+  social_links: string[];
+  blog_links: string[];
+};
 
-const extrasOf = (d: SubmissionDraft): SubmissionExtras | null => {
+/**
+ * A page published from the final form before its description reached the story (from 16:40 PT
+ * on the day until this change) has an empty "what we built". Show the finalized submission's
+ * description there. Display only: the published record is unchanged, and a draft that isn't
+ * finalized never reaches a public page.
+ */
+export function withSubmittedDescription(story: ProjectStory, draft: SubmissionDraft, finalizedAt: Date | null): ProjectStory {
+  if (story.what_we_built || !finalizedAt) return story;
+  const text = clipAtWord(draft.project_description, 2000);
+  return text ? { ...story, what_we_built: text } : story;
+}
+
+export const submissionExtras = (d: SubmissionDraft): SubmissionExtras | null => {
   const https = (u: string | null | undefined) => (u && /^https:\/\/[^\s]+$/.test(u) ? u : null);
-  const x = { run_command: d.run_command?.trim() || null, devpost_url: https(d.devpost_url), social_links: (d.social_links ?? []).map(https).filter((u): u is string => !!u) };
-  return x.run_command || x.devpost_url || x.social_links.length ? x : null;
+  const list = (...urls: (string | null | undefined)[]) => [...new Set(urls.map(https).filter((u): u is string => !!u))];
+  const x = {
+    run_command: d.run_command?.trim() || null,
+    devpost_url: https(d.devpost_url),
+    showcase_url: https(d.showcase_url),
+    deck_url: https(d.deck_url),
+    social_links: list(...(d.social_links ?? []), ...(d.linkedin_posts ?? []), ...(d.x_posts ?? []), d.hn_url),
+    blog_links: list(...(d.blog_links ?? [])),
+  };
+  return x.run_command || x.devpost_url || x.showcase_url || x.deck_url || x.social_links.length || x.blog_links.length ? x : null;
 };
 
 /**
@@ -389,7 +426,7 @@ export async function getShowcase(
     const ids = pub.story.proof.map((p) => Number(p.run_id)).filter((n) => Number.isInteger(n) && n > 0);
     return {
       project,
-      story: pub.story,
+      story: sub ? withSubmittedDescription(pub.story, sub.draft, sub.finalizedAt) : pub.story,
       mode: project.showcase_state,
       preview: false,
       publishedAt: pub.publishedAt,
@@ -397,7 +434,7 @@ export async function getShowcase(
       runs: await runsByIds(project.id, ids),
       finalizedAt: sub?.finalizedAt ?? null,
       viewer: v,
-      extras: sub?.finalizedAt ? extrasOf(sub.draft) : null,
+      extras: sub?.finalizedAt ? submissionExtras(sub.draft) : null,
     };
   }
   // Nothing published yet: only the team / organizers get a draft preview.
@@ -413,7 +450,7 @@ export async function getShowcase(
     runs: await runsByIds(project.id, sub.draft.kane_run_ids),
     finalizedAt: sub.finalizedAt,
     viewer: v,
-    extras: extrasOf(sub.draft),
+    extras: submissionExtras(sub.draft),
   };
 }
 

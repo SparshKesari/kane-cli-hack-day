@@ -144,7 +144,7 @@ function Offline() {
   );
 }
 
-/** Copyable run command, Devpost and launch posts: the submission fields the story doesn't carry. */
+/** Copyable run command, the team's own showcase page and deck, Devpost, launch posts and blog posts: the submission fields the story doesn't carry. */
 function SubmittedExtras({ extras }: { extras: SubmissionExtras | null }) {
   if (!extras) return null;
   return (
@@ -161,10 +161,17 @@ function SubmittedExtras({ extras }: { extras: SubmissionExtras | null }) {
           </div>
         </div>
       )}
+      {extras.showcase_url && <ExtLink href={extras.showcase_url}>Showcase page · {hostOf(extras.showcase_url)}</ExtLink>}
+      {extras.deck_url && <ExtLink href={extras.deck_url}>The team&apos;s deck · {hostOf(extras.deck_url)}</ExtLink>}
       {extras.devpost_url && <ExtLink href={extras.devpost_url}>Devpost page</ExtLink>}
       {extras.social_links.map((u) => (
         <ExtLink key={u} href={u}>
           {postLabel(u)}
+        </ExtLink>
+      ))}
+      {extras.blog_links.map((u) => (
+        <ExtLink key={u} href={u}>
+          Blog post · {hostOf(u)}
         </ExtLink>
       ))}
     </div>
