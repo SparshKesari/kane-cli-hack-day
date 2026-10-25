@@ -84,31 +84,6 @@ async function Receipt({ params }: { params: PageProps<"/submit/receipt/[code]">
     if (e instanceof AppError && (e.code === "NOT_FOUND" || e.code === "UNAUTHENTICATED" || e.code === "FORBIDDEN")) notFound();
     throw e;
   }
-  if (r.limited) {
-    return (
-      <article className="print-paper space-y-6">
-        <header className="border-b border-dashed border-hairline pb-8">
-          <Eyebrow>Official submission receipt</Eyebrow>
-          <h1 className="mt-4 font-dots text-6xl leading-none font-black text-bright sm:text-7xl">{r.code}</h1>
-          <p className="mt-4 font-display text-2xl text-bright">{r.team.name}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="border border-bright px-2 py-0.5 font-pixel text-[10px] uppercase tracking-[0.2em] text-bright">{r.status}</span>
-            {r.signature ? <StatusPill tone="verified">Verified · signed</StatusPill> : <StatusPill tone="unverified">Unsigned</StatusPill>}
-          </div>
-        </header>
-        <Block title="Timing (server clock)">
-          <Row k="Finalized" v={fmt(r.finalizedAt)} />
-        </Block>
-        <p className="font-plex text-sm text-lightgray">
-          Your submission is in. To see what was submitted, sign in as a member of this team on{" "}
-          <Link href={`/t/${r.team.slug}/submit`} className="text-bright underline underline-offset-4 hover:text-lime">
-            your Submit tab
-          </Link>
-          , then open this receipt again.
-        </p>
-      </article>
-    );
-  }
   const manual = r.source === "manual_offline";
   const raw = r.snapshot as Snapshot & ManualSnapshot;
   // Manual receipts keep evidence as staff-typed text and the lock as lock_at.
