@@ -36,6 +36,16 @@ test("SKILL.md and /start list every required field and every optional link, and
   }
 });
 
+test("ready to submit: the session asks for all 11 fields, saves with submission_save and finalizes with submission_finalize", () => {
+  const all = ["Project name", "Project description", "One-liner pitch", "GitHub repo URL", "Showcase page", "LinkedIn post(s)", "X post(s)", "Blog link(s)", "Deck", "Video", "Hacker News post"];
+  for (const b of skills) {
+    const md = readFileSync(`${b}/hack-os/references/build.md`, "utf8").split('## "Ready to submit"')[1];
+    for (const f of all) assert.ok(md.includes(`   - ${f}`), `${b}: build.md doesn't list ${f}`);
+    assert.match(md, /submission_save/, b);
+    assert.match(md, /submission_finalize/, b);
+  }
+});
+
 test("ready to submit: Kane runs are still linked for judging, with a yes, via team_page_update", () => {
   for (const b of skills) {
     const md = readFileSync(`${b}/hack-os/references/build.md`, "utf8").split('## "Ready to submit"')[1];

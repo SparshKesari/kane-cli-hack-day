@@ -265,4 +265,17 @@ test("the Codex session submits (submission_save / submission_finalize): anyone 
   assert.equal(again.receipt_code, f.receipt_code);
   assert.equal(again.already_finalized, true);
   assert.equal((await m.A.finalizeSubmission(ctxOf(mate))).already_finalized, true);
+
+  // The receipt link the session hands out opens for someone not signed in on the browser:
+  // it shows the receipt exists, not what was submitted; the JSON/API stay team and staff only.
+  m.jar.clear();
+  const pub = await m.sub.getReceipt(f.receipt_code);
+  assert.equal(pub.limited, true);
+  assert.equal(pub.team.name, `${tag} team 3`);
+  assert.deepEqual(pub.snapshot, {});
+  await assert.rejects(m.sub.getFullReceipt(f.receipt_code), (e: { code?: string }) => e.code === "NOT_FOUND");
+  await signInAsCaptain(3);
+  const full = await m.sub.getReceipt(f.receipt_code);
+  assert.equal(full.limited, false);
+  assert.ok(Object.keys(full.snapshot).length > 0);
 });
