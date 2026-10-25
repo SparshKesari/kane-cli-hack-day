@@ -676,7 +676,7 @@ export function buildMcpServer(auth: BearerAuth) {
       title: "Finalize submission",
       description:
         "Finalize the team's official submission. Irreversible: only the team captain, from their own session, with the team name typed exactly as confirm_phrase, and only after the captain said yes to the exact saved contents (send explicit_confirmation: true then). Without it, returns what preflight still needs and asks for confirmation. If the team already finalized, returns the receipt. The Submit tab in the browser is the fallback.",
-      input: { confirm_phrase: z.string().trim().max(120).optional(), publish_showcase: z.boolean().optional(), idempotency_key: z.string().min(8).max(200).optional(), explicit_confirmation: confirmField },
+      input: { confirm_phrase: z.string().trim().max(120).optional(), publish_showcase: z.boolean().optional().describe("List the Ship Page publicly in the /ship gallery. Default true; false keeps it private to the team."), idempotency_key: z.string().min(8).max(200).optional(), explicit_confirmation: confirmField },
     },
     async (args, ctx) => {
       const r = await A.finalizeSubmission(ctx);

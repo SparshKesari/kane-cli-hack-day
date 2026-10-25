@@ -392,12 +392,13 @@ export async function submissionSave(ctx: Ctx, fields: Record<string, unknown>) 
 /**
  * Finalize from the captain's own session: the same checks as the Submit tab (captain only, team
  * name typed, preflight complete). The tool only calls this after the captain's explicit yes.
+ * The page is listed publicly unless publish_showcase is false, like the Submit tab's toggle.
  */
 export async function finalizeSubmissionAsCaptain(ctx: Ctx, input: { confirm_phrase?: string; publish_showcase?: boolean; idempotency_key?: string }) {
   const team = await myTeam(ctx.member);
   const r = await finalizeAs(
     team.slug,
-    { confirm_phrase: input.confirm_phrase ?? "", confirm: true, publish_showcase: input.publish_showcase === true, ...(input.idempotency_key ? { idempotency_key: input.idempotency_key } : {}) },
+    { confirm_phrase: input.confirm_phrase ?? "", confirm: true, publish_showcase: input.publish_showcase !== false, ...(input.idempotency_key ? { idempotency_key: input.idempotency_key } : {}) },
     { member: ctx.member, actor: ctx.actor, source: "mcp" },
   );
   return { team_slug: team.slug, already_finalized: !!r.data.already, receipt_code: r.data.receipt_code, finalized_at: r.data.finalized_at, url: `/submit/receipt/${r.data.receipt_code}` };
