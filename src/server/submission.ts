@@ -4,7 +4,7 @@ import type { PoolClient } from "pg";
 import { pool, query } from "@/lib/db";
 import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { logActivity } from "@/lib/teams";
-import { PERSONAL_SIGN_IN, getMember, getStaff, hasRole, memberActor, randomCode, requirePersonalMember, requireTeamMember, staffActor, type MemberRow, type Staff } from "./auth";
+import { PERSONAL_SIGN_IN, hasRole, memberActor, randomCode, requirePersonalMember, requireTeamMember, staffActor, type MemberRow, type Staff } from "./auth";
 import { AppError, idempotent, parse, sha256, stableStringify, transaction, writeAudit, z, zx, type Actor, type Receipt } from "./core";
 import {
   CREDIT_CONSENT,
@@ -756,11 +756,9 @@ export type ReceiptView = {
   snapshotSha256: string;
   signature: string | null;
   officer: string | null;
-  /** Opened by someone not signed in to the team (or staff): the receipt exists, its contents stay private. */
-  limited: boolean;
 };
 
-/** Team members, judges and organizers see a receipt in full; anyone else with the code sees it exists (limited). */
+/** Anyone with the receipt code can open it in full (organizers' call, 2026-10-24 17:25 PT). */
 export async function getReceipt(code: string): Promise<ReceiptView> {
   const normal = code.trim().toUpperCase();
   if (!/^S-[0-9A-Z]{4,8}$/.test(normal)) throw new AppError("NOT_FOUND");
@@ -772,12 +770,7 @@ export async function getReceipt(code: string): Promise<ReceiptView> {
     [normal],
   );
   if (!row) throw new AppError("NOT_FOUND");
-  const [member, staff] = await Promise.all([getMember(), getStaff()]);
-  // Anyone with the code sees that the receipt exists (code, team, status, time): teams finalizing
-  // from Codex often aren't signed in on this browser. What was submitted stays team and staff only.
-  const allowed = (member && member.team_id === Number(row.team_id)) || hasRole(staff, "judge", "organizer");
   return {
-    limited: !allowed,
     code: row.receipt_code!,
     status: row.status,
     source: row.source,
@@ -785,27 +778,20 @@ export async function getReceipt(code: string): Promise<ReceiptView> {
     projectSlug: row.project_slug,
     finalizedAt: row.finalized_at!,
     receivedAt: row.received_at,
-    witness: allowed ? row.witness : null,
-    incidentRef: allowed ? row.incident_ref : null,
-    snapshot: allowed ? (row.immutable_snapshot ?? {}) : {},
+    witness: row.witness,
+    incidentRef: row.incident_ref,
+    snapshot: row.immutable_snapshot ?? {},
     snapshotSha256: row.snapshot_sha256!,
     signature: row.signature,
-    officer: allowed ? row.officer : null,
+    officer: row.officer,
   };
 }
 
 export type VerifyResult = { hash: "match" | "mismatch"; signature: "valid" | "invalid" | "unsigned" | "no_key"; recomputed: string; checked_at: string };
 
-/** The receipt with its contents: team members, judges and organizers only (NOT_FOUND otherwise). */
-export async function getFullReceipt(code: string): Promise<ReceiptView> {
-  const r = await getReceipt(code);
-  if (r.limited) throw new AppError("NOT_FOUND");
-  return r;
-}
-
 /** Recompute the snapshot hash and check the HMAC. Read-only. */
 export async function verifyReceipt(code: string): Promise<VerifyResult> {
-  const r = await getFullReceipt(code);
+  const r = await getReceipt(code);
   const recomputed = sha256(stableStringify(r.snapshot));
   const key = signingKey();
   let signature: VerifyResult["signature"] = "unsigned";
