@@ -4,11 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
-  // /admin moved to /ops (Hack OS). 308 so bookmarks and old links keep working.
+  // /admin is the online hackathon's organiser view. (The SF event's ops console is at /ops.)
   async redirects() {
     return [
-      { source: "/admin", destination: "/ops", permanent: true },
-      { source: "/admin/:path*", destination: "/ops/:path*", permanent: true },
       // event-day-flow: pages folded into the new participant flow (temporary, so they can come back).
       { source: "/login", destination: "/passport/login", permanent: false },
       { source: "/team/new", destination: "/team", permanent: false },
@@ -18,6 +16,16 @@ const nextConfig: NextConfig = {
       { source: "/docs", destination: "/setup", permanent: false },
       { source: "/resources", destination: "/me", permanent: false },
       { source: "/content-hour", destination: "/me", permanent: false },
+      // The online hackathon's landing page is the homepage.
+      { source: "/online", destination: "/", permanent: false },
+      // The SF Hack Day's entry pages are retired: send people to the online hackathon instead.
+      // (Their files stay in the repo; /ship pages and /ops are untouched.)
+      { source: "/register", destination: "/online/register", permanent: false },
+      { source: "/start", destination: "/", permanent: false },
+      { source: "/teams", destination: "/", permanent: false },
+      { source: "/team", destination: "/online/team", permanent: false },
+      { source: "/team/:path*", destination: "/online/team", permanent: false },
+      { source: "/live", destination: "/", permanent: false },
     ];
   },
   // /{team-slug}/status is the short address the Codex hook pings. A fallback
