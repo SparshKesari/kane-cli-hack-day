@@ -18,7 +18,14 @@ import OnlineShell from "./online/Shell";
 // Its sections live in components/online and read data/online.ts; the SF
 // sections in components/home stay as they were for the team hub.
 // Homepage only: the root layout's title template still names the SF event for /ship pages.
-export const metadata: Metadata = { title: { absolute: onlineEvent.name }, description: onlineEvent.tagline };
+export const metadata: Metadata = {
+  metadataBase: new URL("https://www.kaneclihack.sh"),
+  title: { absolute: onlineEvent.name },
+  description: onlineEvent.tagline,
+  // The share card is generated at /online/opengraph-image (src/app/online/opengraph-image.tsx).
+  openGraph: { title: onlineEvent.name, description: onlineEvent.tagline, url: "/", siteName: onlineEvent.name, type: "website", images: [{ url: "/online/opengraph-image", width: 1200, height: 630, alt: `${onlineEvent.name}: ${onlineEvent.tagline}` }] },
+  twitter: { card: "summary_large_image", title: onlineEvent.name, description: onlineEvent.tagline, images: ["/online/opengraph-image"] },
+};
 
 export default function Home() {
   return (

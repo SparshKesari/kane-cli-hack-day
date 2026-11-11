@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps<"/online/p/[slug]">
   const description = live?.one_line_pitch ?? "";
   // Until the project is submitted (or while an organiser has it hidden) the page is for the team only.
   if (!live || team.hidden) return { title: "Project", robots: { index: false, follow: false } };
-  return { title, description, openGraph: { title, description }, twitter: { card: "summary", title, description } };
+  return { title, description, openGraph: { title, description, type: "article" }, twitter: { card: "summary_large_image", title, description, images: [`/online/p/${team.slug}/opengraph-image`] } };
 }
 
 export default function ProjectPage({ params }: PageProps<"/online/p/[slug]">) {
