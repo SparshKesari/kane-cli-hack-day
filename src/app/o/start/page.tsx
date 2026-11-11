@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Get set up" };
 const linkCls = "text-bright underline decoration-hairline underline-offset-4 hover:text-lime";
 
 // Step 3: activate Kane CLI and get the social accounts ready. The posting
-// guide itself is at /online/launch.
+// guide itself is at /o/launch.
 export default function OnlineStart() {
   return (
     <section className="container-page max-w-3xl py-16">
@@ -84,7 +84,7 @@ export default function OnlineStart() {
       <div className="bg-lime p-6 text-[#0a0a0a] sm:p-8">
         <p className="font-display text-2xl">At least two public posts are required. More posts earn brownie points.</p>
         <p className="mt-2 max-w-xl font-plex text-sm leading-relaxed">The launch guide has the hashtags, who to tag on each platform, and sample posts you can copy.</p>
-        <Link href="/online/launch" className="mt-5 inline-flex min-h-11 items-center bg-[#0a0a0a] px-5 font-plex text-sm text-[#f2f2f2] transition-colors hover:bg-[#2a2a2a]">
+        <Link href="/o/launch" className="mt-5 inline-flex min-h-11 items-center bg-[#0a0a0a] px-5 font-plex text-sm text-[#f2f2f2] transition-colors hover:bg-[#2a2a2a]">
           Open the launch guide →
         </Link>
       </div>
@@ -101,10 +101,10 @@ export default function OnlineStart() {
       </ul>
 
       <div className="mt-12 flex flex-wrap gap-3 border-t border-dashed border-hairline pt-8">
-        <Link href="/online/submit" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+        <Link href="/o/submit" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
           Go to your submission →
         </Link>
-        <Link href="/online/team" className="inline-flex min-h-11 items-center border border-hairline px-5 font-plex text-sm text-bright transition-colors hover:border-lime">
+        <Link href="/o/team" className="inline-flex min-h-11 items-center border border-hairline px-5 font-plex text-sm text-bright transition-colors hover:border-lime">
           Your team
         </Link>
       </div>
@@ -114,8 +114,8 @@ export default function OnlineStart() {
 
 async function Guard() {
   const me = await getMe();
-  if (!me) redirect("/online/login");
-  if (me.teamId === null) redirect("/online/team");
+  if (!me) redirect("/o/login");
+  if (me.teamId === null) redirect("/o/team");
   return null;
 }
 

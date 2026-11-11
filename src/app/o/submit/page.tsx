@@ -28,9 +28,9 @@ export default function OnlineSubmit() {
 
 async function SubmitBody() {
   const me = await getMe();
-  if (!me) redirect("/online/login");
+  if (!me) redirect("/o/login");
   const team = me.teamId === null ? null : await getTeam(me.teamId);
-  if (!team) redirect("/online/team");
+  if (!team) redirect("/o/team");
   const [sub, files] = await Promise.all([getSubmission(team.id), listAttachments(team.id)]);
   const locked = isLocked();
   const submitted = sub?.status === "submitted";
@@ -89,7 +89,7 @@ async function SubmitBody() {
       )}
       <p className="mt-5 font-plex text-sm leading-relaxed text-lightgray">
         Fields marked <span className="text-lime">*</span> are needed to submit. Save a draft any time. Anyone on your team can edit this; if two of you edit at once, the second save is stopped so nothing is overwritten. Need the Kane CLI setup again?{" "}
-        <Link href="/online/start" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+        <Link href="/o/start" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
           Open the guide
         </Link>
         .
@@ -98,7 +98,7 @@ async function SubmitBody() {
         <SubmitForm
           key={sub?.version ?? 0}
           version={sub?.version ?? 0}
-          draft={sub ? Object.fromEntries(FIELDS.map((f) => [f, sub[f]])) : emptyDraft()} submitted={submitted} disabled={locked} defaultName={team.solo ? team.name : ""} showcaseHref={`/online/p/${team.slug}`}
+          draft={sub ? Object.fromEntries(FIELDS.map((f) => [f, sub[f]])) : emptyDraft()} submitted={submitted} disabled={locked} defaultName={team.solo ? team.name : ""} showcaseHref={`/o/p/${team.slug}`}
           attachments={files.map(({ id, filename, size_bytes }) => ({ id, filename, size_bytes }))}
           uploadPrefix={teamPrefix(team.id)}
         />

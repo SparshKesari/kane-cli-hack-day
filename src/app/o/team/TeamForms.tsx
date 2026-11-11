@@ -44,7 +44,7 @@ export default function TeamForms() {
           <Label htmlFor="name">Team name</Label>
           <input id="name" name="name" required minLength={2} maxLength={60} value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
           <p className="mt-2 font-plex text-sm text-lightgray">
-            Your showcase page will be <span className="text-bright">/online/p/{slug || "your-team"}</span>. You can rename the team until you submit.
+            Your showcase page will be <span className="text-bright">/o/p/{slug || "your-team"}</span>. You can rename the team until you submit.
           </p>
         </div>
       )}
@@ -68,7 +68,7 @@ export function RenameForm({ current }: { current: string }) {
         <SubmitButton pending="Saving…" className="shrink-0">Rename</SubmitButton>
       </div>
       <p className="font-plex text-sm text-lightgray">
-        Page address becomes <span className="text-bright">/online/p/{slugify(name) || "your-team"}</span>.
+        Page address becomes <span className="text-bright">/o/p/{slugify(name) || "your-team"}</span>.
       </p>
       <FormError message={state?.error} />
     </form>

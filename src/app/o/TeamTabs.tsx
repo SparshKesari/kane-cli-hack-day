@@ -4,8 +4,8 @@ import Link from "next/link";
 // look at the public showcase page it produces.
 export default function TeamTabs({ slug, current }: { slug: string; current: "submission" | "showcase" }) {
   const tabs = [
-    { id: "submission", label: "Submission", href: "/online/submit" },
-    { id: "showcase", label: "Showcase page", href: `/online/p/${slug}` },
+    { id: "submission", label: "Submission", href: "/o/submit" },
+    { id: "showcase", label: "Showcase page", href: `/o/p/${slug}` },
   ] as const;
   return (
     <nav aria-label="Your project" className="inline-flex border border-hairline font-plex text-sm">

@@ -18,7 +18,7 @@ import ShareBar from "./ShareBar";
 
 const linkCls = "text-bright underline decoration-hairline underline-offset-4 hover:text-lime";
 
-export async function generateMetadata({ params }: PageProps<"/online/p/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/o/p/[slug]">): Promise<Metadata> {
   const team = await getTeamBySlug((await params).slug);
   if (!team) return { title: "Project" };
   const sub = await getSubmission(team.id);
@@ -27,10 +27,10 @@ export async function generateMetadata({ params }: PageProps<"/online/p/[slug]">
   const description = live?.one_line_pitch ?? "";
   // Until the project is submitted (or while an organiser has it hidden) the page is for the team only.
   if (!live || team.hidden) return { title: "Project", robots: { index: false, follow: false } };
-  return { title, description, openGraph: { title, description, type: "article" }, twitter: { card: "summary_large_image", title, description, images: [`/online/p/${team.slug}/opengraph-image`] } };
+  return { title, description, openGraph: { title, description, type: "article" }, twitter: { card: "summary_large_image", title, description, images: [`/o/p/${team.slug}/opengraph-image`] } };
 }
 
-export default function ProjectPage({ params }: PageProps<"/online/p/[slug]">) {
+export default function ProjectPage({ params }: PageProps<"/o/p/[slug]">) {
   return (
     <Suspense fallback={<section className="container-page py-16 font-plex text-sm text-lightgray">Loading…</section>}>
       <Body params={params} />
@@ -54,7 +54,7 @@ const host = (url: string) => {
 /** "owner/repo" from a GitHub URL. */
 const repoName = (url: string) => url.replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\.git$|\/$/g, "").split("/").slice(0, 2).join("/") || "GitHub";
 
-async function Body({ params }: Pick<PageProps<"/online/p/[slug]">, "params">) {
+async function Body({ params }: Pick<PageProps<"/o/p/[slug]">, "params">) {
   const team = await getTeamBySlug((await params).slug);
   if (!team) notFound();
   const [members, sub, me, files] = await Promise.all([getMembers(team.id), getSubmission(team.id), getMe(), listAttachments(team.id)]);
@@ -175,7 +175,7 @@ async function Body({ params }: Pick<PageProps<"/online/p/[slug]">, "params">) {
                   <ul className="grid gap-px border border-dashed border-hairline bg-hairline sm:grid-cols-2">
                     {files.map((f) => (
                       <li key={f.id} className="bg-ink">
-                        <a href={`/online/files/${f.id}`} target="_blank" rel="noreferrer" className="group flex items-center gap-3 p-4 hover:bg-surface">
+                        <a href={`/o/files/${f.id}`} target="_blank" rel="noreferrer" className="group flex items-center gap-3 p-4 hover:bg-surface">
                           <span className="grid h-10 w-10 shrink-0 place-items-center border border-hairline font-pixel text-xs uppercase text-bright group-hover:border-lime group-hover:text-lime">
                             {f.filename.split(".").pop()?.slice(0, 4)}
                           </span>

@@ -4,7 +4,7 @@ import { ResetForm } from "../../login/AuthForms";
 
 export const metadata: Metadata = { title: "Choose a new password", robots: { index: false } };
 
-export default function OnlineReset({ params }: PageProps<"/online/reset/[token]">) {
+export default function OnlineReset({ params }: PageProps<"/o/reset/[token]">) {
   return (
     <section className="container-page max-w-md py-20">
       <p className="font-pixel text-xs uppercase tracking-[0.15em] text-lime">Online hackathon</p>
@@ -16,6 +16,6 @@ export default function OnlineReset({ params }: PageProps<"/online/reset/[token]
   );
 }
 
-async function WithToken({ params }: Pick<PageProps<"/online/reset/[token]">, "params">) {
+async function WithToken({ params }: Pick<PageProps<"/o/reset/[token]">, "params">) {
   return <ResetForm token={(await params).token} />;
 }

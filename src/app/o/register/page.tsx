@@ -8,7 +8,7 @@ import Steps from "../Steps";
 
 export const metadata: Metadata = { title: "Register" };
 
-// Step 1: yourself. Step 2 (/online/team) is your team.
+// Step 1: yourself. Step 2 (/o/team) is your team.
 export default function OnlineRegister() {
   return (
     <section className="container-page max-w-md py-16">
@@ -21,7 +21,7 @@ export default function OnlineRegister() {
       <RegisterForm />
       <p className="mt-8 font-plex text-sm text-lightgray">
         Already registered?{" "}
-        <Link href="/online/login" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+        <Link href="/o/login" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
           Log in →
         </Link>
       </p>
@@ -30,6 +30,6 @@ export default function OnlineRegister() {
 }
 
 async function SignedInRedirect() {
-  if ((await getOnlineSession()) !== null) redirect("/online/team");
+  if ((await getOnlineSession()) !== null) redirect("/o/team");
   return null;
 }

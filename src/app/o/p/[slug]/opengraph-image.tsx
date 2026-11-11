@@ -25,6 +25,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     title: sub.project_name ?? team.name,
     subtitle: sub.one_line_pitch ?? "",
     facts: [sub.agent_used ?? "AI agent", "Tested with Kane CLI"],
-    path: `kaneclihack.sh/online/p/${team.slug}`,
+    path: `kaneclihack.sh/o/p/${team.slug}`,
   });
 }

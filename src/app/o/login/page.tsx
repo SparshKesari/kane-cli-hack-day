@@ -18,7 +18,7 @@ export default function OnlineLogin() {
       <LoginForm />
       <p className="mt-8 font-plex text-sm text-lightgray">
         New here?{" "}
-        <Link href="/online/register" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+        <Link href="/o/register" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
           Register yourself and your team →
         </Link>
       </p>
@@ -27,6 +27,6 @@ export default function OnlineLogin() {
 }
 
 async function SignedInRedirect() {
-  if ((await getOnlineSession()) !== null) redirect("/online/submit");
+  if ((await getOnlineSession()) !== null) redirect("/o/submit");
   return null;
 }

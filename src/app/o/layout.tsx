@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.kaneclihack.sh"),
   // og:image comes from ./opengraph-image.tsx; X needs its own tag to show the large card.
   openGraph: { siteName: onlineEvent.name, type: "website" },
-  twitter: { card: "summary_large_image", images: ["/online/opengraph-image"] },
+  twitter: { card: "summary_large_image", images: ["/o/opengraph-image"] },
 };
 
-export default function OnlineLayout({ children }: LayoutProps<"/online">) {
+export default function OnlineLayout({ children }: LayoutProps<"/o">) {
   return <OnlineShell>{children}</OnlineShell>;
 }

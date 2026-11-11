@@ -151,10 +151,10 @@ export default function LaunchGuide() {
         </ul>
 
         <div className="mt-12 flex flex-wrap gap-3 border-t border-dashed border-hairline pt-8">
-          <Link href="/online/submit" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+          <Link href="/o/submit" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
             Paste your post links →
           </Link>
-          <Link href="/online/start" className="inline-flex min-h-11 items-center border border-hairline px-5 font-plex text-sm text-bright transition-colors hover:border-lime">
+          <Link href="/o/start" className="inline-flex min-h-11 items-center border border-hairline px-5 font-plex text-sm text-bright transition-colors hover:border-lime">
             Back to setup
           </Link>
         </div>

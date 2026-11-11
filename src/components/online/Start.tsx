@@ -44,7 +44,7 @@ export default function Start() {
               </Reveal>
             ))}
           </ol>
-          <Link href="/online/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+          <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
             Submit your project →
           </Link>
         </div>

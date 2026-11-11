@@ -1,7 +1,7 @@
 import { onlineEvent } from "@/data/online";
 import { OG_SIZE, ogCard } from "@/lib/online/og";
 
-// The share card for the homepage and every /online page without its own.
+// The share card for the homepage and every /o page without its own.
 export const alt = `${onlineEvent.name}: ${onlineEvent.tagline}`;
 export const size = OG_SIZE;
 export const contentType = "image/png";

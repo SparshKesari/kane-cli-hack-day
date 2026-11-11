@@ -43,7 +43,7 @@ export async function saveAction(_: SaveState, form: FormData): Promise<SaveStat
       await Promise.all(members.map((m) => emailReceipt(m.email, m.name, p)));
     }
   }
-  revalidatePath("/online/submit");
-  revalidatePath("/online/p/[slug]", "page");
+  revalidatePath("/o/submit");
+  revalidatePath("/o/p/[slug]", "page");
   return { ok: true, submitted: saved.submitted, at: saved.at.toISOString(), when: formatWhen(saved.at), version: saved.version, receipt: saved.receipt };
 }

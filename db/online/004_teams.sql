@@ -1,7 +1,7 @@
 -- Teams, richer profiles and a per-team submission. Idempotent.
 
 -- A team of 1-4. A solo builder is a team of one (solo = true) named after
--- their project. `slug` is the public page: /online/p/{slug}.
+-- their project. `slug` is the public page: /o/p/{slug}.
 create table if not exists online_teams (
   id          bigint generated always as identity primary key,
   name        text not null,

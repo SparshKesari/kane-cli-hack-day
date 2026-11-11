@@ -16,7 +16,7 @@ export default function OnlineForgot() {
         <Body />
       </Suspense>
       <p className="mt-8 font-plex text-sm text-lightgray">
-        <Link href="/online/login" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+        <Link href="/o/login" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
           ← Back to log in
         </Link>
       </p>

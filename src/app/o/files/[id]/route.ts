@@ -6,7 +6,7 @@ import { getMe } from "@/lib/online/team";
 // Serves a team's attachment from the private Blob store. The team can always
 // open its own files; everyone else only once the project is submitted (the
 // showcase page is public then). Anything else is a 404.
-export async function GET(_request: Request, ctx: RouteContext<"/online/files/[id]">) {
+export async function GET(_request: Request, ctx: RouteContext<"/o/files/[id]">) {
   const id = Number((await ctx.params).id);
   const file = Number.isSafeInteger(id) ? await getAttachment(id) : null;
   if (!file) return new Response("Not found", { status: 404 });

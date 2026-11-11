@@ -19,7 +19,7 @@ export default function Closer() {
             <Decode text="Ship it" />
           </h2>
           <p className="mt-6 max-w-md font-plex text-sm leading-relaxed text-lightgray">{signOff}</p>
-          <Link href="/online/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+          <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
             Submit your project →
           </Link>
           <div className="mt-12 w-full text-left">

@@ -87,10 +87,10 @@ async function AccountLinks() {
   if ((await getOnlineSession()) === null) return <LoginLink />;
   return (
     <>
-      <Link href="/online/team" className="hidden text-lightgray hover:text-bright sm:inline">
+      <Link href="/o/team" className="hidden text-lightgray hover:text-bright sm:inline">
         My team
       </Link>
-      <Link href="/online/submit" className="text-bright hover:text-lime">
+      <Link href="/o/submit" className="text-bright hover:text-lime">
         My submission
       </Link>
       <form action={logoutAction}>
@@ -105,10 +105,10 @@ async function AccountLinks() {
 function LoginLink() {
   return (
     <>
-      <Link href="/online/login" className="text-lightgray hover:text-bright">
+      <Link href="/o/login" className="text-lightgray hover:text-bright">
         Log in
       </Link>
-      <Link href="/online/register" className="bg-bright px-4 py-2 text-ink transition-colors hover:bg-lime">
+      <Link href="/o/register" className="bg-bright px-4 py-2 text-ink transition-colors hover:bg-lime">
         Register
       </Link>
     </>

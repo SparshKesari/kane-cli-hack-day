@@ -30,7 +30,7 @@ const signupSchema = z.object({
   other_links: z.string().trim().max(500).transform((v) => v || null),
 });
 
-/** Step 1 of registration: yourself. Step 2 (/online/team) is your team. */
+/** Step 1 of registration: yourself. Step 2 (/o/team) is your team. */
 export async function registerAction(_: AuthState, form: FormData): Promise<AuthState> {
   const get = (k: string) => String(form.get(k) ?? "");
   const p = signupSchema.safeParse({ name: get("name"), email: get("email"), password: get("password"), x_url: get("x_url"), linkedin_url: get("linkedin_url"), other_links: get("other_links") });
@@ -49,7 +49,7 @@ export async function registerAction(_: AuthState, form: FormData): Promise<Auth
   if (!row) return { error: "That email is already registered. Log in, or reset your password." };
   await emailWelcome(p.data.email, p.data.name);
   await setOnlineSession(row.id);
-  redirect("/online/team");
+  redirect("/o/team");
 }
 
 const MAX_FAILS = 8;
@@ -75,7 +75,7 @@ export async function loginAction(_: AuthState, form: FormData): Promise<AuthSta
   }
   await onlineQuery(`update online_participants set last_login_at = now(), failed_logins = 0, locked_until = null where id = $1`, [row.id]);
   await setOnlineSession(row.id);
-  redirect("/online/submit");
+  redirect("/o/submit");
 }
 
 export async function logoutAction() {
@@ -103,5 +103,5 @@ export async function resetAction(token: string, _: AuthState, form: FormData): 
   );
   if (!row) return { error: "This reset link has expired or was already used. Ask for a new one." };
   await setOnlineSession(row.id);
-  redirect("/online/submit");
+  redirect("/o/submit");
 }

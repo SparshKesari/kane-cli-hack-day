@@ -25,7 +25,7 @@ export default function Attachments({ initial, prefix, disabled }: { initial: Fi
       setBusy(file.name);
       try {
         const safe = file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-100);
-        const blob = await upload(`${prefix}${safe}`, file, { access: "private", handleUploadUrl: "/online/submit/upload", contentType: ALLOWED[extOf(file.name)] });
+        const blob = await upload(`${prefix}${safe}`, file, { access: "private", handleUploadUrl: "/o/submit/upload", contentType: ALLOWED[extOf(file.name)] });
         const res = await addAttachmentAction(blob.pathname, file.name);
         if (res.error) return setError(res.error);
         setFiles(res.files);
@@ -83,7 +83,7 @@ export default function Attachments({ initial, prefix, disabled }: { initial: Fi
         <ul className="mt-3 border-t border-dashed border-hairline">
           {files.map((f) => (
             <li key={f.id} className="flex items-center justify-between gap-4 border-b border-dashed border-hairline py-3 font-plex text-sm">
-              <a href={`/online/files/${f.id}`} target="_blank" rel="noreferrer" className="min-w-0 truncate text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+              <a href={`/o/files/${f.id}`} target="_blank" rel="noreferrer" className="min-w-0 truncate text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
                 {f.filename}
               </a>
               <span className="flex shrink-0 items-center gap-4 text-lightgray">

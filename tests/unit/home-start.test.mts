@@ -14,7 +14,7 @@ test("the SF install command stays in its sign-off; the hero leads to online reg
   assert.match(closer, /<StartCommand/);
   const hero = readFileSync("src/components/Hero.tsx", "utf8");
   assert.doesNotMatch(hero, /<StartCommand/, "no SF install command in the online hero");
-  assert.match(hero, /href="\/online\/register"/, "the hero's first call to action is registration");
+  assert.match(hero, /href="\/o\/register"/, "the hero's first call to action is registration");
   for (const src of [closer, hero]) assert.doesNotMatch(src, /ctas\.login|passport\/login/);
   assert.match(readFileSync("src/components/home/StartCommand.tsx", "utf8"), /\$hack-os/);
   const install = setup.find((s) => s.id === "install");

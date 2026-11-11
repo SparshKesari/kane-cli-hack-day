@@ -27,7 +27,7 @@ const quiet = "font-plex text-sm text-lightgray underline decoration-hairline un
 
 async function Body() {
   const me = await getMe();
-  if (!me) redirect("/online/login");
+  if (!me) redirect("/o/login");
   const team = me.teamId === null ? null : await getTeam(me.teamId);
 
   if (!team) {
@@ -92,7 +92,7 @@ async function Body() {
       )}
 
       <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
-        <Link href="/online/start" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+        <Link href="/o/start" className="inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
           Next: get set up →
         </Link>
         {!locked && (
@@ -104,7 +104,7 @@ async function Body() {
         )}
       </div>
       <p className="mt-6 font-plex text-sm text-lightgray">
-        Your showcase page, live once you submit: <span className="text-bright">/online/p/{team.slug}</span>
+        Your showcase page, live once you submit: <span className="text-bright">/o/p/{team.slug}</span>
       </p>
     </>
   );

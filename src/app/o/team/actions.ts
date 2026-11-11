@@ -12,8 +12,8 @@ const validName = (name: string) => name.length >= 2 && name.length <= 60;
 /** Step 2: go solo, start a team (you become its captain), or join one with the captain's code. */
 export async function teamAction(_: TeamState, form: FormData): Promise<TeamState> {
   const me = await getMe();
-  if (!me) redirect("/online/login");
-  if (me.teamId !== null) redirect("/online/team");
+  if (!me) redirect("/o/login");
+  if (me.teamId !== null) redirect("/o/team");
 
   const mode = String(form.get("mode") ?? "");
   if (mode === "join") {
@@ -33,30 +33,30 @@ export async function teamAction(_: TeamState, form: FormData): Promise<TeamStat
   } else {
     return { error: "Pick one of the options." };
   }
-  redirect(mode === "team" ? "/online/team" : "/online/start");
+  redirect(mode === "team" ? "/o/team" : "/o/start");
 }
 
 export async function renameTeamAction(_: TeamState, form: FormData): Promise<TeamState> {
   const me = await getMe();
-  if (!me) redirect("/online/login");
+  if (!me) redirect("/o/login");
   const name = String(form.get("name") ?? "").trim();
   if (!validName(name)) return { error: "Enter a team name (2 to 60 characters)." };
   const error = await renameTeam(me, name);
   if (error) return { error };
-  revalidatePath("/online/team");
+  revalidatePath("/o/team");
   return null;
 }
 
 export async function removeMemberAction(form: FormData) {
   const me = await getMe();
-  if (!me) redirect("/online/login");
+  if (!me) redirect("/o/login");
   await removeMember(me, Number(form.get("member")));
-  revalidatePath("/online/team");
+  revalidatePath("/o/team");
 }
 
 export async function leaveTeamAction() {
   const me = await getMe();
-  if (!me) redirect("/online/login");
+  if (!me) redirect("/o/login");
   await leaveTeam(me);
-  redirect("/online/team");
+  redirect("/o/team");
 }

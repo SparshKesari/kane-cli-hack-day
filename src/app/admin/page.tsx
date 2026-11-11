@@ -109,7 +109,7 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
                   <Row label="Links">
                     <span className="flex flex-wrap gap-x-4 gap-y-1">
                       {([["Repo", t.repo_url], ["Video", t.video_url], ["Live", t.live_url]] as const).map(([l, u]) => (u ? <a key={l} href={u} target="_blank" rel="noreferrer" className={link}>{l} ↗</a> : null))}
-                      <a href={`/online/p/${t.slug}`} target="_blank" rel="noreferrer" className={link}>Showcase page ↗</a>
+                      <a href={`/o/p/${t.slug}`} target="_blank" rel="noreferrer" className={link}>Showcase page ↗</a>
                     </span>
                   </Row>
                   <Row label="Posts">

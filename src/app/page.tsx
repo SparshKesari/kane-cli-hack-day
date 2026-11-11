@@ -12,7 +12,7 @@ import Judging from "@/components/online/Judging";
 import Rules from "@/components/online/Rules";
 import Closer from "@/components/online/Closer";
 import { onlineEvent } from "@/data/online";
-import OnlineShell from "./online/Shell";
+import OnlineShell from "./o/Shell";
 
 // The KaneCLI Online Hackathon homepage, in the SF Hack Day's visual language.
 // Its sections live in components/online and read data/online.ts; the SF
@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.kaneclihack.sh"),
   title: { absolute: onlineEvent.name },
   description: onlineEvent.tagline,
-  // The share card is generated at /online/opengraph-image (src/app/online/opengraph-image.tsx).
-  openGraph: { title: onlineEvent.name, description: onlineEvent.tagline, url: "/", siteName: onlineEvent.name, type: "website", images: [{ url: "/online/opengraph-image", width: 1200, height: 630, alt: `${onlineEvent.name}: ${onlineEvent.tagline}` }] },
-  twitter: { card: "summary_large_image", title: onlineEvent.name, description: onlineEvent.tagline, images: ["/online/opengraph-image"] },
+  // The share card is generated at /o/opengraph-image (src/app/o/opengraph-image.tsx).
+  openGraph: { title: onlineEvent.name, description: onlineEvent.tagline, url: "/", siteName: onlineEvent.name, type: "website", images: [{ url: "/o/opengraph-image", width: 1200, height: 630, alt: `${onlineEvent.name}: ${onlineEvent.tagline}` }] },
+  twitter: { card: "summary_large_image", title: onlineEvent.name, description: onlineEvent.tagline, images: ["/o/opengraph-image"] },
 };
 
 export default function Home() {

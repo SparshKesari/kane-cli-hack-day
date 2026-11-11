@@ -33,7 +33,7 @@ export function LoginForm() {
         <input id="email" name="email" type="email" autoComplete="email" required className={inputCls} />
       </div>
       <div>
-        <Label htmlFor="password" hint={<Link href="/online/forgot" className={linkCls}>Forgot password?</Link>}>
+        <Label htmlFor="password" hint={<Link href="/o/forgot" className={linkCls}>Forgot password?</Link>}>
           Password
         </Label>
         <input id="password" name="password" type="password" autoComplete="current-password" required className={inputCls} />

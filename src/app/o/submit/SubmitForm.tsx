@@ -121,7 +121,7 @@ export default function SubmitForm({ draft, submitted, disabled, defaultName, sh
         <Group n="03" title="Launch buzz *" note={`Required: at least ${MIN_POSTS} different public posts about your project. Paste the link to each post (not your profile). Every extra post earns brownie points.`}>
           <p className="font-plex text-sm text-lightgray">
             Not sure what to post?{" "}
-            <Link href="/online/launch" target="_blank" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
+            <Link href="/o/launch" target="_blank" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">
               Open the launch guide
             </Link>{" "}
             for hashtags, who to tag, and sample posts.

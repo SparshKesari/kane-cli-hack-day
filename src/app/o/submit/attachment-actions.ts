@@ -22,7 +22,7 @@ export async function addAttachmentAction(pathname: string, filename: string): P
   const t = await team();
   if (typeof t === "string") return { error: t, files: [] };
   const error = await addAttachment(t.teamId, t.id, String(pathname), String(filename));
-  revalidatePath("/online/p/[slug]", "page");
+  revalidatePath("/o/p/[slug]", "page");
   return { error, files: await rows(t.teamId) };
 }
 
@@ -30,6 +30,6 @@ export async function removeAttachmentAction(id: number): Promise<Result> {
   const t = await team();
   if (typeof t === "string") return { error: t, files: [] };
   await removeAttachment(t.teamId, Number(id));
-  revalidatePath("/online/p/[slug]", "page");
+  revalidatePath("/o/p/[slug]", "page");
   return { error: null, files: await rows(t.teamId) };
 }
