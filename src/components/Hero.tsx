@@ -56,10 +56,10 @@ export default function Hero() {
           ))}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3 font-plex text-sm">
-          <Link href="/online/register" className="inline-flex min-h-11 items-center bg-bright px-5 text-ink transition-colors hover:bg-lime">
+          <Link href="/o/register" className="inline-flex min-h-11 items-center bg-bright px-5 text-ink transition-colors hover:bg-lime">
             Register yourself and your team →
           </Link>
-          <Link href="/online/submit" className="inline-flex min-h-11 items-center border border-hairline px-5 text-bright transition-colors hover:border-lime">
+          <Link href="/o/submit" className="inline-flex min-h-11 items-center border border-hairline px-5 text-bright transition-colors hover:border-lime">
             Submit your project
           </Link>
         </div>

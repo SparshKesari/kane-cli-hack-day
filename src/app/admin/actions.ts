@@ -24,7 +24,7 @@ export async function setHiddenAction(form: FormData) {
   if (!(await isAdmin())) redirect("/admin");
   await onlineQuery(`update online_teams set hidden = $2 where id = $1`, [Number(form.get("team")), form.get("hidden") === "true"]);
   revalidatePath("/admin");
-  revalidatePath("/online/p/[slug]", "page");
+  revalidatePath("/o/p/[slug]", "page");
 }
 
 export type ResetState = { link: string } | { error: string } | null;

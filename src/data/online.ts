@@ -1,4 +1,4 @@
-// Copy for the KaneCLI Online Hackathon (the homepage and /online/*). Edit
+// Copy for the KaneCLI Online Hackathon (the homepage and /o/*). Edit
 // freely: none of it is read by the SF Hack Day pages, the team hub or /ship.
 // Anything in [square brackets] is still a placeholder.
 
@@ -205,9 +205,9 @@ export const slackCta = {
 
 export const signOff = "Plain English. Real browser. Pass or fail. Ship in a week.";
 
-// ── Launch buzz guide (/online/start) ────────────────────────────────────────
+// ── Launch buzz guide (/o/start) ────────────────────────────────────────
 
-/** Step 2 on /online/start: have these accounts ready before launch day. */
+/** Step 2 on /o/start: have these accounts ready before launch day. */
 export const socialAccounts = {
   intro: "You'll post your project on these, so set them up now. If you don't have one yet, this is the best time to register: new accounts get filtered, and a week of real activity fixes that before launch day.",
   items: [

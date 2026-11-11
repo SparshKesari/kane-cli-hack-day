@@ -7,24 +7,26 @@ const nextConfig: NextConfig = {
   // /admin is the online hackathon's organiser view. (The SF event's ops console is at /ops.)
   async redirects() {
     return [
-      // event-day-flow: pages folded into the new participant flow (temporary, so they can come back).
-      { source: "/login", destination: "/passport/login", permanent: false },
-      { source: "/team/new", destination: "/team", permanent: false },
-      { source: "/team/join", destination: "/team", permanent: false },
-      { source: "/team/:slug/manage", destination: "/team", permanent: false },
-      { source: "/activate/phone", destination: "/register", permanent: false },
-      { source: "/docs", destination: "/setup", permanent: false },
-      { source: "/resources", destination: "/me", permanent: false },
-      { source: "/content-hour", destination: "/me", permanent: false },
-      // The online hackathon's landing page is the homepage.
+      // The SF Hack Day's participant pages are retired: every one of them sends people to the
+      // online hackathon's homepage. Their files stay in the repo. Still served as before:
+      // /ship/** (project pages), /submit/receipt/** (public receipts), /privacy, the staff
+      // consoles (/ops, /judge), and the non-page routes (/api, /mcp, /webhooks, /health, /photos).
+      ...[
+        "/login", "/docs", "/resources", "/content-hour", "/judging", "/submit", "/me", "/dashboard", "/match", "/pair", "/readiness", "/setup",
+        "/passport", "/passport/:path*", "/activate", "/activate/:path*", "/help", "/help/:path*", "/photo", "/photo/:path*",
+        "/studio", "/studio/:path*", "/t", "/t/:path*",
+      ].map((source) => ({ source, destination: "/", permanent: false })),
+      { source: "/o", destination: "/", permanent: false },
+      // The pages used to live under /online: keep every old link working.
       { source: "/online", destination: "/", permanent: false },
+      { source: "/online/:path*", destination: "/o/:path*", permanent: false },
       // The SF Hack Day's entry pages are retired: send people to the online hackathon instead.
       // (Their files stay in the repo; /ship pages and /ops are untouched.)
-      { source: "/register", destination: "/online/register", permanent: false },
+      { source: "/register", destination: "/o/register", permanent: false },
       { source: "/start", destination: "/", permanent: false },
       { source: "/teams", destination: "/", permanent: false },
-      { source: "/team", destination: "/online/team", permanent: false },
-      { source: "/team/:path*", destination: "/online/team", permanent: false },
+      { source: "/team", destination: "/o/team", permanent: false },
+      { source: "/team/:path*", destination: "/o/team", permanent: false },
       { source: "/live", destination: "/", permanent: false },
     ];
   },

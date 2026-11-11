@@ -52,18 +52,18 @@ export const emailWelcome = (to: string, name: string) =>
       to,
       "welcome",
       `You're registered for the ${onlineEvent.name}`,
-      `Hi ${name},\n\nYou're in. ${onlineEvent.tagline}\n\nBuilding runs 12 to 19 November. Submissions close ${onlineEvent.deadlineLabel}.\n\nYour cheat sheet:\n1. Set up your team: ${siteUrl()}/online/team\n2. Register on TestMu AI: ${onlineLinks.register}\n3. Claim your Kane CLI licence (10,000 free credits): ${onlineLinks.claim}\n4. Install Kane CLI: npm install -g @testmuai/kane-cli\n5. Run one flow from the docs: ${onlineLinks.docs}\n6. Get your social accounts ready and plan your posts: ${siteUrl()}/online/launch\n\nWhen you're ready, submit here: ${siteUrl()}/online/submit`,
+      `Hi ${name},\n\nYou're in. ${onlineEvent.tagline}\n\nBuilding runs 12 to 19 November. Submissions close ${onlineEvent.deadlineLabel}.\n\nYour cheat sheet:\n1. Set up your team: ${siteUrl()}/o/team\n2. Register on TestMu AI: ${onlineLinks.register}\n3. Claim your Kane CLI licence (10,000 free credits): ${onlineLinks.claim}\n4. Install Kane CLI: npm install -g @testmuai/kane-cli\n5. Run one flow from the docs: ${onlineLinks.docs}\n6. Get your social accounts ready and plan your posts: ${siteUrl()}/o/launch\n\nWhen you're ready, submit here: ${siteUrl()}/o/submit`,
     ),
   );
 
 export const emailTeamCreated = (to: string, name: string, team: string, code: string) =>
-  quiet(send(to, "team_created", `Your team code: ${code}`, `Hi ${name},\n\nYou're the captain of "${team}".\n\nShare this code with your teammates (up to 4 people in total):\n\n    ${code}\n\nThey register at ${siteUrl()}/online/register, choose "Join a team", and enter it.\n\nManage your team: ${siteUrl()}/online/team`));
+  quiet(send(to, "team_created", `Your team code: ${code}`, `Hi ${name},\n\nYou're the captain of "${team}".\n\nShare this code with your teammates (up to 4 people in total):\n\n    ${code}\n\nThey register at ${siteUrl()}/o/register, choose "Join a team", and enter it.\n\nManage your team: ${siteUrl()}/o/team`));
 
 export const emailTeammateJoined = (to: string, captain: string, joiner: string, team: string) =>
-  quiet(send(to, "teammate_joined", `${joiner} joined ${team}`, `Hi ${captain},\n\n${joiner} just joined your team "${team}" with your code.\n\nNot someone you know? Remove them here: ${siteUrl()}/online/team`));
+  quiet(send(to, "teammate_joined", `${joiner} joined ${team}`, `Hi ${captain},\n\n${joiner} just joined your team "${team}" with your code.\n\nNot someone you know? Remove them here: ${siteUrl()}/o/team`));
 
 export const emailJoinedTeam = (to: string, name: string, team: string) =>
-  quiet(send(to, "joined_team", `You joined ${team}`, `Hi ${name},\n\nYou're on the team "${team}". Anyone on the team can edit the submission.\n\nGet set up: ${siteUrl()}/online/start\nSubmission: ${siteUrl()}/online/submit`));
+  quiet(send(to, "joined_team", `You joined ${team}`, `Hi ${name},\n\nYou're on the team "${team}". Anyone on the team can edit the submission.\n\nGet set up: ${siteUrl()}/o/start\nSubmission: ${siteUrl()}/o/submit`));
 
 export const emailReceipt = (to: string, name: string, p: { project: string; team: string; receipt: string; when: string; slug: string; updated: boolean }) =>
   quiet(
@@ -71,7 +71,7 @@ export const emailReceipt = (to: string, name: string, p: { project: string; tea
       to,
       p.updated ? "submission_updated" : "submission_receipt",
       `${p.updated ? "Submission updated" : "Submission received"}: ${p.project} (${p.receipt})`,
-      `Hi ${name},\n\n${p.updated ? "Your team's submission was updated." : "We have your team's submission."}\n\nProject:  ${p.project}\nTeam:     ${p.team}\nReceipt:  ${p.receipt}\nSaved at: ${p.when}\n\nYour showcase page: ${siteUrl()}/online/p/${p.slug}\n\nYou can keep editing until ${onlineEvent.deadlineLabel}: ${siteUrl()}/online/submit\nKeep posting about it. Every extra post earns brownie points.`,
+      `Hi ${name},\n\n${p.updated ? "Your team's submission was updated." : "We have your team's submission."}\n\nProject:  ${p.project}\nTeam:     ${p.team}\nReceipt:  ${p.receipt}\nSaved at: ${p.when}\n\nYour showcase page: ${siteUrl()}/o/p/${p.slug}\n\nYou can keep editing until ${onlineEvent.deadlineLabel}: ${siteUrl()}/o/submit\nKeep posting about it. Every extra post earns brownie points.`,
     ),
   );
 
