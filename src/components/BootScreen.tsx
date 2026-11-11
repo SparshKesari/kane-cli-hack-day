@@ -15,7 +15,7 @@ const MAX_WAIT_MS = 2500; // reveal even if `load` never fires
 
 const HEADER: [string, string][] = [
   ["$", " kane-cli hackday --init"],
-  ["", "kane-cli · TestMu AI · supported by OpenAI"],
+  ["", "kane-cli · TestMu AI"],
   ["", ""],
   ["›", " resolving agents ............ ok"],
   ["›", " loading test suites ......... ok"],

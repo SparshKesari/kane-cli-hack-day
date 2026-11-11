@@ -1,31 +1,40 @@
+import type { Metadata } from "next";
 import Hero from "@/components/Hero";
 import BootScreen from "@/components/BootScreen";
-import Schedule from "@/components/home/Schedule";
-import Challenge from "@/components/home/Challenge";
-import Prizes from "@/components/home/Prizes";
-import Judging from "@/components/home/Judging";
-import Judges from "@/components/home/Judges";
-import Rules from "@/components/home/Rules";
-import Closer from "@/components/home/Closer";
 import Mentions from "@/components/home/Mentions";
+import Challenge from "@/components/online/Challenge";
+import Lanes from "@/components/online/Lanes";
+import Week from "@/components/online/Week";
+import Start from "@/components/online/Start";
+import SlackBand from "@/components/online/SlackBand";
+import Prizes from "@/components/online/Prizes";
+import Judging from "@/components/online/Judging";
+import Rules from "@/components/online/Rules";
+import Closer from "@/components/online/Closer";
+import { onlineEvent } from "@/data/online";
+import OnlineShell from "./online/Shell";
 
-// The public pitch: when it is, what to build, what's at stake, who judges, and
-// the rules. Setup, resources, submissions and help live in each team's hub.
-// The live strip (NowNext, HomeStats) is off the home page; Mission Control
-// is still at /live.
+// The KaneCLI Online Hackathon homepage, in the SF Hack Day's visual language.
+// Its sections live in components/online and read data/online.ts; the SF
+// sections in components/home stay as they were for the team hub.
+// Homepage only: the root layout's title template still names the SF event for /ship pages.
+export const metadata: Metadata = { title: { absolute: onlineEvent.name }, description: onlineEvent.tagline };
+
 export default function Home() {
   return (
-    <main>
+    <OnlineShell>
       <Hero />
-      <Schedule keyOnly />
       <Challenge />
+      <Week />
+      <Start />
+      <SlackBand />
       <Prizes />
       <Judging />
-      <Judges />
+      <Lanes />
       <Rules />
       <Closer />
       <Mentions />
       <BootScreen />
-    </main>
+    </OnlineShell>
   );
 }
