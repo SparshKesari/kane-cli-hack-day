@@ -76,9 +76,9 @@ async function linkedin(url: string): Promise<Engagement | null> {
   const html = await res.text();
   if (/<title>\s*Sign Up \| LinkedIn/.test(html)) return null;
   const attr = (name: string) => num(html.match(new RegExp(`${name}="(\\d+)"`))?.[1]);
-  const ld = (type: string) => num(html.match(new RegExp(`"interactionStatistic":\\[[^\\]]*?${type}","userInteractionCount":(\\d+)`))?.[1]);
-  const likes = attr("num-reactions") ?? ld("LikeAction");
-  const comments = attr("num-comments") ?? ld("CommentAction");
+  // Only the counters printed on the post itself. The page's embedded data also lists other people's posts, whose numbers are not this one's.
+  const likes = attr("num-reactions");
+  const comments = attr("num-comments");
   // A public post page that shows neither counter has none yet; anything else (a login wall, a profile) stays unknown.
   if (likes === null && comments === null) return /"@type":"(SocialMediaPosting|DiscussionForumPosting|Article|VideoObject)"/.test(html) ? { likes: 0, comments: 0, views: null } : null;
   return { likes: likes ?? 0, comments: comments ?? 0, views: null };
