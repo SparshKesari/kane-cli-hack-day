@@ -46,6 +46,9 @@ async function send(to: string, kind: string, subject: string, body: string) {
 /** Never let a mail problem break the action that triggered it. */
 const quiet = (p: Promise<void>) => p.catch(() => {});
 
+/** For emails composed elsewhere (the deadline reminders): logged and sent the same way as the rest. */
+export const sendEmail = (to: string, kind: string, subject: string, body: string) => quiet(send(to, kind, subject, body));
+
 export const emailWelcome = (to: string, name: string) =>
   quiet(
     send(

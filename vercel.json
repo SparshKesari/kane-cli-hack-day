@@ -4,6 +4,7 @@
     { "path": "/api/cron/outbox", "schedule": "* * * * *" },
     { "path": "/api/cron/metrics", "schedule": "* * * * *" },
     { "path": "/api/cron/health", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/retention", "schedule": "23 * * * *" }
+    { "path": "/api/cron/retention", "schedule": "23 * * * *" },
+    { "path": "/api/cron/online-reminders", "schedule": "*/10 * * * *" }
   ]
 }
