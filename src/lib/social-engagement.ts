@@ -71,17 +71,20 @@ async function youtube(url: string): Promise<Engagement | null> {
 }
 
 async function linkedin(url: string): Promise<Engagement | null> {
+  // Articles (/pulse/) print no counter of their own, only those of the posts listed beside them.
+  if (new URL(url).pathname.startsWith("/pulse/")) return null;
   const res = await getWithin(url, ["linkedin.com", "lnkd.in"]);
   if (!res) return null;
   const html = await res.text();
   if (/<title>\s*Sign Up \| LinkedIn/.test(html)) return null;
-  const attr = (name: string) => num(html.match(new RegExp(`${name}="(\\d+)"`))?.[1]);
-  // Only the counters printed on the post itself. The page's embedded data also lists other people's posts, whose numbers are not this one's.
-  const likes = attr("num-reactions");
-  const comments = attr("num-comments");
-  // A public post page that shows neither counter has none yet; anything else (a login wall, a profile) stays unknown.
-  if (likes === null && comments === null) return /"@type":"(SocialMediaPosting|DiscussionForumPosting|Article|VideoObject)"/.test(html) ? { likes: 0, comments: 0, views: null } : null;
-  return { likes: likes ?? 0, comments: comments ?? 0, views: null };
+  // The page lists the post first, then other people's posts with counters of their own.
+  // Only the first card is this post; one with no counter printed has no reactions (or comments) yet.
+  const start = html.indexOf("<article");
+  if (start < 0) return null; // an article, a profile, a login wall: no post card to read
+  const end = html.indexOf("</article>", start);
+  const card = html.slice(start, end < 0 ? undefined : end);
+  const count = (name: string) => num(card.match(new RegExp(`${name}="(\\d+)"`))?.[1]) ?? 0;
+  return { likes: count("num-reactions"), comments: count("num-comments"), views: null };
 }
 
 async function reddit(url: string): Promise<Engagement | null> {
