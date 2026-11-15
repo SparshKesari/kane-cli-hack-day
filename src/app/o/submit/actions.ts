@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { emailReceipt } from "@/lib/online/email";
+import { emailReceipt, updateEmailedRecently } from "@/lib/online/email";
 import { formatIssues, missingForSubmit, type Issue } from "@/lib/online/required";
 import { cleanDraft, formatWhen, getSubmission, isLocked, rawFromForm, saveSubmission } from "@/lib/online/submission";
 import { getMe, getMembers, getTeam } from "@/lib/online/team";
@@ -38,8 +38,10 @@ export async function saveAction(_: SaveState, form: FormData): Promise<SaveStat
   // A receipt by email to the whole team: on the first submit, and on each later update.
   if (saved.submitted && saved.receipt) {
     const [team, members] = await Promise.all([getTeam(me.teamId), getMembers(me.teamId)]);
-    if (team) {
-      const p = { project: raw.project_name, team: team.name, receipt: saved.receipt, when: formatWhen(saved.at), slug: team.slug, updated: existing?.status === "submitted" };
+    const updated = existing?.status === "submitted";
+    // The first submit always gets its receipt; updates are held to one email per team per hour.
+    if (team && !(updated && (await updateEmailedRecently(members.map((m) => m.email))))) {
+      const p = { project: raw.project_name, team: team.name, receipt: saved.receipt, when: formatWhen(saved.at), slug: team.slug, updated, editor: me.name };
       await Promise.all(members.map((m) => emailReceipt(m.email, m.name, p)));
     }
   }

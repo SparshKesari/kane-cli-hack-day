@@ -27,6 +27,26 @@ export async function setHiddenAction(form: FormData) {
   revalidatePath("/o/p/[slug]", "page");
 }
 
+/**
+ * Take someone off the reminder emails (they replied "stop"), or put them back.
+ * The marker lives in online_emails next to the emails it stops; it is never sent.
+ */
+export async function setRemindersAction(form: FormData) {
+  if (!(await isAdmin())) redirect("/admin");
+  const id = Number(form.get("participant"));
+  if (form.get("off") === "true") {
+    await onlineQuery(
+      `insert into online_emails (to_email, kind, subject, body, status)
+       select p.email, 'reminder_optout', 'Reminders stopped by an organiser', '', 'not_configured' from online_participants p
+        where p.id = $1 and not exists (select 1 from online_emails e where e.kind = 'reminder_optout' and lower(e.to_email) = lower(p.email))`,
+      [id],
+    );
+  } else {
+    await onlineQuery(`delete from online_emails e using online_participants p where p.id = $1 and e.kind = 'reminder_optout' and lower(e.to_email) = lower(p.email)`, [id]);
+  }
+  revalidatePath("/admin");
+}
+
 export type ResetState = { link: string } | { error: string } | null;
 
 /** A one-hour reset link to send to a participant who is locked out. */

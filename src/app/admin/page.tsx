@@ -5,7 +5,7 @@ import { onlineEvent } from "@/data/online";
 import { adminConfigured, adminEmails, adminPeople, adminTeams, isAdmin, type AdminTeam } from "@/lib/online/admin";
 import { checkPosts } from "@/lib/online/links";
 import { formatWhen } from "@/lib/online/submission";
-import { adminLogoutAction, setHiddenAction } from "./actions";
+import { adminLogoutAction, setHiddenAction, setRemindersAction } from "./actions";
 import { AdminLogin, ResetLinkButton } from "./parts";
 
 export const metadata: Metadata = { title: { absolute: `Organiser view · ${onlineEvent.name}` }, robots: { index: false, follow: false } };
@@ -142,7 +142,7 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
         <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[56rem] border-collapse font-plex text-sm text-bright">
             <thead>
-              <tr>{["Name", "Email", "Team", "Registered", "Last login", "Locked out?"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
+              <tr>{["Name", "Email", "Team", "Registered", "Last login", "Reminder emails", "Locked out?"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {people.map((p) => (
@@ -152,6 +152,14 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
                   <td className={`${td} ${p.team ? "" : "text-lightgray"}`}>{p.team ?? "none yet"}</td>
                   <td className={`${td} text-lightgray`}>{formatWhen(p.created_at)}</td>
                   <td className={`${td} text-lightgray`}>{p.last_login_at ? formatWhen(p.last_login_at) : "—"}</td>
+                  <td className={td}>
+                    <form action={setRemindersAction} className="flex items-center gap-2">
+                      <input type="hidden" name="participant" value={p.id} />
+                      <input type="hidden" name="off" value={String(!p.reminders_off)} />
+                      <span className={p.reminders_off ? "text-danger" : "text-lightgray"}>{p.reminders_off ? "Stopped" : "On"}</span>
+                      <button type="submit" className="text-bright underline decoration-hairline underline-offset-4 hover:text-lime">{p.reminders_off ? "Resume" : "Stop"}</button>
+                    </form>
+                  </td>
                   <td className={td}><ResetLinkButton participantId={p.id} /></td>
                 </tr>
               ))}

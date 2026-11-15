@@ -77,17 +77,18 @@ export function adminTeams() {
   );
 }
 
-export type AdminPerson = { id: number; name: string; email: string; x_url: string | null; linkedin_url: string | null; other_links: string | null; team: string | null; created_at: Date; last_login_at: Date | null };
+export type AdminPerson = { id: number; name: string; email: string; x_url: string | null; linkedin_url: string | null; other_links: string | null; team: string | null; created_at: Date; last_login_at: Date | null; reminders_off: boolean };
 
 export function adminPeople() {
   return onlineQuery<AdminPerson>(
-    `select p.id, p.name, p.email, p.x_url, p.linkedin_url, p.other_links, t.name as team, p.created_at, p.last_login_at
+    `select p.id, p.name, p.email, p.x_url, p.linkedin_url, p.other_links, t.name as team, p.created_at, p.last_login_at,
+            exists (select 1 from online_emails e where e.kind = 'reminder_optout' and lower(e.to_email) = lower(p.email)) as reminders_off
        from online_participants p left join online_teams t on t.id = p.team_id order by p.id desc`,
   );
 }
 
 export function adminEmails() {
   return onlineQuery<{ id: number; to_email: string; kind: string; subject: string; status: string; error: string | null; created_at: Date }>(
-    `select id, to_email, kind, subject, status, error, created_at from online_emails order by id desc limit 100`,
+    `select id, to_email, kind, subject, status, error, created_at from online_emails where kind <> 'reminder_optout' order by id desc limit 100`,
   );
 }
