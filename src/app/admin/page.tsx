@@ -41,7 +41,8 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
   }
   const sp = await searchParams;
   const tab = TABS.find((t) => t === sp.tab) ?? "submissions";
-  const [teams, people, emails] = await Promise.all([adminTeams(), adminPeople(), tab === "emails" ? adminEmails() : []]);
+  const emailTo = typeof sp.to === "string" && sp.to.trim() ? sp.to.trim() : null;
+  const [teams, people, emails] = await Promise.all([adminTeams(), adminPeople(), tab === "emails" ? adminEmails(emailTo) : []]);
   const submitted = teams.filter((t) => t.status === "submitted");
   const stats = [
     ["Registered", people.length],
@@ -140,9 +141,9 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
 
       {tab === "people" && (
         <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[56rem] border-collapse font-plex text-sm text-bright">
+          <table className="w-full min-w-[64rem] border-collapse font-plex text-sm text-bright">
             <thead>
-              <tr>{["Name", "Email", "Team", "Registered", "Last login", "Reminder emails", "Locked out?"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
+              <tr>{["Name", "Email", "Team", "Registered", "Last login", "Emails sent / opened", "Reminder emails", "Locked out?"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {people.map((p) => (
@@ -152,6 +153,9 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
                   <td className={`${td} ${p.team ? "" : "text-lightgray"}`}>{p.team ?? "none yet"}</td>
                   <td className={`${td} text-lightgray`}>{formatWhen(p.created_at)}</td>
                   <td className={`${td} text-lightgray`}>{p.last_login_at ? formatWhen(p.last_login_at) : "—"}</td>
+                  <td className={`${td} whitespace-nowrap`}>
+                    {p.emails_sent > 0 ? <Link href={`/admin?tab=emails&to=${encodeURIComponent(p.email)}`} className={link}>{p.emails_sent} / {p.emails_opened}</Link> : <span className="text-lightgray">0</span>}
+                  </td>
                   <td className={td}>
                     <form action={setRemindersAction} className="flex items-center gap-2">
                       <input type="hidden" name="participant" value={p.id} />
@@ -170,19 +174,36 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
 
       {tab === "emails" && (
         <div className="mt-6 overflow-x-auto">
-          <p className="mb-4 font-plex text-sm text-lightgray">The last 100 emails the site wrote. &ldquo;not_configured&rdquo; means sending is switched off (set ONLINE_EMAILS=on to turn it on) or SMTP isn&rsquo;t set up, so that email never left the server.</p>
-          <table className="w-full min-w-[48rem] border-collapse font-plex text-sm text-bright">
+          <form action="/admin" className="mb-4 flex flex-wrap items-center gap-3 font-plex text-sm">
+            <input type="hidden" name="tab" value="emails" />
+            <label htmlFor="email-to" className="text-lightgray">One person&rsquo;s emails</label>
+            <input id="email-to" name="to" type="email" defaultValue={emailTo ?? ""} placeholder="name@example.com" className="min-h-11 w-72 border border-hairline bg-ink px-3 text-bright placeholder:text-lightgray focus:border-lime" />
+            <button type="submit" className="min-h-11 border border-hairline px-4 text-bright hover:border-lime">Show</button>
+            {emailTo && <Link href="/admin?tab=emails" className={link}>Show everyone</Link>}
+            <a href={`/admin/export?what=emails${emailTo ? `&to=${encodeURIComponent(emailTo)}` : ""}`} className={link}>Export {emailTo ? "these" : "all emails"} (CSV)</a>
+          </form>
+          <p className="mb-2 font-plex text-sm text-bright">
+            {emailTo ? `Every email written for ${emailTo}` : `The latest ${emails.length} emails`}: {emails.filter((e) => e.status === "sent").length} sent, {emails.filter((e) => e.opened_at).length} opened.
+          </p>
+          <p className="mb-4 font-plex text-sm text-lightgray">
+            &ldquo;not_configured&rdquo; means sending was switched off at the time, so that email never left the server. &ldquo;Opened&rdquo; is a signal, not proof: it is recorded when the mail app loads a tiny image in the email. Apps that block images show
+            &ldquo;no&rdquo; even when the email was read, and Apple Mail can load it without the person reading. Emails sent before open tracking was added show &ldquo;not tracked&rdquo;.
+          </p>
+          <table className="w-full min-w-[60rem] border-collapse font-plex text-sm text-bright">
             <thead>
-              <tr>{["When", "To", "Kind", "Subject", "Status"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
+              <tr>{["When", "To", "Kind", "Subject", "Status", "Opened"].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {emails.map((e) => (
                 <tr key={e.id}>
                   <td className={`${td} text-lightgray`}>{formatWhen(e.created_at)}</td>
-                  <td className={td}>{e.to_email}</td>
+                  <td className={td}><Link href={`/admin?tab=emails&to=${encodeURIComponent(e.to_email)}`} className={link}>{e.to_email}</Link></td>
                   <td className={td}>{e.kind}</td>
                   <td className={td}>{e.subject}</td>
                   <td className={`${td} ${e.status === "sent" ? "text-lime" : "text-danger"}`}>{e.status}{e.error ? `: ${e.error}` : ""}</td>
+                  <td className={`${td} ${e.opened_at ? "text-lime" : "text-lightgray"}`}>
+                    {e.status !== "sent" ? "—" : e.opened_at ? `${formatWhen(e.opened_at)}${e.open_count > 1 ? ` (${e.open_count}×)` : ""}` : e.token_missing ? "not tracked" : "no"}
+                  </td>
                 </tr>
               ))}
             </tbody>
