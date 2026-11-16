@@ -23,7 +23,11 @@ export type Row = {
   views: number | null;
   /** Whether this kind of link has public numbers at all. */
   countable: boolean;
+  /** What the official accounts did to this post. Empty: looked and found nothing. Null: couldn't tell. */
+  official: { account: "testmu" | "kane"; action: "commented" | "replied" | "reposted" | "quoted" }[] | null;
 };
+
+const ACCOUNTS = { testmu: "TestMu AI", kane: "Kane CLI" } as const;
 
 const EVENTS = { online: "Online Hackathon", sf: "Hack Day SF" } as const;
 const PLATFORMS: Record<Row["platform"], { label: string; icon: IconName }> = {
@@ -45,6 +49,7 @@ const COLUMNS = [
   { key: "likes", label: "Likes", numeric: true },
   { key: "comments", label: "Comments", numeric: true },
   { key: "views", label: "Views", numeric: true },
+  { key: "official", label: "Official", numeric: false },
   { key: "saved", label: "Saved (PT)", numeric: false },
 ] as const;
 type SortKey = (typeof COLUMNS)[number]["key"];
@@ -52,6 +57,8 @@ type Sort = { key: SortKey; dir: "asc" | "desc" } | null;
 
 const n = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("en-US"));
 const score = (r: Row) => (r.likes ?? 0) + (r.comments ?? 0);
+const touched = (r: Row) => (r.official?.length ?? 0) > 0;
+const touches = (r: Row) => (r.official ?? []).map((t) => `${ACCOUNTS[t.account]} ${t.action}`);
 const teamKey = (r: Row) => `${r.event}:${r.team}`;
 const when = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" }).format(new Date(iso)) : "—";
@@ -75,6 +82,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
   const [team, setTeam] = useState("all");
   const [numbers, setNumbers] = useState<"any" | "with" | "engaged" | "none">("any");
   const [minLikes, setMinLikes] = useState(0);
+  const [official, setOfficial] = useState<"any" | "yes" | "testmu" | "kane" | "no" | "unknown">("any");
   const [sort, setSort] = useState<Sort>(null);
   const [view, setView] = useState<"posts" | "teams">("posts");
 
@@ -93,9 +101,11 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
         (team === "all" || teamKey(r) === team) &&
         (!needle || `${r.team} ${r.project} ${r.url}`.toLowerCase().includes(needle)) &&
         (numbers === "any" || (numbers === "with" ? r.likes !== null || r.views !== null : numbers === "engaged" ? score(r) > 0 : r.likes === null && r.views === null)) &&
-        (r.likes ?? 0) >= minLikes,
+        (r.likes ?? 0) >= minLikes &&
+        (official === "any" ||
+          (official === "yes" ? touched(r) : official === "no" ? r.official?.length === 0 : official === "unknown" ? r.official === null : r.official?.some((t) => t.account === official) === true)),
     );
-  }, [inEvent, q, team, numbers, minLikes]);
+  }, [inEvent, q, team, numbers, minLikes, official]);
 
   const shown = useMemo(() => {
     const list = beforePlatform.filter((r) => platforms.size === 0 || platforms.has(r.platform));
@@ -106,6 +116,8 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
       platform: (r) => PLATFORMS[r.platform].label.toLowerCase(),
       link: (r) => short(r.url).toLowerCase(),
       saved: (r) => r.savedAt ?? "",
+      // Posts an official account touched first, then "not seen", then "couldn't tell".
+      official: (r) => (touched(r) ? `0${touches(r).join()}` : r.official ? "1" : "2"),
     };
     const flip = sort.dir === "asc" ? 1 : -1;
     const pick = text[sort.key];
@@ -119,13 +131,14 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
   }, [beforePlatform, platforms, sort]);
 
   const byTeam = useMemo(() => {
-    const m = new Map<string, { key: string; event: Row["event"]; team: string; project: string; projectHref: string | null; posts: number; likes: number; comments: number; views: number; platforms: Set<Row["platform"]> }>();
+    const m = new Map<string, { key: string; event: Row["event"]; team: string; project: string; projectHref: string | null; posts: number; likes: number; comments: number; views: number; official: number; platforms: Set<Row["platform"]> }>();
     for (const r of shown) {
-      const t = m.get(teamKey(r)) ?? { key: teamKey(r), event: r.event, team: r.team, project: r.project, projectHref: r.projectHref, posts: 0, likes: 0, comments: 0, views: 0, platforms: new Set() };
+      const t = m.get(teamKey(r)) ?? { key: teamKey(r), event: r.event, team: r.team, project: r.project, projectHref: r.projectHref, posts: 0, likes: 0, comments: 0, views: 0, official: 0, platforms: new Set() };
       t.posts++;
       t.likes += r.likes ?? 0;
       t.comments += r.comments ?? 0;
       t.views += r.views ?? 0;
+      if (touched(r)) t.official++;
       t.platforms.add(r.platform);
       m.set(t.key, t);
     }
@@ -135,7 +148,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
   const sum = (k: "likes" | "comments" | "views") => shown.reduce((t, r) => t + (r[k] ?? 0), 0);
   const withNumbers = shown.filter((r) => r.likes !== null || r.views !== null).length;
   const unanswered = shown.filter((r) => r.countable && r.likes === null && r.views === null).length;
-  const filtered = q !== "" || event !== "all" || platforms.size > 0 || team !== "all" || numbers !== "any" || minLikes > 0;
+  const filtered = q !== "" || event !== "all" || platforms.size > 0 || team !== "all" || numbers !== "any" || minLikes > 0 || official !== "any";
 
   const reset = () => {
     setQ("");
@@ -144,6 +157,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
     setTeam("all");
     setNumbers("any");
     setMinLikes(0);
+    setOfficial("any");
   };
   // Numbers start highest first, text and dates start A–Z / oldest first… except "saved", which starts newest first.
   const sortBy = (key: SortKey, numeric: boolean) =>
@@ -165,8 +179,8 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
       return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     };
     const lines = [
-      ["event", "team", "project", "platform", "url", "likes", "comments", "views", "saved_at"],
-      ...shown.map((r) => [EVENTS[r.event], r.team, r.project, PLATFORMS[r.platform].label, r.url, r.likes, r.comments, r.views, r.savedAt]),
+      ["event", "team", "project", "platform", "url", "likes", "comments", "views", "official_engagement", "saved_at"],
+      ...shown.map((r) => [EVENTS[r.event], r.team, r.project, PLATFORMS[r.platform].label, r.url, r.likes, r.comments, r.views, r.official ? touches(r).join("; ") || "none seen" : "", r.savedAt]),
     ];
     const blob = new Blob([lines.map((l) => l.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -179,7 +193,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
   return (
     <div className="container-page py-10">
       {/* Totals for whatever is filtered in. */}
-      <dl className="grid grid-cols-2 gap-px border border-hairline bg-hairline lg:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-px border border-hairline bg-hairline lg:grid-cols-6">
         {(
           [
             ["Posts", shown.length, false],
@@ -187,6 +201,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
             ["Likes / reactions", sum("likes"), true],
             ["Comments / replies", sum("comments"), true],
             ["YouTube views", sum("views"), true],
+            ["Official engaged", shown.filter(touched).length, true],
           ] as const
         ).map(([name, value, accent]) => (
           <div key={name} className="bg-ink p-4 sm:p-5">
@@ -198,7 +213,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
 
       {/* Filters. */}
       <section aria-label="Filters" className="mt-6 border border-hairline bg-surface p-4 sm:p-5">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
           <label className="block">
             <span className={label}>Search</span>
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Team, project or link" className={`${control} mt-2 w-full placeholder:text-lightgray`} />
@@ -231,6 +246,17 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
                   {v === 0 ? "No minimum" : `${v}+`}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className={label}>Official accounts</span>
+            <select value={official} onChange={(e) => setOfficial(e.target.value as typeof official)} className={`${control} mt-2 w-full`}>
+              <option value="any">Any</option>
+              <option value="yes">Engaged by either</option>
+              <option value="testmu">Engaged by TestMu AI</option>
+              <option value="kane">Engaged by Kane CLI</option>
+              <option value="no">Not engaged yet</option>
+              <option value="unknown">Couldn&apos;t check</option>
             </select>
           </label>
         </div>
@@ -291,7 +317,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
         <p className="mt-4 border border-dashed border-hairline px-4 py-12 text-center font-plex text-sm text-lightgray">No posts match these filters.</p>
       ) : view === "posts" ? (
         <div className="mt-4 max-h-[75vh] overflow-auto border border-hairline">
-          <table className="w-full min-w-[980px] border-separate border-spacing-0 font-plex text-sm">
+          <table className="w-full min-w-[1120px] border-separate border-spacing-0 font-plex text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
                 {COLUMNS.map((c) => {
@@ -340,6 +366,21 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
                       {n(r[k])}
                     </td>
                   ))}
+                  <td className={td}>
+                    {touched(r) ? (
+                      <span className="flex flex-wrap gap-1.5">
+                        {touches(r).map((t) => (
+                          <span key={t} className="border border-lime px-2 py-0.5 text-xs whitespace-nowrap text-lime">
+                            {t}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="text-xs whitespace-nowrap text-lightgray" title={r.official ? "Nothing from the official accounts in what could be checked" : "Can't be read from the public page"}>
+                        {r.official ? "Not yet" : "—"}
+                      </span>
+                    )}
+                  </td>
                   <td className={`${td} whitespace-nowrap text-lightgray`}>{when(r.savedAt)}</td>
                 </tr>
               ))}
@@ -358,6 +399,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
                 <th scope="col" className={`${th} text-right`}>Likes</th>
                 <th scope="col" className={`${th} text-right`}>Comments</th>
                 <th scope="col" className={`${th} text-right`}>Views</th>
+                <th scope="col" className={`${th} text-right`}>Official</th>
               </tr>
             </thead>
             <tbody>
@@ -389,6 +431,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
                   <td className={`${td} text-right tabular-nums text-bright`}>{n(t.likes)}</td>
                   <td className={`${td} text-right tabular-nums text-bright`}>{n(t.comments)}</td>
                   <td className={`${td} text-right tabular-nums text-bright`}>{n(t.views)}</td>
+                  <td className={`${td} text-right tabular-nums ${t.official ? "text-lime" : "text-lightgray"}`}>{t.official}</td>
                 </tr>
               ))}
             </tbody>
@@ -398,7 +441,8 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
 
       <p className="mt-4 font-plex text-xs leading-relaxed text-lightgray">
         Posts are read live from the submissions (read {readAt}). Engagement comes from each platform&apos;s public page and refreshes about once an hour. Blogs other than dev.to and other video hosts publish no counts, and a
-        removed or private post shows &ldquo;—&rdquo;.
+        removed or private post shows &ldquo;—&rdquo;. Official: on LinkedIn, a comment from the TestMu AI page among the comments LinkedIn shows publicly; on X, a repost or quote among the 20 latest posts of @testmuai. Replies on X, reposts
+        on LinkedIn and the @kane_cli timeline are not public, so they can&apos;t be read here.
       </p>
     </div>
   );
