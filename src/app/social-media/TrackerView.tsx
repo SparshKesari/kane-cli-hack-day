@@ -82,7 +82,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
   const [team, setTeam] = useState("all");
   const [numbers, setNumbers] = useState<"any" | "with" | "engaged" | "none">("any");
   const [minLikes, setMinLikes] = useState(0);
-  const [official, setOfficial] = useState<"any" | "yes" | "testmu" | "kane" | "no" | "unknown">("any");
+  const [official, setOfficial] = useState<"any" | "yes" | "no" | "unknown">("any");
   const [sort, setSort] = useState<Sort>(null);
   const [view, setView] = useState<"posts" | "teams">("posts");
 
@@ -103,7 +103,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
         (numbers === "any" || (numbers === "with" ? r.likes !== null || r.views !== null : numbers === "engaged" ? score(r) > 0 : r.likes === null && r.views === null)) &&
         (r.likes ?? 0) >= minLikes &&
         (official === "any" ||
-          (official === "yes" ? touched(r) : official === "no" ? r.official?.length === 0 : official === "unknown" ? r.official === null : r.official?.some((t) => t.account === official) === true)),
+          (official === "yes" ? touched(r) : official === "no" ? r.official?.length === 0 : r.official === null)),
     );
   }, [inEvent, q, team, numbers, minLikes, official]);
 
@@ -252,9 +252,7 @@ export default function TrackerView({ rows, readAt }: { rows: Row[]; readAt: str
             <span className={label}>Official accounts</span>
             <select value={official} onChange={(e) => setOfficial(e.target.value as typeof official)} className={`${control} mt-2 w-full`}>
               <option value="any">Any</option>
-              <option value="yes">Engaged by either</option>
-              <option value="testmu">Engaged by TestMu AI</option>
-              <option value="kane">Engaged by Kane CLI</option>
+              <option value="yes">Engaged</option>
               <option value="no">Not engaged yet</option>
               <option value="unknown">Couldn&apos;t check</option>
             </select>

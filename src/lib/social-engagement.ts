@@ -106,7 +106,8 @@ async function linkedin(url: string): Promise<Engagement | null> {
   const authors = card
     .split(/<section class="comment\b/)
     .slice(1)
-    .map((c) => c.match(/href="https:\/\/[a-z.]*linkedin\.com\/company\/([\w-]+)/)?.[1]?.toLowerCase());
+    // The author's own link carries the "comment_actor" tracking name; a company tagged in the comment's text does not.
+    .map((c) => c.match(/href="https:\/\/[a-z.]*linkedin\.com\/company\/([\w-]+)[^"]*public_post_comment_actor/)?.[1]?.toLowerCase());
   const comments = Math.max(count("num-comments"), authors.length);
   const official = ACCOUNTS.filter((a) => OFFICIAL[a].linkedin.some((slug) => authors.includes(slug))).map((account) => ({ account, action: "commented" as const }));
   // No official comment among those shown only means "no" when every comment was shown.
