@@ -77,18 +77,25 @@ export function adminTeams() {
   );
 }
 
-export type AdminPerson = { id: number; name: string; email: string; x_url: string | null; linkedin_url: string | null; other_links: string | null; team: string | null; created_at: Date; last_login_at: Date | null; reminders_off: boolean };
+export type AdminPerson = { id: number; name: string; email: string; x_url: string | null; linkedin_url: string | null; other_links: string | null; team: string | null; created_at: Date; last_login_at: Date | null; reminders_off: boolean; emails_sent: number; emails_opened: number };
 
 export function adminPeople() {
   return onlineQuery<AdminPerson>(
     `select p.id, p.name, p.email, p.x_url, p.linkedin_url, p.other_links, t.name as team, p.created_at, p.last_login_at,
-            exists (select 1 from online_emails e where e.kind = 'reminder_optout' and lower(e.to_email) = lower(p.email)) as reminders_off
+            exists (select 1 from online_emails e where e.kind = 'reminder_optout' and lower(e.to_email) = lower(p.email)) as reminders_off,
+            (select count(*)::int from online_emails e where e.status = 'sent' and lower(e.to_email) = lower(p.email)) as emails_sent,
+            (select count(*)::int from online_emails e where e.status = 'sent' and e.opened_at is not null and lower(e.to_email) = lower(p.email)) as emails_opened
        from online_participants p left join online_teams t on t.id = p.team_id order by p.id desc`,
   );
 }
 
-export function adminEmails() {
-  return onlineQuery<{ id: number; to_email: string; kind: string; subject: string; status: string; error: string | null; created_at: Date }>(
-    `select id, to_email, kind, subject, status, error, created_at from online_emails where kind <> 'reminder_optout' order by id desc limit 100`,
+export type AdminEmail = { id: number; to_email: string; kind: string; subject: string; status: string; error: string | null; created_at: Date; opened_at: Date | null; last_opened_at: Date | null; open_count: number; token_missing: boolean };
+
+/** The email log, newest first: one person's whole history when `to` is given, otherwise the latest `limit`. */
+export function adminEmails(to?: string | null, limit = 500) {
+  return onlineQuery<AdminEmail>(
+    `select id, to_email, kind, subject, status, error, created_at, opened_at, last_opened_at, open_count, token is null as token_missing from online_emails
+      where kind <> 'reminder_optout' and ($1::text is null or lower(to_email) = lower($1)) order by id desc limit $2`,
+    [to?.trim() || null, to?.trim() ? 5000 : limit],
   );
 }

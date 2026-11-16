@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { onlineEvent, onlineLinks } from "@/data/online";
 import { smtpConfig } from "@/lib/codex-coupon";
@@ -40,9 +41,21 @@ export function timeLeft(now = new Date()) {
   return days >= 2 ? `${days} days` : days === 1 ? "1 day" : "less than a day";
 }
 
+/**
+ * The same words as the plain text, as HTML: links clickable, line breaks kept, plus the 1×1 image
+ * that tells us the email was opened (src/app/o/e/[token]). Mail apps that show only text ignore it.
+ */
+function toHtml(text: string, token: string) {
+  const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const linked = esc.replace(/https?:\/\/[^\s<]*[^\s<.,;:!?)]/g, (u) => `<a href="${u.replace(/"/g, "&quot;")}">${u}</a>`);
+  const pixel = siteUrl().startsWith("https://") ? `<img src="${siteUrl()}/o/e/${token}" width="1" height="1" alt="" style="display:block;border:0">` : "";
+  return `<div style="font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111111;white-space:pre-wrap">${linked}</div>${pixel}`;
+}
+
 async function send(to: string, kind: string, subject: string, body: string, opts: SendOptions = {}) {
   const text = body + signOff(opts.optOut);
-  const [row] = await onlineQuery<{ id: number }>(`insert into online_emails (to_email, kind, subject, body) values ($1, $2, $3, $4) returning id`, [to, kind, subject, text]);
+  const token = randomBytes(16).toString("hex");
+  const [row] = await onlineQuery<{ id: number }>(`insert into online_emails (to_email, kind, subject, body, token) values ($1, $2, $3, $4, $5) returning id`, [to, kind, subject, text, token]);
   const smtp = emailsOn() ? smtpConfig() : null;
   if (!smtp) {
     await onlineQuery(`update online_emails set status = 'not_configured' where id = $1`, [row.id]);
@@ -50,7 +63,7 @@ async function send(to: string, kind: string, subject: string, body: string, opt
   }
   try {
     const transport = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.secure, requireTLS: smtp.requireTLS, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 });
-    await transport.sendMail({ from: process.env.ONLINE_MAIL_FROM?.trim() || `${onlineEvent.name} <${smtp.user}>`, to, subject, text, ...(opts.replyTo ? { replyTo: opts.replyTo } : {}) });
+    await transport.sendMail({ from: process.env.ONLINE_MAIL_FROM?.trim() || `${onlineEvent.name} <${smtp.user}>`, to, subject, text, html: toHtml(text, token), ...(opts.replyTo ? { replyTo: opts.replyTo } : {}) });
     await onlineQuery(`update online_emails set status = 'sent' where id = $1`, [row.id]);
   } catch (err) {
     await onlineQuery(`update online_emails set status = 'failed', error = $2 where id = $1`, [row.id, String(err instanceof Error ? err.message : err).slice(0, 500)]);

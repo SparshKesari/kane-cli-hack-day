@@ -1,7 +1,7 @@
 import "server-only";
 import { onlineEvent } from "@/data/online";
 import { onlineQuery } from "./db";
-import { CONTACT, emailsOn, sendEmail, siteUrl, type SendOptions } from "./email";
+import { CONTACT, emailWelcome, emailsOn, sendEmail, siteUrl, timeLeft, type SendOptions } from "./email";
 import { checkPosts } from "./links";
 
 // The online hackathon's scheduled emails. Run by /api/cron/online-reminders.
@@ -10,6 +10,9 @@ import { checkPosts } from "./links";
 //   1 day left      18 Nov, 7:00 PM IST   everyone, worded for where their team stands
 //   Last call       3 hours before close  only teams with a saved draft that isn't submitted
 //   After deadline  20 Nov, 10:00 AM IST  thank you to those who submitted, a closing note to the rest
+//
+// It also catches up on welcome emails: anyone whose welcome never left the
+// server (they registered while emails were off) gets it on the next run.
 //
 // Who gets which wording is worked out when the email is sent, so a team that
 // submits an hour before a send gets the "submitted" version. Each person gets
@@ -210,7 +213,22 @@ async function pending(kind: string) {
   );
 }
 
-export type ReminderRun = { due: string | null; emailsOn: boolean; pending: number; held: number; sent: number; bySegment: Record<Segment, number> };
+/**
+ * People with no welcome email that actually left the server: they registered while sending was
+ * switched off (their welcome is logged as "not_configured"), or it failed. They get it late.
+ * Someone whose welcome has failed twice is left alone, so one bad address can't hold up the rest.
+ */
+async function pendingWelcome() {
+  return onlineQuery<{ name: string; email: string }>(
+    `select p.name, p.email from online_participants p
+      where not exists (select 1 from online_emails e where lower(e.to_email) = lower(p.email) and ((e.kind = 'welcome' and e.status = 'sent') or e.kind = $1))
+        and (select count(*) from online_emails e where lower(e.to_email) = lower(p.email) and e.kind = 'welcome' and e.status = 'failed') < 2
+      order by p.id`,
+    [OPT_OUT_KIND],
+  );
+}
+
+export type ReminderRun = { due: string | null; emailsOn: boolean; pending: number; held: number; sent: number; bySegment: Record<Segment, number>; lateWelcomes: { pending: number; sent: number } };
 
 /**
  * Sends whatever is due now, a batch at a time. With `dry`, sends nothing and
@@ -222,7 +240,19 @@ export async function runReminders(opts: { dry?: boolean; preview?: string | nul
   const due = (opts.dry && SENDS.find((s) => s.kind === opts.preview)) || sendDue();
   const bySegment: Record<Segment, number> = { submitted: 0, draft: 0, not_started: 0, no_team: 0 };
   const on = emailsOn();
-  if (!due) return { due: null, emailsOn: on, pending: 0, held: 0, sent: 0, bySegment };
+
+  // Late welcomes go first, a batch per run, so nobody's first email from us is a deadline reminder.
+  // Reminders wait for the next run until these are done. Not after the deadline: the welcome is about building.
+  const late = timeLeft() ? await pendingWelcome() : [];
+  const lateWelcomes = { pending: late.length, sent: 0 };
+  if (late.length > 0 && !opts.dry && on) {
+    for (const p of late.slice(0, BATCH)) {
+      await emailWelcome(p.email, p.name);
+      lateWelcomes.sent++;
+    }
+    return { due: due?.kind ?? null, emailsOn: on, pending: 0, held: 0, sent: 0, bySegment, lateWelcomes };
+  }
+  if (!due) return { due: null, emailsOn: on, pending: 0, held: 0, sent: 0, bySegment, lateWelcomes };
 
   const queue: { to: string; mail: Composed }[] = [];
   let held = 0;
@@ -242,5 +272,5 @@ export async function runReminders(opts: { dry?: boolean; preview?: string | nul
       sent++;
     }
   }
-  return { due: due.kind, emailsOn: on, pending: queue.length, held, sent, bySegment };
+  return { due: due.kind, emailsOn: on, pending: queue.length, held, sent, bySegment, lateWelcomes };
 }
