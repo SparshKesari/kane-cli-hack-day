@@ -74,6 +74,7 @@ async function Tracker() {
       comments: e?.comments ?? null,
       views: e?.views ?? null,
       countable: hasEngagement(p.platform, p.url),
+      official: e?.official ?? null,
     };
   });
   const readAt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles", timeZoneName: "short" }).format(new Date());
