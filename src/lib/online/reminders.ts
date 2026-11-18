@@ -6,10 +6,15 @@ import { checkPosts } from "./links";
 
 // The online hackathon's scheduled emails. Run by /api/cron/online-reminders.
 //
-//   3 days left     16 Nov, 7:00 PM IST   everyone, worded for where their team stands
-//   1 day left      18 Nov, 7:00 PM IST   everyone, worded for where their team stands
-//   Last call       3 hours before close  only teams with a saved draft that isn't submitted
-//   After deadline  20 Nov, 10:00 AM IST  thank you to those who submitted, a closing note to the rest
+//   Deadline extended  18 Nov, from deploy   everyone who registered before the deadline moved to 26 Nov
+//   3 days left        23 Nov, 7:00 PM IST   everyone, worded for where their team stands
+//   1 day left         25 Nov, 7:00 PM IST   everyone, worded for where their team stands
+//   Last call          3 hours before close  only teams with a saved draft that isn't submitted
+//   After deadline     27 Nov, 10:00 AM IST  thank you to those who submitted, a closing note to the rest
+//
+// The deadline moved from 19 to 26 November on 18 November. The first "3 days
+// left" (kind reminder_3d) went out on 16 Nov for the old date, so the new one
+// has its own kind: a send is once per person per kind.
 //
 // It also catches up on welcome emails: anyone whose welcome never left the
 // server (they registered while emails were off) gets it on the next run.
@@ -26,10 +31,12 @@ const HOUR = 3_600_000;
 
 /** `at` opens the send; it stays open for `openHours` so a missed cron run or a slow batch still lands. */
 export const SENDS = [
-  { kind: "reminder_3d", left: "3 days", at: () => Date.parse("2026-11-16T19:00:00+05:30"), openHours: 6 },
-  { kind: "reminder_1d", left: "1 day", at: () => Date.parse("2026-11-18T19:00:00+05:30"), openHours: 6 },
+  // Open until the old deadline (19 Nov, 11:59 PM IST), so it goes out as soon as this is deployed.
+  { kind: "deadline_extended", left: "", at: () => Date.parse("2026-11-18T16:00:00+05:30"), openHours: 32 },
+  { kind: "reminder_3d_nov26", left: "3 days", at: () => Date.parse("2026-11-23T19:00:00+05:30"), openHours: 6 },
+  { kind: "reminder_1d", left: "1 day", at: () => Date.parse("2026-11-25T19:00:00+05:30"), openHours: 6 },
   { kind: "reminder_last_call", left: "3 hours", at: () => deadline() - 3 * HOUR, openHours: 1 },
-  { kind: "after_deadline", left: "", at: () => Date.parse("2026-11-20T10:00:00+05:30"), openHours: 12 },
+  { kind: "after_deadline", left: "", at: () => Date.parse("2026-11-27T10:00:00+05:30"), openHours: 12 },
 ] as const;
 export type Send = (typeof SENDS)[number];
 export type SendKind = Send["kind"];
@@ -39,9 +46,9 @@ export type SendKind = Send["kind"];
  * these are filled in, that email is held back rather than sent with a gap.
  */
 const AFTER_DEADLINE = {
-  /** e.g. "20 to 24 November". Needed for the thank-you email. */
+  /** e.g. "27 November to 1 December". Needed for the thank-you email. */
   judging: "",
-  /** e.g. "25 November, on this page and in Slack". Needed for the thank-you email. */
+  /** e.g. "2 December, on this page and in Slack". Needed for the thank-you email. */
   results: "",
   /** Set to true once it's confirmed the Kane CLI licence keeps working after the hackathon. Needed for the closing note. */
   licenceStaysValid: false,
@@ -72,6 +79,8 @@ type Person = {
   reddit_url: string | null;
   linkedin_url: string | null;
   other_posts: string | null;
+  /** Their welcome email already gave the 26 November deadline (they registered after it moved). */
+  knows_deadline: boolean;
 };
 
 /** Where a person's team stands. */
@@ -99,8 +108,37 @@ export function compose(s: Send, p: Person): Composed | null {
   const reminder: SendOptions = { optOut: true };
   const replies: SendOptions = { optOut: true, replyTo: CONTACT };
 
-  if (s.kind === "reminder_3d" || s.kind === "reminder_1d") {
-    const threeDays = s.kind === "reminder_3d";
+  // The deadline moved to 26 November: one notice, worded for where the team stands.
+  if (s.kind === "deadline_extended") {
+    if (p.knows_deadline) return null;
+    const moved = `The ${onlineEvent.name} deadline is extended by one week. Submissions now close on ${onlineEvent.deadlineLabel}.`;
+    const stuck = `Stuck on something? Reply to this email and tell us where, or write to ${CONTACT}`;
+    const opts: SendOptions = { optOut: true, ownClosing: true, replyTo: CONTACT };
+
+    if (seg === "submitted") {
+      return {
+        subject: `Deadline extended: one more week to improve ${project}`,
+        body: `Hi ${p.name},\n\n${moved}\n\n"${project}" is already submitted, so there is nothing you have to do. The extra week is yours to use:\n\n- Keep improving the project and update your submission any time before the new deadline.\n- Share your showcase page so more people find it.\n- Add new post links as you publish them. Every extra post earns brownie points.\n\nLog in to edit your submission:\n${site}\n\nPrizes, rules and judging criteria stay the same.\n\nQuestions? Reply to this email or write to ${CONTACT}`,
+        opts,
+      };
+    }
+    if (seg === "no_team") {
+      return {
+        subject: `Deadline extended: you have until ${onlineEvent.deadlineDay} to join in`,
+        body: `Hi ${p.name},\n\n${moved}\n\nYou're registered but not on a team yet, and a week is enough time to build something that works. Three steps:\n\n1. Create a team (solo is fine) or join with a teammate's code.\n2. Get Kane CLI running with your 10,000 free credits.\n3. Build and submit. You need two public posts about your project for the submission to go through.\n\nAll three start here:\n${site}\n\n${stuck}`,
+        opts,
+      };
+    }
+    // A saved draft, or nothing saved yet.
+    return {
+      subject: `Deadline extended: ${p.team} has until ${onlineEvent.deadlineDay}`,
+      body: `Hi ${p.name},\n\n${moved}\n\nYour team "${p.team}" hasn't submitted yet, and now there is a full extra week to do it. Anyone on the team can submit.\n\nTwo things to know:\n\n- You need two public posts about your project for the submission to go through.\n- You can submit early and keep editing until the deadline. A small project that works beats a big one that doesn't.\n\nLog in to finish your submission. If Kane CLI isn't running for you yet, the Start page has the setup steps and your 10,000 free credits:\n${site}\n\n${stuck}`,
+      opts,
+    };
+  }
+
+  if (s.kind === "reminder_3d_nov26" || s.kind === "reminder_1d") {
+    const threeDays = s.kind === "reminder_3d_nov26";
 
     if (seg === "no_team") {
       return {
@@ -181,14 +219,14 @@ export function compose(s: Send, p: Person): Composed | null {
     const page = p.hidden ? "" : `Your showcase page stays up: ${site}/o/p/${p.slug}\n`;
     return {
       subject: `Thank you for submitting: what happens next`,
-      body: `Hi ${p.name},\n\nSubmissions are closed, and "${project}" is in. Thank you for building with us this week.\n\nWhat happens next:\n- Judging: ${AFTER_DEADLINE.judging}\n- Results: ${AFTER_DEADLINE.results}\n\n${page}Every project is at ${site}/showcase\n\nPosts still count for reach, so keep sharing.`,
+      body: `Hi ${p.name},\n\nSubmissions are closed, and "${project}" is in. Thank you for building with us these two weeks.\n\nWhat happens next:\n- Judging: ${AFTER_DEADLINE.judging}\n- Results: ${AFTER_DEADLINE.results}\n\n${page}Every project is at ${site}/showcase\n\nPosts still count for reach, so keep sharing.`,
       opts: {},
     };
   }
   if (!AFTER_DEADLINE.licenceStaysValid) return null;
   return {
     subject: `The ${onlineEvent.name} has closed`,
-    body: `Hi ${p.name},\n\nSubmissions for the ${onlineEvent.name} are closed. Your team didn't get one in this time, and that's fine: a week is short.\n\nYour Kane CLI licence still works, so whatever you started doesn't have to stop here. Docs: https://www.testmuai.com/support/docs/kane-cli-introduction/\n\nSee what other teams built: ${site}/showcase\n\nIf something got in your way this week, reply and tell us. It helps us run the next one better.`,
+    body: `Hi ${p.name},\n\nSubmissions for the ${onlineEvent.name} are closed. Your team didn't get one in this time, and that's fine: two weeks go fast.\n\nYour Kane CLI licence still works, so whatever you started doesn't have to stop here. Docs: https://www.testmuai.com/support/docs/kane-cli-introduction/\n\nSee what other teams built: ${site}/showcase\n\nIf something got in your way this week, reply and tell us. It helps us run the next one better.`,
     opts: { replyTo: CONTACT },
   };
 }
@@ -200,7 +238,11 @@ export const OPT_OUT_KIND = "reminder_optout";
 async function pending(kind: string) {
   return onlineQuery<Person>(
     `select p.name, p.email, t.name as team, t.slug, t.hidden, s.status, s.project_name,
-            s.hn_url, s.x_url, s.reddit_url, s.linkedin_url, s.other_posts
+            s.hn_url, s.x_url, s.reddit_url, s.linkedin_url, s.other_posts,
+            exists (
+              select 1 from online_emails w
+               where lower(w.to_email) = lower(p.email) and w.kind = 'welcome' and w.status = 'sent' and position($3 in w.body) > 0
+            ) as knows_deadline
        from online_participants p
        left join online_teams t on t.id = p.team_id
        left join online_submissions s on s.team_id = t.id
@@ -209,7 +251,7 @@ async function pending(kind: string) {
          where lower(e.to_email) = lower(p.email) and ((e.kind = $1 and e.status <> 'failed') or e.kind = $2)
       )
       order by p.id`,
-    [kind, OPT_OUT_KIND],
+    [kind, OPT_OUT_KIND, onlineEvent.deadlineLabel],
   );
 }
 
