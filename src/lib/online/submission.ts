@@ -103,7 +103,7 @@ export async function saveSubmission(teamId: number, participantId: number, d: D
   return { conflict: false, submitted: r.status === "submitted", receipt: r.receipt_code, version: r.version, at: r.updated_at };
 }
 
-/** The deadline's time zone first, then Pacific: "19 Nov 2026, 11:42 PM IST (10:12 AM PT)". */
+/** The deadline's time zone first, then Pacific: "26 Nov 2026, 11:42 PM IST (10:12 AM PT)". */
 export function formatWhen(d: Date) {
   const f = (timeZone: string, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone, hour12: true, ...opts }).format(d).replace(/\b(am|pm)\b/, (m) => m.toUpperCase());
   return `${f("Asia/Kolkata", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })} IST (${f("America/Los_Angeles", { hour: "numeric", minute: "2-digit" })} PT)`;

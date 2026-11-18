@@ -265,7 +265,7 @@ async function Body({ params }: Pick<PageProps<"/o/p/[slug]">, "params">) {
 
       <div className="border-t border-dashed border-hairline">
         <div className="container-page flex flex-wrap items-center justify-between gap-4 py-8 font-plex text-sm text-lightgray">
-          <p>Built in a week for the KaneCLI Online Hackathon.</p>
+          <p>Built in two weeks for the KaneCLI Online Hackathon.</p>
           <Link href="/" className={linkCls}>
             See the hackathon →
           </Link>

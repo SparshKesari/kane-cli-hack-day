@@ -20,20 +20,22 @@ export const onlineLinks = {
 
 export const onlineEvent = {
   name: "KaneCLI Online Hackathon",
-  tagline: "Build it with any agent. Verify it with Kane. Ship in a week.",
+  tagline: "Build it with any agent. Verify it with Kane. Ship in two weeks.",
   /** One line under the hero. */
-  facts: ["12 – 19 November", "$3,000 in prizes", "Anywhere in the world"],
+  facts: ["12 – 26 November", "$3,000 in prizes", "Anywhere in the world"],
   intro:
-    "A one-week online hackathon for developers who build with AI coding agents and want to see what happens when you put a real verification layer next to them.",
-  /** ISO time with offset. After this, submissions can't be changed. 19 Nov, 11:59 PM IST. */
-  submissionDeadline: "2026-11-19T23:59:00+05:30",
-  deadlineLabel: "19 November, 11:59 PM IST (10:29 AM PT)",
+    "A two-week online hackathon for developers who build with AI coding agents and want to see what happens when you put a real verification layer next to them.",
+  /** ISO time with offset. After this, submissions can't be changed. 26 Nov, 11:59 PM IST (extended from 19 Nov). */
+  submissionDeadline: "2026-11-26T23:59:00+05:30",
+  deadlineLabel: "26 November, 11:59 PM IST (10:29 AM PT)",
+  /** The deadline's day on its own, for subjects and short lines. */
+  deadlineDay: "26 November",
 };
 
 // ── The challenge ────────────────────────────────────────────────────────────
 
 export const onlineChallenge = {
-  statement: "Build an app, an agent or a workflow with an AI coding agent, on web or mobile. Verify it with Kane CLI. Ship by 11:59 PM IST on 19 November.",
+  statement: "Build an app, an agent or a workflow with an AI coding agent, on web or mobile. Verify it with Kane CLI. Ship by 11:59 PM IST on 26 November.",
   why: "Agents write code fast but can't check their own work. Kane CLI closes that loop: describe a flow in plain English, get a pass or fail from a real browser, iOS simulator or Android emulator.",
   rules: [
     { title: "Any agent, any stack.", body: "Claude Code, Cursor, Copilot, Codex, Windsurf, Kiro, or your own MCP setup." },
@@ -112,7 +114,7 @@ export const week: { intro: string; slots: WeekSlot[] } = {
   intro: "Times in IST, with Pacific (PT) alongside.",
   slots: [
     { date: "Thu 12 Nov", title: "Kickoff. Building starts", kind: "milestone", at: "2026-11-12T00:00:00+05:30" },
-    { date: "Thu 19 Nov", time: "11:59 PM IST", title: "Submission deadline", note: "10:29 AM PT. No pushes after this.", kind: "deadline", at: "2026-11-19T23:59:00+05:30" },
+    { date: "Thu 26 Nov", time: "11:59 PM IST", title: "Submission deadline", note: "10:29 AM PT. Extended from 19 Nov. No pushes after this.", kind: "deadline", at: "2026-11-26T23:59:00+05:30" },
   ],
 };
 
@@ -135,7 +137,7 @@ export const beforeYouStart = {
 };
 
 export const whatToSubmit = {
-  intro: "By 11:59 PM IST on 19 November.",
+  intro: "By 11:59 PM IST on 26 November.",
   items: [
     { title: "GitHub URL", body: "Your repo, started on or after 12 Nov." },
     { title: "About your app", body: "What you built, which agent, what Kane does." },
@@ -199,11 +201,11 @@ export const onlineResources: OnlineLink[] = [
 
 export const slackCta = {
   title: "Join our Slack group",
-  body: "For any questions, help from the Kane CLI engineers, extra credits and updates during the week.",
+  body: "For any questions, help from the Kane CLI engineers, extra credits and updates during the hackathon.",
   button: "Join Slack",
 };
 
-export const signOff = "Plain English. Real browser. Pass or fail. Ship in a week.";
+export const signOff = "Plain English. Real browser. Pass or fail. Ship in two weeks.";
 
 // ── Launch buzz guide (/o/start) ────────────────────────────────────────
 
@@ -276,7 +278,7 @@ export const launchGuide = {
     {
       label: "LinkedIn · launch post",
       note: "1,100 to 1,600 characters. The first two lines show before \u201csee more\u201d, so the hook must stand alone. The @TestMu AI and @teammate tags only work if you retype the @ and pick each one from the dropdown.",
-      text: "[Hook: what you built and the one surprising fact. No \"excited to share\".]\n\n[Context: a one-week online hackathon, who you built with.]\n\n[The build: what your agent did, in plain words.]\n\n[The test loop: what Kane CLI ran, what failed, what you fixed, that it passed.]\n\n[What you learned: one honest take.]\n\nShowcase page: [link]\nRepo: [GitHub link]\n\nBuilt with @[teammate names], tested with Kane CLI from @TestMu AI.\n\n#KaneCLIHackathon #KaneCLI #AIAgents",
+      text: "[Hook: what you built and the one surprising fact. No \"excited to share\".]\n\n[Context: a two-week online hackathon, who you built with.]\n\n[The build: what your agent did, in plain words.]\n\n[The test loop: what Kane CLI ran, what failed, what you fixed, that it passed.]\n\n[What you learned: one honest take.]\n\nShowcase page: [link]\nRepo: [GitHub link]\n\nBuilt with @[teammate names], tested with Kane CLI from @TestMu AI.\n\n#KaneCLIHackathon #KaneCLI #AIAgents",
     },
     {
       label: "Hacker News · Show HN",
@@ -286,7 +288,7 @@ export const launchGuide = {
     {
       label: "Reddit",
       note: "Plain and specific. No hashtags. Read the subreddit's rules on self-promotion first.",
-      text: "I built [project name] in a week: [what it does]\n\nStack: [your agent] for the code, Kane CLI for testing it in a real browser. The interesting part was [the loop / the bug Kane caught].\n\nWhat's rough: [one honest limitation].\n\nDemo video: [YouTube link]\nCode: [GitHub link]\n\nHappy to answer questions about how the agent and Kane CLI work together.",
+      text: "I built [project name] in two weeks: [what it does]\n\nStack: [your agent] for the code, Kane CLI for testing it in a real browser. The interesting part was [the loop / the bug Kane caught].\n\nWhat's rough: [one honest limitation].\n\nDemo video: [YouTube link]\nCode: [GitHub link]\n\nHappy to answer questions about how the agent and Kane CLI work together.",
     },
   ],
 };

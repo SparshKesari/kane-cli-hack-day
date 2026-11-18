@@ -27,11 +27,14 @@ export function emailsOn() {
 
 export const CONTACT = "conferences@testmuai.com";
 
-/** `optOut` adds the line reminders carry; `replyTo` sends replies somewhere other than the sending mailbox. */
-export type SendOptions = { optOut?: boolean; replyTo?: string };
+/**
+ * `optOut` adds the line reminders carry; `replyTo` sends replies somewhere other than the sending
+ * mailbox; `ownClosing` is for a body that ends with its own "questions?" line, so the Slack one is left out.
+ */
+export type SendOptions = { optOut?: boolean; replyTo?: string; ownClosing?: boolean };
 
-const signOff = (optOut?: boolean) =>
-  `\n\nQuestions? Join Slack: ${onlineLinks.slack}\nor write to ${CONTACT}${optOut ? `\n\nDon't want these reminders? Reply "stop" and we'll take you off the list.` : ""}\n\n${onlineEvent.name} · TestMu AI`;
+const signOff = ({ optOut, ownClosing }: SendOptions) =>
+  `${ownClosing ? "" : `\n\nQuestions? Join Slack: ${onlineLinks.slack}\nor write to ${CONTACT}`}${optOut ? `\n\nDon't want these reminders? Reply "stop" and we'll take you off the list.` : ""}\n\n${onlineEvent.name} · TestMu AI`;
 
 /** "4 days", "1 day", "less than a day"; null once the deadline has passed. */
 export function timeLeft(now = new Date()) {
@@ -53,7 +56,7 @@ function toHtml(text: string, token: string) {
 }
 
 async function send(to: string, kind: string, subject: string, body: string, opts: SendOptions = {}) {
-  const text = body + signOff(opts.optOut);
+  const text = body + signOff(opts);
   const token = randomBytes(16).toString("hex");
   const [row] = await onlineQuery<{ id: number }>(`insert into online_emails (to_email, kind, subject, body, token) values ($1, $2, $3, $4, $5) returning id`, [to, kind, subject, text, token]);
   const smtp = emailsOn() ? smtpConfig() : null;
@@ -76,17 +79,17 @@ const quiet = (p: Promise<void>) => p.catch(() => {});
 /** For emails composed elsewhere (the deadline reminders): logged and sent the same way as the rest. */
 export const sendEmail = (to: string, kind: string, subject: string, body: string, opts?: SendOptions) => quiet(send(to, kind, subject, body, opts));
 
-export const emailWelcome = (to: string, name: string) => {
-  const left = timeLeft();
-  return quiet(
+/** The welcome. Written after the deadline moved to 26 November, so a new registrant's first email already carries it. */
+export const emailWelcome = (to: string, name: string) =>
+  quiet(
     send(
       to,
       "welcome",
-      `You're registered for the ${onlineEvent.name}`,
-      `Hi ${name},\n\nYou're in. Build it with any agent. Verify it with Kane. Ship by 19 November.\n\nSubmissions close ${onlineEvent.deadlineLabel}.${left ? ` You have ${left}.` : ""}\n\nOne rule to know now: you need two public posts about your project to submit.\n\nYour cheat sheet:\n1. Set up your team (solo is fine): ${siteUrl()}/o/team\n2. Register on TestMu AI: ${onlineLinks.register}\n3. Claim your Kane CLI licence (10,000 free credits): ${onlineLinks.claim}\n4. Install Kane CLI: npm install -g @testmuai/kane-cli\n5. Run one flow from the docs: ${onlineLinks.docs}\n6. Plan your two posts: ${siteUrl()}/o/launch\n\nWhen you're ready, submit here: ${siteUrl()}/o/submit`,
+      `You're in: ${onlineEvent.name}, submissions close ${onlineEvent.deadlineDay}`,
+      `Hi ${name},\n\nYou're registered for the ${onlineEvent.name}. Welcome.\n\nThe deadline has been extended, so you have until ${onlineEvent.deadlineLabel} to build and submit.\n\nThe brief: build something with any coding agent, and use Kane CLI to prove it works.\n\nHow to get going:\n\n1. Create a team (solo is fine) or join with a teammate's code.\n2. Claim your 10,000 free Kane CLI credits and install Kane CLI:\n   npm install -g @testmuai/kane-cli\n3. Build your project and run Kane CLI against it as you go.\n4. Publish two public posts about your project, then submit. You can submit early and keep editing until the deadline.\n\nAll of it starts here:\n${siteUrl()}\n\nA small project that works beats a big one that doesn't, so start small and ship.\n\nStuck on something? Reply to this email and tell us where, or write to ${CONTACT}`,
+      { ownClosing: true, replyTo: CONTACT },
     ),
   );
-};
 
 export const emailTeamCreated = (to: string, name: string, team: string, code: string) =>
   quiet(send(to, "team_created", `Your team code: ${code}`, `Hi ${name},\n\nYou're the captain of "${team}".\n\nShare this code with your teammates (up to 4 people in total):\n\n    ${code}\n\nThey register at ${siteUrl()}/o/register, choose "Join a team", and enter it.\n\nManage your team: ${siteUrl()}/o/team`));

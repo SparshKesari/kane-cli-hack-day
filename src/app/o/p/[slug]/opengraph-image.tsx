@@ -16,7 +16,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const team = await getTeamBySlug(slug).catch(() => null);
   const sub = team && !team.hidden ? await getSubmission(team.id).catch(() => null) : null;
   if (!team || sub?.status !== "submitted") {
-    return ogCard({ eyebrow: "Welcome to", corner: "by TestMu AI", title: onlineEvent.name, subtitle: onlineEvent.tagline, facts: ["12 – 19 November", "$3,000 in prizes", "Online"], path: "kaneclihack.sh" });
+    return ogCard({ eyebrow: "Welcome to", corner: "by TestMu AI", title: onlineEvent.name, subtitle: onlineEvent.tagline, facts: ["12 – 26 November", "$3,000 in prizes", "Online"], path: "kaneclihack.sh" });
   }
   const members = await getMembers(team.id).catch(() => []);
   return ogCard({

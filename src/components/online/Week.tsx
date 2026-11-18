@@ -18,9 +18,9 @@ export default function Week() {
     <Fold id="schedule">
       <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <SectionHeading
-          eyebrow="The week"
-          dim="One week,"
-          bright="Ship by the 19th."
+          eyebrow="The schedule"
+          dim="Two weeks,"
+          bright="Ship by the 26th."
           intro={
             <>
               {week.intro}

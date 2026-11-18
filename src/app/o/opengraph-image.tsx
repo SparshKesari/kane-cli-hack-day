@@ -12,7 +12,7 @@ export default function Image() {
     corner: "by TestMu AI",
     title: onlineEvent.name,
     subtitle: onlineEvent.tagline,
-    facts: ["12 – 19 November", "$3,000 in prizes", "Online"],
+    facts: ["12 – 26 November", "$3,000 in prizes", "Online"],
     path: "kaneclihack.sh",
   });
 }
