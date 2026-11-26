@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { onlineResources, signOff } from "@/data/online";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { onlineEvent, onlineResources, signOff, submissionsClosed } from "@/data/online";
 import { Eyebrow } from "@/components/ui/Section";
 import Decode from "@/components/ui/Decode";
 import Statue from "@/components/art/Statue";
@@ -19,9 +21,9 @@ export default function Closer() {
             <Decode text="Ship it" />
           </h2>
           <p className="mt-6 max-w-md font-plex text-sm leading-relaxed text-lightgray">{signOff}</p>
-          <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
-            Submit your project →
-          </Link>
+          <Suspense fallback={<div className="mt-8 min-h-11" />}>
+            <CloserAction />
+          </Suspense>
           <div className="mt-12 w-full text-left">
             <Eyebrow>Resources</Eyebrow>
             <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
@@ -41,5 +43,27 @@ export default function Closer() {
         </figure>
       </div>
     </section>
+  );
+}
+
+/** Submit until the deadline; after it, the closed note and a link to the projects. */
+async function CloserAction() {
+  await connection();
+  if (submissionsClosed()) {
+    return (
+      <>
+        <p className="mt-6 max-w-md font-plex text-sm text-bright">
+          <span className="text-lime">{onlineEvent.closedTitle}.</span> {onlineEvent.closedNote}
+        </p>
+        <Link href="/showcase" className="mt-6 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+          See the projects →
+        </Link>
+      </>
+    );
+  }
+  return (
+    <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+      Submit your project →
+    </Link>
   );
 }

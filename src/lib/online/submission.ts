@@ -1,6 +1,6 @@
 import "server-only";
 import { randomInt } from "node:crypto";
-import { onlineEvent } from "@/data/online";
+import { submissionsClosed } from "@/data/online";
 import { onlineQuery } from "./db";
 import { checkPosts, normalizeUrl } from "./links";
 
@@ -39,7 +39,7 @@ export type Submission = Draft & {
 export const emptyDraft = (): Draft => Object.fromEntries(FIELDS.map((k) => [k, null])) as Draft;
 
 export function isLocked(now = new Date()) {
-  return now >= new Date(onlineEvent.submissionDeadline);
+  return submissionsClosed(now.getTime());
 }
 
 export async function getSubmission(teamId: number) {

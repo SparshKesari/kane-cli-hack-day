@@ -30,7 +30,14 @@ export const onlineEvent = {
   deadlineLabel: "26 November, 11:59 PM IST (10:29 AM PT)",
   /** The deadline's day on its own, for subjects and short lines. */
   deadlineDay: "26 November",
+  /** Shown everywhere once the deadline passes: the homepage, register, team and submit pages. */
+  closedTitle: "Submissions are closed",
+  closedNote: "Thank you to everyone who built and shipped. Winners will be announced soon.",
 };
+
+/** True once the submission deadline has passed. The pages that change at the deadline call
+ *  connection() first, so they flip on their own at 11:59 PM IST without a redeploy. */
+export const submissionsClosed = (now = Date.now()) => now >= Date.parse(onlineEvent.submissionDeadline);
 
 // ── The challenge ────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { emailJoinedTeam, emailTeamCreated, emailTeammateJoined } from "@/lib/online/email";
+import { onlineEvent, submissionsClosed } from "@/data/online";
 import { createTeam, getMe, getMembers, joinTeam, leaveTeam, removeMember, renameTeam } from "@/lib/online/team";
 
 export type TeamState = { error: string } | null;
@@ -14,6 +15,7 @@ export async function teamAction(_: TeamState, form: FormData): Promise<TeamStat
   const me = await getMe();
   if (!me) redirect("/o/login");
   if (me.teamId !== null) redirect("/o/team");
+  if (submissionsClosed()) return { error: `New teams can't be registered any more. ${onlineEvent.closedNote}` };
 
   const mode = String(form.get("mode") ?? "");
   if (mode === "join") {
