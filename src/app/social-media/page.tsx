@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { engagementFor, hasEngagement } from "@/lib/social-engagement";
+import { engagementFor, hasEngagement, type Engagement } from "@/lib/social-engagement";
+import { loadSnapshots, type Snapshot } from "@/lib/social-snapshots";
 import { EVENT_LABEL, listOnlinePosts, listSfPosts, type TrackedPost } from "@/lib/social-tracker";
 import OnlineShell from "../o/Shell";
 import TrackerView, { type Row } from "./TrackerView";
@@ -58,10 +59,20 @@ async function Tracker() {
     load(EVENT_LABEL.online, Boolean(process.env.ONLINE_DATABASE_URL), listOnlinePosts),
   ]);
   const posts = [...online.posts, ...sf.posts];
-  // Likes, comments and views, kept for an hour per post (see social-engagement.ts).
-  const engagement = await engagementFor(posts);
+  // The numbers saved by the scheduled read (see social-snapshots.ts). A link added since the last
+  // read, or everything when nothing has been saved yet, is asked for now and kept for an hour.
+  const saved: Map<string, Snapshot> = process.env.ONLINE_DATABASE_URL
+    ? await loadSnapshots().catch((e) => {
+        if ((e as { code?: string }).code !== "42P01") console.error("social-media: saved numbers failed to load", e); // 42P01: table not created yet
+        return new Map();
+      })
+    : new Map();
+  const live = await engagementFor(posts.filter((p) => !saved.has(p.url)));
+  const latest = Math.max(0, ...[...saved.values()].map((s) => s.readAt.getTime()));
+  const clock = (d: Date | number) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles", timeZoneName: "short" }).format(d);
   const rows: Row[] = posts.map((p) => {
-    const e = engagement.get(p.url);
+    const snap = saved.get(p.url);
+    const e: Engagement | null | undefined = snap ?? live.get(p.url);
     return {
       event: p.event,
       team: p.team,
@@ -73,6 +84,9 @@ async function Tracker() {
       likes: e?.likes ?? null,
       comments: e?.comments ?? null,
       views: e?.views ?? null,
+      reposts: e?.reposts ?? null,
+      // An older reading: the platform hasn't answered in the six hours before the latest read.
+      staleSince: snap && latest - snap.readAt.getTime() > 6 * 3600_000 ? clock(snap.readAt) : null,
       countable: hasEngagement(p.platform, p.url),
       official: e?.official ?? null,
     };
@@ -91,7 +105,7 @@ async function Tracker() {
           ))}
         </div>
       )}
-      <TrackerView rows={rows} readAt={readAt} />
+      <TrackerView rows={rows} readAt={readAt} savedAt={latest ? clock(latest) : null} />
     </>
   );
 }

@@ -42,6 +42,9 @@ export function AdminBar({ registrationOpen }: { registrationOpen: boolean }) {
       <a href="/ops/export?type=members" className="border border-hairline px-3 py-2 font-plex text-xs text-bright hover:border-lime hover:text-lime">
         Members CSV
       </a>
+      <a href="/ops/export?type=final" className="border border-lime px-3 py-2 font-plex text-xs text-lime hover:bg-lime-deep">
+        Final attendees + projects CSV
+      </a>
       <form action={adminLogout}>
         <button type="submit" className="px-1 py-2 font-plex text-xs text-lightgray hover:text-bright">
           Sign out

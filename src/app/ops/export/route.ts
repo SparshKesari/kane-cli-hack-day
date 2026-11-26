@@ -1,5 +1,6 @@
 import { PROGRESS_ITEMS, shippedMinimum } from "@/lib/progress";
 import { isAdmin } from "@/lib/session";
+import { listFinalAttendees } from "../final-tracker/data";
 import { listAllMembers, listAllProgress, listTeams } from "@/lib/teams";
 import { listMemberSocials, listTeamPhotoStats } from "../queries";
 
@@ -15,10 +16,13 @@ const toCsv = (rows: unknown[][]) => rows.map((r) => r.map(cell).join(",")).join
 
 export async function GET(request: Request) {
   if (!(await isAdmin())) return new Response("Unauthorized", { status: 401 });
-  const type = new URL(request.url).searchParams.get("type") === "members" ? "members" : "teams";
+  const param = new URL(request.url).searchParams.get("type");
+  const type = param === "members" || param === "final" ? param : "teams";
 
   let csv: string;
-  if (type === "members") {
+  if (type === "final") {
+    csv = await finalAttendeesCsv();
+  } else if (type === "members") {
     const [members, socials] = await Promise.all([listAllMembers(), listMemberSocials()]);
     const byMember = new Map(socials.map((s) => [s.id, s]));
     csv = toCsv([
@@ -65,3 +69,21 @@ export async function GET(request: Request) {
     },
   });
 }
+
+async function finalAttendeesCsv() {
+  const rows = await listFinalAttendees();
+  return toCsv([
+    [
+      "name", "email", "p_code", "github", "checked_in_at", "activated_at",
+      "team", "team_slug", "track", "submission_status", "receipt", "finalized_at",
+      "project_name", "one_line_pitch", "project_description", "repo_url", "demo_url", "video_url", "deck_url", "showcase_url", "ship_page", "ship_page_state",
+    ],
+    ...rows.map((r) => [
+      r.name, r.email, r.public_code, r.github_handle, iso(r.checked_in_at), iso(r.activated_at),
+      r.team_name, r.team_slug, r.track, r.status, r.receipt_code, iso(r.finalized_at),
+      r.project_name, r.one_line_pitch, r.project_description, r.repo_url, r.demo_url, r.video_url, r.deck_url, r.showcase_url, r.ship_page, r.showcase_state ?? "",
+    ]),
+  ]);
+}
+
+const iso = (d: Date | null) => (d ? new Date(d).toISOString() : "");

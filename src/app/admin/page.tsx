@@ -60,6 +60,7 @@ async function Body({ searchParams }: Pick<PageProps<"/admin">, "searchParams">)
           <h1 className="mt-2 font-display text-4xl text-bright">Organiser view</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3 font-plex text-sm">
+          <Link href="/admin/summary" className="border border-lime px-4 py-2 text-lime hover:bg-lime hover:text-ink">Summary</Link>
           <a href="/admin/export?what=submissions" className="border border-hairline px-4 py-2 text-bright hover:border-lime">Export submissions (CSV)</a>
           <a href="/admin/export?what=people" className="border border-hairline px-4 py-2 text-bright hover:border-lime">Export people (CSV)</a>
           <form action={adminLogoutAction}>

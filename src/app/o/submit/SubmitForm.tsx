@@ -132,9 +132,9 @@ export default function SubmitForm({ draft, submitted, disabled, defaultName, sh
             </p>
           )}
           {post("x_url", "x")}
-          {post("linkedin_url", "linkedin")}
           {post("hn_url", "hackernews")}
           {post("reddit_url", "reddit")}
+          {post("linkedin_url", "linkedin")}
           <Field id="other_posts" icon="link" label="Posts anywhere else" hint="Blogs, dev.to, YouTube…" error={issueFor("other_posts")}>
             {(id) => <textarea id={id} name="other_posts" defaultValue={draft.other_posts ?? ""} rows={3} maxLength={1500} placeholder="Every extra post counts: blogs, follow-ups, threads…" className={inp} />}
           </Field>
