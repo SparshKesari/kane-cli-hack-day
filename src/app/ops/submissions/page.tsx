@@ -86,7 +86,12 @@ async function SubmissionsView() {
       <p className="font-plex text-xs text-lightgray">Server time {fmt.format(ev.now)}{ev.fallback ? " · event config unavailable, showing defaults" : ""}.</p>
 
       <div>
-        <p className={label}>All teams</p>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="font-pixel text-[10px] uppercase tracking-[0.2em] text-lightgray">All teams</p>
+          <a href="/ops/submissions/export" className="inline-flex min-h-11 items-center border border-hairline px-3 font-plex text-xs text-bright hover:border-lime hover:text-lime">
+            Export all submissions (CSV)
+          </a>
+        </div>
         <SubmissionsTable rows={data} />
       </div>
 
