@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
-import { onlineEvent, onlineLinks } from "@/data/online";
+import { onlineEvent, onlineLinks, submissionsClosed } from "@/data/online";
 import { getOnlineSession } from "@/lib/online/session";
 import { logoutAction } from "./login/actions";
 
@@ -44,7 +44,7 @@ export default function OnlineShell({ children }: { children: ReactNode }) {
             <a href={onlineLinks.slack} target="_blank" rel="noreferrer" className="hidden border border-lime px-4 py-2 text-lime transition-colors hover:bg-lime hover:text-ink sm:inline-block">
               Join Slack
             </a>
-            <Suspense fallback={<LoginLink />}>
+            <Suspense fallback={<LoginLink register={false} />}>
               <AccountLinks />
             </Suspense>
           </div>
@@ -84,7 +84,7 @@ export default function OnlineShell({ children }: { children: ReactNode }) {
 }
 
 async function AccountLinks() {
-  if ((await getOnlineSession()) === null) return <LoginLink />;
+  if ((await getOnlineSession()) === null) return <LoginLink register={!submissionsClosed()} />;
   return (
     <>
       <Link href="/o/team" className="hidden text-lightgray hover:text-bright sm:inline">
@@ -102,15 +102,18 @@ async function AccountLinks() {
   );
 }
 
-function LoginLink() {
+/** Register only while registration is open (and not in the loading fallback, so it never flashes after the deadline). */
+function LoginLink({ register }: { register: boolean }) {
   return (
     <>
       <Link href="/o/login" className="text-lightgray hover:text-bright">
         Log in
       </Link>
-      <Link href="/o/register" className="bg-bright px-4 py-2 text-ink transition-colors hover:bg-lime">
-        Register
-      </Link>
+      {register && (
+        <Link href="/o/register" className="bg-bright px-4 py-2 text-ink transition-colors hover:bg-lime">
+          Register
+        </Link>
+      )}
     </>
   );
 }

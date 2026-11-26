@@ -4,7 +4,9 @@ import DissolveWordmark from "./hero/DissolveWordmark";
 import HeroLens from "./hero/HeroLens";
 import LensText from "./hero/LensText";
 import Link from "next/link";
-import { onlineEvent } from "@/data/online";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { onlineEvent, submissionsClosed } from "@/data/online";
 
 // The homepage is the online hackathon now; same hero, new words.
 const WORDMARK = ["KaneCLI Online", "Hackathon"];
@@ -55,15 +57,37 @@ export default function Hero() {
             </span>
           ))}
         </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 font-plex text-sm">
-          <Link href="/o/register" className="inline-flex min-h-11 items-center bg-bright px-5 text-ink transition-colors hover:bg-lime">
-            Register yourself and your team →
-          </Link>
-          <Link href="/o/submit" className="inline-flex min-h-11 items-center border border-hairline px-5 text-bright transition-colors hover:border-lime">
-            Submit your project
-          </Link>
-        </div>
+        {/* The buttons read the clock per request, so they switch to "closed" at the deadline on their own. */}
+        <Suspense fallback={<div className="mt-6 min-h-11" />}>
+          <HeroActions />
+        </Suspense>
       </div>
     </HeroLens>
+  );
+}
+
+async function HeroActions() {
+  await connection();
+  if (submissionsClosed()) {
+    return (
+      <div className="mt-6 flex flex-col items-center gap-4 font-plex text-sm">
+        <p className="border border-lime px-4 py-3 text-bright">
+          <span className="font-pixel uppercase tracking-[0.15em] text-lime">{onlineEvent.closedTitle}.</span> {onlineEvent.closedNote}
+        </p>
+        <Link href="/showcase" className="inline-flex min-h-11 items-center bg-bright px-5 text-ink transition-colors hover:bg-lime">
+          See the projects →
+        </Link>
+      </div>
+    );
+  }
+  return (
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 font-plex text-sm">
+        <Link href="/o/register" className="inline-flex min-h-11 items-center bg-bright px-5 text-ink transition-colors hover:bg-lime">
+          Register yourself and your team →
+        </Link>
+        <Link href="/o/submit" className="inline-flex min-h-11 items-center border border-hairline px-5 text-bright transition-colors hover:border-lime">
+          Submit your project
+        </Link>
+      </div>
   );
 }

@@ -8,6 +8,7 @@ import { emailPasswordReset, emailWelcome } from "@/lib/online/email";
 import { emailProblem } from "@/lib/online/email-check";
 import { createResetLink, tokenHash } from "@/lib/online/reset";
 import { clearOnlineSession, setOnlineSession } from "@/lib/online/session";
+import { onlineEvent, submissionsClosed } from "@/data/online";
 
 export type AuthState = { error: string } | { done: string } | null;
 
@@ -32,6 +33,8 @@ const signupSchema = z.object({
 
 /** Step 1 of registration: yourself. Step 2 (/o/team) is your team. */
 export async function registerAction(_: AuthState, form: FormData): Promise<AuthState> {
+  // Closed at the deadline, even for a form posted from a page loaded before it.
+  if (submissionsClosed()) return { error: `Registration is closed. ${onlineEvent.closedNote}` };
   const get = (k: string) => String(form.get(k) ?? "");
   const p = signupSchema.safeParse({ name: get("name"), email: get("email"), password: get("password"), x_url: get("x_url"), linkedin_url: get("linkedin_url"), other_links: get("other_links") });
   if (!p.success) return { error: p.error.issues[0].message };

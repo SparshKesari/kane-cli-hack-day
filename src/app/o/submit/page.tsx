@@ -66,7 +66,7 @@ async function SubmitBody() {
           </dl>
           <p className="mt-4 font-plex text-sm text-lightgray">
             {emailsOn() ? "A copy went to everyone on the team by email. " : "Keep this receipt code: it's your proof of submission. "}
-            {locked ? "Submissions are closed." : `You can keep updating it until ${onlineEvent.deadlineLabel}.`}
+            {locked ? `${onlineEvent.closedTitle}. ${onlineEvent.closedNote}` : `You can keep updating it until ${onlineEvent.deadlineLabel}.`}
           </p>
         </div>
       ) : (
@@ -83,7 +83,8 @@ async function SubmitBody() {
           </div>
           <div className="bg-ink p-4">
             <p className="font-pixel text-xs uppercase tracking-[0.15em] text-lightgray">{locked ? "Deadline passed" : "Submit by"}</p>
-            <p className="mt-1 font-display text-lg text-bright">{locked ? "Submissions are closed" : onlineEvent.deadlineLabel}</p>
+            <p className="mt-1 font-display text-lg text-bright">{locked ? onlineEvent.closedTitle : onlineEvent.deadlineLabel}</p>
+            {locked && <p className="font-plex text-xs text-lightgray">{onlineEvent.closedNote}</p>}
           </div>
         </div>
       )}

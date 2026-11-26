@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { beforeYouStart, whatToSubmit } from "@/data/online";
+import { beforeYouStart, onlineEvent, whatToSubmit } from "@/data/online";
+import UntilClose from "./UntilClose";
 import { Fold, SectionHeading } from "@/components/ui/Section";
 import Reveal from "@/components/ui/Reveal";
 import CopyField from "@/components/ui/CopyField";
@@ -44,9 +45,11 @@ export default function Start() {
               </Reveal>
             ))}
           </ol>
-          <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
-            Submit your project →
-          </Link>
+          <UntilClose after={<p className="mt-8 font-plex text-sm text-bright"><span className="text-lime">{onlineEvent.closedTitle}.</span> {onlineEvent.closedNote}</p>}>
+            <Link href="/o/submit" className="mt-8 inline-flex min-h-11 items-center bg-bright px-5 font-plex text-sm text-ink transition-colors hover:bg-lime">
+              Submit your project →
+            </Link>
+          </UntilClose>
         </div>
       </div>
     </Fold>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { MAX_TEAM, getMe, getMembers, getTeam, rosterLocked } from "@/lib/online/team";
+import { onlineEvent, submissionsClosed } from "@/data/online";
 import Steps from "../Steps";
 import TeamForms, { RenameForm } from "./TeamForms";
 import { leaveTeamAction, removeMemberAction } from "./actions";
@@ -29,6 +30,17 @@ async function Body() {
   const me = await getMe();
   if (!me) redirect("/o/login");
   const team = me.teamId === null ? null : await getTeam(me.teamId);
+
+  if (!team && submissionsClosed()) {
+    return (
+      <>
+        <h1 className="font-display text-4xl text-bright">Registration is closed</h1>
+        <p className="mt-3 font-plex text-sm text-lightgray">
+          Hi {me.name}. {onlineEvent.closedTitle}, so new teams can&rsquo;t be registered. {onlineEvent.closedNote}
+        </p>
+      </>
+    );
+  }
 
   if (!team) {
     return (
