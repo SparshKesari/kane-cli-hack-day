@@ -15,15 +15,29 @@ import OnlineShell from "../o/Shell";
 // pages already show and changes nothing about them. The two events live in
 // separate databases, so each list loads, and fails, on its own.
 
-const TITLE = "Showcase";
-const DESCRIPTION = "Every project built for the KaneCLI hackathons: what each team shipped, built with an AI agent and verified with Kane CLI.";
+// Head tags from the growth kit (kaneclihack-growth/01/showcase-head.html). Submissions closed at 196.
+// The share image stays the generated ./opengraph-image.tsx.
+const TITLE = "Showcase: 196 Projects Built With AI Coding Agents";
+const DESCRIPTION = "All 196 projects from TestMu AI's Kane CLI online hackathon, built with Claude Code, Codex, Cursor and more, then tested with Kane CLI. Repo for each.";
+const SHARE_TITLE = "196 projects built with an AI agent, verified with Kane CLI";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.kaneclihack.sh"),
-  title: { absolute: `${TITLE} · ${onlineEvent.name}` },
+  title: { absolute: TITLE },
   description: DESCRIPTION,
-  openGraph: { title: `${TITLE} · ${onlineEvent.name}`, description: DESCRIPTION, url: "/showcase", siteName: onlineEvent.name, type: "website" },
-  twitter: { card: "summary_large_image", title: `${TITLE} · ${onlineEvent.name}`, description: DESCRIPTION, images: ["/showcase/opengraph-image"] },
+  alternates: { canonical: "/showcase" },
+  openGraph: {
+    title: SHARE_TITLE,
+    description: "Every project from the Kane CLI online hackathon, 12 to 26 November 2026. Filter by agent, read the code, try the live demos.",
+    url: "/showcase",
+    siteName: onlineEvent.name,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SHARE_TITLE,
+    description: "Every project from the Kane CLI online hackathon. Filter by agent, read the code, try the live demos.",
+  },
 };
 
 export default function ShowcasePage() {
