@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import Account, { SignedOut } from "@/components/Account";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import KaneCta from "@/components/KaneCta";
 import { event } from "@/data/hackday";
 
 // Wordmark and large display type.
@@ -56,6 +57,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
         <div className="flex-1">{children}</div>
         <Footer />
+        <Suspense fallback={null}>
+          <KaneCta />
+        </Suspense>
       </body>
     </html>
   );
